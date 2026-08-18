@@ -1449,8 +1449,8 @@ const datetimePickerModule = (function () {
   const confirmBtn = document.getElementById('dpConfirmBtn');
 
   // ========== 滚轮日期选择器 ==========
-  const DATE_ITEM_HEIGHT = 16;
-  const TIME_ITEM_HEIGHT = 12;
+  const DATE_ITEM_HEIGHT = 10;
+  const TIME_ITEM_HEIGHT = 10;
 
   const wheelYearList = document.getElementById('dpWheelYearList');
   const wheelMonthList = document.getElementById('dpWheelMonthList');
@@ -1588,23 +1588,24 @@ const datetimePickerModule = (function () {
     const currentM = now.getMonth() + 1;
     const currentD = now.getDate();
 
-    // 年份：1990 ~ 当前年 + 10
+    // 年份：当前年 - 5 ~ + 5
+    const baseYear = currentY;
     const years = [];
-    for (let y = 1990; y <= currentY + 10; y++) years.push(y + '年');
-    renderWheel('year', years, years.indexOf(currentY + '年'));
+    for (let y = baseYear - 5; y <= baseYear + 5; y++) years.push(String(y));
+    renderWheel('year', years, years.indexOf(String(currentY)));
 
     // 月份：1 ~ 12
     const months = [];
-    for (let m = 1; m <= 12; m++) months.push(m + '月');
+    for (let m = 1; m <= 12; m++) months.push(String(m));
     renderWheel('month', months, currentM - 1);
 
     // 日期：根据当前年月
     const daysInMonth = getDaysInMonth(currentY, currentM);
     const days = [];
-    for (let d = 1; d <= daysInMonth; d++) days.push(d + '日');
+    for (let d = 1; d <= daysInMonth; d++) days.push(String(d));
     renderWheel('day', days, currentD - 1);
 
-    // 小时：0 ~ 23
+    // 小时：0 ~ 23（无前导零，tabular-nums 对齐）
     const hours = [];
     for (let h = 0; h < 24; h++) hours.push(String(h).padStart(2, '0'));
     renderWheel('hour', hours, currentHour);
@@ -1626,17 +1627,14 @@ const datetimePickerModule = (function () {
 
   // 滚轮日期变化回调
   function onWheelDateChange() {
-    const yearVal = wheelState.year.items[wheelState.year.index];
-    const monthVal = wheelState.month.items[wheelState.month.index];
-    const dayVal = wheelState.day.items[wheelState.day.index];
-    const y = parseInt(yearVal);
-    const m = parseInt(monthVal);
-    const d = parseInt(dayVal);
+    const y = parseInt(wheelState.year.items[wheelState.year.index]);
+    const m = parseInt(wheelState.month.items[wheelState.month.index]);
+    const d = parseInt(wheelState.day.items[wheelState.day.index]);
 
     const maxDay = getDaysInMonth(y, m);
     if (wheelState.day.index >= maxDay) {
       const days = [];
-      for (let i = 1; i <= maxDay; i++) days.push(i + '日');
+      for (let i = 1; i <= maxDay; i++) days.push(String(i));
       renderWheel('day', days, maxDay - 1);
     }
 
@@ -1664,7 +1662,7 @@ const datetimePickerModule = (function () {
     const DATE_H = wheelState.year.itemH;
 
     // 年份
-    const yearIdx = wheelState.year.items.indexOf(y + '年');
+    const yearIdx = wheelState.year.items.indexOf(String(y));
     if (yearIdx >= 0) {
       wheelState.year.index = yearIdx;
       wheelState.year.scrollTop = yearIdx * DATE_H;
@@ -1692,7 +1690,7 @@ const datetimePickerModule = (function () {
     // 日期
     const maxDay = getDaysInMonth(y, m);
     const days = [];
-    for (let i = 1; i <= maxDay; i++) days.push(i + '日');
+    for (let i = 1; i <= maxDay; i++) days.push(String(i));
     const dayIdx = Math.min(d - 1, maxDay - 1);
     renderWheel('day', days, dayIdx);
   }

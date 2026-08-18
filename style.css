@@ -381,16 +381,19 @@ main {
   border-color: var(--accent-color);
 }
 
-/* 滚轮日期选择器 */
+/* ========== 滚轮选择器 — 小而美 ========== */
+
+/* 日期滚轮 */
 .dp-wheel-picker {
   display: flex;
-  gap: 2px;
-  height: 96px;
-  background: linear-gradient(180deg, #f8f9ff 0%, #fff 50%, #f8f9ff 100%);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  gap: 0;
+  height: 80px;
+  background: #fafbff;
+  border: none;
+  border-radius: 10px;
   overflow: hidden;
   position: relative;
+  box-shadow: inset 0 0 0 1px rgba(102, 126, 234, 0.08);
 }
 
 .dp-wheel-col {
@@ -398,6 +401,11 @@ main {
   position: relative;
   overflow: hidden;
   height: 100%;
+  min-width: 0;
+}
+
+.dp-wheel-col:first-child {
+  flex: 1.1; /* 年份列稍宽 */
 }
 
 .dp-wheel-list {
@@ -406,53 +414,56 @@ main {
   left: 0;
   right: 0;
   will-change: transform;
-  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
-  padding: 36px 0; /* 上下各留3行空间：3×12=36 */
+  transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  padding: 30px 0; /* 3行空间 × 10px = 30px */
 }
 
 .dp-wheel-item {
-  height: 16px;
-  line-height: 16px;
+  height: 10px;
+  line-height: 10px;
   text-align: center;
-  font-size: 12px;
-  color: var(--text-secondary);
+  font-size: 11px;
+  color: #bbb;
   cursor: pointer;
-  transition: color 0.15s, opacity 0.15s;
+  transition: color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
   user-select: none;
-  font-weight: 500;
+  font-weight: 400;
+  letter-spacing: 0.3px;
 }
 
 .dp-wheel-item.selected {
   color: var(--accent-color);
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: 600;
+  font-size: 12px;
+  transform: scale(1.05);
 }
 
 .dp-wheel-item.near {
-  color: var(--text-primary);
-  opacity: 0.65;
+  color: #888;
+  opacity: 0.7;
 }
 
 .dp-wheel-item.far {
-  opacity: 0.25;
+  color: #ccc;
+  opacity: 0.35;
 }
 
-/* 中央高亮线 */
+/* 中央指示线 — 柔和圆角矩形 */
 .dp-wheel-highlight {
   position: absolute;
-  left: 2px;
-  right: 2px;
+  left: 4px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
-  height: 16px;
-  border-top: 1px solid var(--accent-color);
-  border-bottom: 1px solid var(--accent-color);
+  height: 20px;
+  background: linear-gradient(180deg, rgba(102, 126, 234, 0.08), rgba(102, 126, 234, 0.04));
+  border-radius: 6px;
   pointer-events: none;
   z-index: 2;
-  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.2);
 }
 
-/* 上下遮罩渐变 */
+/* 上下渐隐遮罩 */
 .dp-wheel-mask {
   position: absolute;
   top: 0;
@@ -463,52 +474,54 @@ main {
   z-index: 1;
   background: linear-gradient(
     180deg,
-    rgba(248, 249, 255, 0.95) 0%,
-    rgba(248, 249, 255, 0.4) 30%,
+    rgba(250, 251, 255, 1) 0%,
+    rgba(250, 251, 255, 0.6) 25%,
     transparent 50%,
-    rgba(248, 249, 255, 0.4) 70%,
-    rgba(248, 249, 255, 0.95) 100%
+    rgba(250, 251, 255, 0.6) 75%,
+    rgba(250, 251, 255, 1) 100%
   );
 }
 
-/* 时间滚轮 — 紧凑版 */
+/* 时间滚轮 — 与日期同高，更精致 */
 .dp-wheel-picker-compact {
-  height: 72px;
+  height: 80px;
 }
 
 .dp-wheel-picker-compact .dp-wheel-list {
-  padding: 27px 0; /* 3×9=27 */
+  padding: 30px 0;
 }
 
 .dp-wheel-picker-compact .dp-wheel-item {
-  height: 12px;
-  line-height: 12px;
+  height: 10px;
+  line-height: 10px;
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .dp-wheel-picker-compact .dp-wheel-item.selected {
   font-size: 12px;
 }
 
-.dp-wheel-picker-compact .dp-wheel-highlight {
-  height: 12px;
-}
-
 .dp-wheel-sep {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-secondary);
+  width: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #aaa;
   flex-shrink: 0;
   user-select: none;
+  padding: 0 1px;
 }
 
-/* 滚动条隐藏 */
+/* 隐藏滚动条 */
 .dp-wheel-col::-webkit-scrollbar {
   display: none;
+}
+
+.dp-wheel-col {
+  scrollbar-width: none;
 }
 
 .dp-time-row {
