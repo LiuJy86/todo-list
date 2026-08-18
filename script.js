@@ -1449,8 +1449,8 @@ const datetimePickerModule = (function () {
   const confirmBtn = document.getElementById('dpConfirmBtn');
 
   // ========== 滚轮选择器（月/日 + 时/分） ==========
-  const DATE_ITEM_HEIGHT = 10;
-  const TIME_ITEM_HEIGHT = 10;
+  const DATE_ITEM_HEIGHT = 14;
+  const TIME_ITEM_HEIGHT = 14;
 
   const wheelMonthList = document.getElementById('dpWheelMonthList');
   const wheelDayList = document.getElementById('dpWheelDayList');
