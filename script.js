@@ -304,7 +304,7 @@ function createTodoElement(todo) {
     tooltipParts.push('✅ 已完成 ' + todo.completionCount + ' 次');
   }
   if (tooltipParts.length > 0) {
-    li.title = tooltipParts.join(' | ');
+    li.setAttribute('data-tooltip', tooltipParts.join(' | '));
     li.classList.add('has-tooltip');
   }
 

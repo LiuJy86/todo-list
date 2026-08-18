@@ -968,7 +968,7 @@ main {
 }
 
 .todo-item.has-tooltip:hover::after {
-  content: attr(title);
+  content: attr(data-tooltip);
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
