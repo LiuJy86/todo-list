@@ -45,11 +45,12 @@
         autocomplete="off"
       >
       <!-- 日期时间选择器：精确指定提醒时间（可选，留空则无提醒） -->
-      <!-- 与文本框互补：文本框支持自然语言，本框支持精确选择 -->
+      <!-- lang="en" 强制浏览器用英文格式渲染 datetime-local（4 位年份 mm/dd/yyyy），避免中文 Windows 下显示 yy -->
       <input
         type="datetime-local"
         id="remindAtInput"
         title="选择提醒时间（可选，留空则不设提醒）"
+        lang="en"
       >
       <!-- 添加按钮，id 用于 JS 监听点击事件 -->
       <button id="addBtn">添加</button>

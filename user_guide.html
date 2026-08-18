@@ -225,6 +225,7 @@
       <ul>
         <li>与文本框互补：自然语言解析成功时自动同步到选择器；解析失败时回退到选择器的值；都为空则纯添加（不设提醒）</li>
         <li>留空表示<strong>不设提醒</strong>，仅作为普通待办</li>
+        <li><strong>关于显示格式</strong>：选择器的日期显示样式由浏览器语言设置决定（中文系统可能显示 <code>yy/mm/日</code>，英文系统显示 <code>mm/dd/yyyy</code>），<strong>但实际存储和使用的时间值始终是完整 4 位年份的 yyyy-MM-ddTHH:mm 格式，不会影响提醒触发</strong>。</li>
       </ul>
     </section>
 

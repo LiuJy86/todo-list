@@ -4,6 +4,37 @@
 
 ---
 
+## [v2.3.3] - 2026-08-18
+
+### 修复 (Fixed) — datetime-local 显示为 2 位年份
+
+**现象**：下载后本地运行时，日期时间选择器显示 `yy/mm/日 --:--`（2 位年份），而非预期的 4 位年份。
+
+**根因**：`<input type="datetime-local">` 的显示格式由**浏览器 locale + 操作系统区域设置**控制，与 `value` 字符串无关。在中文 Windows + Chrome/Edge 环境下，浏览器默认用中文短格式渲染日期，导致 4 位年份被压缩为 2 位显示。
+
+**诊断证据**：
+- `formatToLocalInputValue()` 生成的值 `2026-08-18T08:00` 已经是 4 位年份（正确）
+- `el.value` 在 DOM 里存储的也是 `2026-08-18T08:00`（正确）
+- 仅渲染层把 `2026` 显示为 `yy`——纯显示问题
+
+**修复**：给 `#remindAtInput` 添加 `lang="en"` 属性，强制浏览器用英文 locale 渲染 datetime-local，英文格式下始终显示 4 位年份（`mm/dd/yyyy, --:--` 或 `yyyy/mm/dd --:--`）。
+
+**影响**：仅改变控件显示格式，底层 value 仍为 `yyyy-MM-ddTHH:mm`（HTML5 规范格式），所有 JS 逻辑（parseReminderFromText / formatToLocalInputValue / wrappedAddTodo / scheduleReminder）完全不受影响。
+
+### 验证 (Verified)
+
+- ✅ `lang` 属性生效：`en`
+- ✅ 设置值后仍为 `2026-08-18T08:00`（4 位年份）
+- ✅ `formatToLocalInputValue` 仍输出 4 位年份
+- ✅ 控制台零错误
+- ✅ 功能无回归：解析、调度、提醒触发链路完全不受影响
+
+### 核心文件
+
+- `index.html`：`#remindAtInput` 新增 `lang="en"` 属性 + 注释说明
+
+---
+
 ## [v2.3.2] - 2026-08-18
 
 ### 新增 (Added) — GitHub 仓库悬浮入口
