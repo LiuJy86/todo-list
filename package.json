@@ -1,0 +1,58 @@
+{
+  "name": "todo-list",
+  "version": "2.5.0",
+  "description": "待办事项清单（Stitch 桌宠版）- Electron 桌面应用",
+  "main": "main.js",
+  "author": "LiuJy",
+  "license": "MIT",
+  "homepage": "https://github.com/LiuJy86/todo-list",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder --win",
+    "build:portable": "electron-builder --win portable",
+    "build:all": "electron-builder -mw"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.liujy.todolist",
+    "productName": "待办事项清单",
+    "copyright": "Copyright © 2026 LiuJy",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "index.html",
+      "user_guide.html",
+      "script.js",
+      "style.css",
+      "main.js",
+      "提示音效.mp3",
+      "img/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "待办事项清单"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    }
+  }
+}
