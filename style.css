@@ -355,7 +355,7 @@ main {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .dp-preset {
@@ -383,6 +383,27 @@ main {
 
 /* ========== 滚轮选择器 — 小而美 ========== */
 
+/* 日期行：年份标签 + 月/日滚轮 */
+.dp-date-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.dp-year-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-color);
+  min-width: 42px;
+  text-align: center;
+  padding: 4px 6px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.08));
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
 /* 日期滚轮 */
 .dp-wheel-picker {
   display: flex;
@@ -394,6 +415,8 @@ main {
   overflow: hidden;
   position: relative;
   box-shadow: inset 0 0 0 1px rgba(102, 126, 234, 0.08);
+  flex: 1;
+  min-width: 0;
 }
 
 .dp-wheel-col {
@@ -402,10 +425,6 @@ main {
   overflow: hidden;
   height: 100%;
   min-width: 0;
-}
-
-.dp-wheel-col:first-child {
-  flex: 1.1; /* 年份列稍宽 */
 }
 
 .dp-wheel-list {
@@ -482,7 +501,18 @@ main {
   );
 }
 
-/* 时间滚轮 — 与日期同高，更精致 */
+/* 时间预设按钮 — 与滚轮保持呼吸感 */
+.dp-time-presets {
+  margin-top: 6px;
+  margin-bottom: 0;
+  justify-content: flex-start;
+}
+
+.dp-time-presets .dp-preset {
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+}
 .dp-wheel-picker-compact {
   height: 80px;
 }

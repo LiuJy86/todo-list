@@ -1448,19 +1448,18 @@ const datetimePickerModule = (function () {
   const clearBtn = document.getElementById('dpClearBtn');
   const confirmBtn = document.getElementById('dpConfirmBtn');
 
-  // ========== 滚轮日期选择器 ==========
+  // ========== 滚轮选择器（月/日 + 时/分） ==========
   const DATE_ITEM_HEIGHT = 10;
   const TIME_ITEM_HEIGHT = 10;
 
-  const wheelYearList = document.getElementById('dpWheelYearList');
   const wheelMonthList = document.getElementById('dpWheelMonthList');
   const wheelDayList = document.getElementById('dpWheelDayList');
   const wheelHourList = document.getElementById('dpWheelHourList');
   const wheelMinuteList = document.getElementById('dpWheelMinuteList');
+  const yearLabel = document.getElementById('dpYearLabel');
 
   // 滚轮列状态
   const wheelState = {
-    year:   { listEl: wheelYearList,   items: [], index: 0, scrollTop: 0, itemH: DATE_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 },
     month:  { listEl: wheelMonthList,  items: [], index: 0, scrollTop: 0, itemH: DATE_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 },
     day:    { listEl: wheelDayList,    items: [], index: 0, scrollTop: 0, itemH: DATE_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 },
     hour:   { listEl: wheelHourList,   items: [], index: 8, scrollTop: 0, itemH: TIME_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 },
@@ -1588,11 +1587,8 @@ const datetimePickerModule = (function () {
     const currentM = now.getMonth() + 1;
     const currentD = now.getDate();
 
-    // 年份：当前年 - 5 ~ + 5
-    const baseYear = currentY;
-    const years = [];
-    for (let y = baseYear - 5; y <= baseYear + 5; y++) years.push(String(y));
-    renderWheel('year', years, years.indexOf(String(currentY)));
+    // 年份标签
+    yearLabel.textContent = currentY + '年';
 
     // 月份：1 ~ 12
     const months = [];
@@ -1605,7 +1601,7 @@ const datetimePickerModule = (function () {
     for (let d = 1; d <= daysInMonth; d++) days.push(String(d));
     renderWheel('day', days, currentD - 1);
 
-    // 小时：0 ~ 23（无前导零，tabular-nums 对齐）
+    // 小时：0 ~ 23
     const hours = [];
     for (let h = 0; h < 24; h++) hours.push(String(h).padStart(2, '0'));
     renderWheel('hour', hours, currentHour);
@@ -1615,19 +1611,16 @@ const datetimePickerModule = (function () {
     for (let m = 0; m < 60; m++) minutes.push(String(m).padStart(2, '0'));
     renderWheel('minute', minutes, currentMinute);
 
-    // 绑定日期滚轮事件
-    bindWheel('year', onWheelDateChange);
+    // 绑定事件
     bindWheel('month', onWheelDateChange);
     bindWheel('day', onWheelDateChange);
-
-    // 绑定时间滚轮事件
     bindWheel('hour', onWheelTimeChange);
     bindWheel('minute', onWheelTimeChange);
   }
 
   // 滚轮日期变化回调
   function onWheelDateChange() {
-    const y = parseInt(wheelState.year.items[wheelState.year.index]);
+    const y = currentDate ? currentDate.getFullYear() : new Date().getFullYear();
     const m = parseInt(wheelState.month.items[wheelState.month.index]);
     const d = parseInt(wheelState.day.items[wheelState.day.index]);
 
@@ -1659,21 +1652,10 @@ const datetimePickerModule = (function () {
     const y = date.getFullYear();
     const m = date.getMonth() + 1;
     const d = date.getDate();
-    const DATE_H = wheelState.year.itemH;
+    const DATE_H = wheelState.month.itemH;
 
-    // 年份
-    const yearIdx = wheelState.year.items.indexOf(String(y));
-    if (yearIdx >= 0) {
-      wheelState.year.index = yearIdx;
-      wheelState.year.scrollTop = yearIdx * DATE_H;
-      wheelState.year.listEl.style.transform = 'translateY(' + (-yearIdx * DATE_H) + 'px)';
-      wheelState.year.listEl.querySelectorAll('.dp-wheel-item').forEach((el, i) => {
-        el.classList.remove('selected', 'near', 'far');
-        if (i === yearIdx) el.classList.add('selected');
-        else if (Math.abs(i - yearIdx) <= 1) el.classList.add('near');
-        else el.classList.add('far');
-      });
-    }
+    // 年份标签
+    yearLabel.textContent = y + '年';
 
     // 月份
     const monthIdx = m - 1;

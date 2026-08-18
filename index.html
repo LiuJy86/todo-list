@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>待办事项清单</title>
   <!-- 引入样式表，负责页面外观 -->
-  <link rel="stylesheet" href="style.css?v=17">
+  <link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
 
@@ -63,22 +63,20 @@
                 <button type="button" class="dp-preset" data-date="dayAfter">后天</button>
                 <button type="button" class="dp-preset" data-date="nextWeek">下周一</button>
               </div>
-              <!-- 滚轮日期选择器 -->
-              <div class="dp-wheel-picker" id="dpWheelPicker">
-                <div class="dp-wheel-col" id="dpWheelYear">
-                  <div class="dp-wheel-mask"></div>
-                  <div class="dp-wheel-highlight"></div>
-                  <div class="dp-wheel-list" id="dpWheelYearList"></div>
-                </div>
-                <div class="dp-wheel-col" id="dpWheelMonth">
-                  <div class="dp-wheel-mask"></div>
-                  <div class="dp-wheel-highlight"></div>
-                  <div class="dp-wheel-list" id="dpWheelMonthList"></div>
-                </div>
-                <div class="dp-wheel-col" id="dpWheelDay">
-                  <div class="dp-wheel-mask"></div>
-                  <div class="dp-wheel-highlight"></div>
-                  <div class="dp-wheel-list" id="dpWheelDayList"></div>
+              <!-- 年份标签 + 月/日滚轮 -->
+              <div class="dp-date-row">
+                <span class="dp-year-label" id="dpYearLabel"></span>
+                <div class="dp-wheel-picker" id="dpWheelPicker">
+                  <div class="dp-wheel-col" id="dpWheelMonth">
+                    <div class="dp-wheel-mask"></div>
+                    <div class="dp-wheel-highlight"></div>
+                    <div class="dp-wheel-list" id="dpWheelMonthList"></div>
+                  </div>
+                  <div class="dp-wheel-col" id="dpWheelDay">
+                    <div class="dp-wheel-mask"></div>
+                    <div class="dp-wheel-highlight"></div>
+                    <div class="dp-wheel-list" id="dpWheelDayList"></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -99,7 +97,7 @@
                   <div class="dp-wheel-list" id="dpWheelMinuteList"></div>
                 </div>
               </div>
-              <div class="dp-preset-row" id="dpTimePresets">
+              <div class="dp-preset-row dp-time-presets" id="dpTimePresets">
                 <button type="button" class="dp-preset" data-time="morning">8:00</button>
                 <button type="button" class="dp-preset" data-time="noon">12:00</button>
                 <button type="button" class="dp-preset" data-time="evening">20:00</button>
@@ -174,6 +172,6 @@
   </a>
 
   <!-- 引入脚本，负责页面交互逻辑 -->
-  <script src="script.js?v=14"></script>
+  <script src="script.js?v=15"></script>
 </body>
 </html>
