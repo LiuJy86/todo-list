@@ -1704,7 +1704,9 @@ const datetimePickerModule = (function () {
 
   // 选择时间预设
   function selectTimePreset(preset) {
+    const now = new Date();
     const presets = {
+      now: { h: now.getHours(), m: now.getMinutes() },
       morning: { h: 8, m: 0 },
       noon: { h: 12, m: 0 },
       evening: { h: 20, m: 0 }
@@ -1762,6 +1764,14 @@ const datetimePickerModule = (function () {
   function open() {
     datetimePopover.classList.add('open');
     datetimeTrigger.classList.add('active');
+    // 更新"现在"按钮显示
+    const nowBtn = document.getElementById('dpNowBtn');
+    if (nowBtn) {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      nowBtn.textContent = '现在 ' + hh + ':' + mm;
+    }
     // 初始化日期为今天
     if (!currentDate) {
       selectDatePreset('today');
@@ -1801,9 +1811,11 @@ const datetimePickerModule = (function () {
     activeDatePreset = preset;
   }
 
-  // 选择时间预设
-  function selectTimePreset(preset) {
+  // 选择时间预设（旧版保留，已弃用）
+  function selectTimePreset_Deprecated(preset) {
+    const now = new Date();
     const presets = {
+      now: { h: now.getHours(), m: now.getMinutes() },
       morning: { h: 8, m: 0 },
       noon: { h: 12, m: 0 },
       evening: { h: 20, m: 0 }
@@ -1812,8 +1824,7 @@ const datetimePickerModule = (function () {
     if (!p) return;
     currentHour = p.h;
     currentMinute = p.m;
-    hourSelect.value = String(p.h).padStart(2, '0');
-    minuteSelect.value = String(p.m).padStart(2, '0');
+    setWheelToTime(p.h, p.m);
     timePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
       b.classList.toggle('active', b.dataset.time === preset);
     });

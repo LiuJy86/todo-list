@@ -397,11 +397,11 @@ main {
   color: var(--accent-color);
   min-width: 42px;
   text-align: center;
-  padding: 4px 6px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.08));
-  border-radius: 6px;
+  padding: 4px 8px;
+  background: #fafbff;
+  border-radius: 10px;
   letter-spacing: 0.5px;
-  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(102, 126, 234, 0.08);
 }
 
 /* 日期滚轮 */
