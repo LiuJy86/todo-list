@@ -1449,19 +1449,22 @@ const datetimePickerModule = (function () {
   const confirmBtn = document.getElementById('dpConfirmBtn');
 
   // ========== 滚轮日期选择器 ==========
-  const ITEM_HEIGHT = 24;
-  const VISIBLE_COUNT = 5;  // 可见行数（含选中行）
-  const WHEEL_HEIGHT = ITEM_HEIGHT * VISIBLE_COUNT; // 120px
+  const DATE_ITEM_HEIGHT = 16;
+  const TIME_ITEM_HEIGHT = 12;
 
   const wheelYearList = document.getElementById('dpWheelYearList');
   const wheelMonthList = document.getElementById('dpWheelMonthList');
   const wheelDayList = document.getElementById('dpWheelDayList');
+  const wheelHourList = document.getElementById('dpWheelHourList');
+  const wheelMinuteList = document.getElementById('dpWheelMinuteList');
 
   // 滚轮列状态
   const wheelState = {
-    year:   { listEl: wheelYearList,   items: [], index: 0, scrollTop: 0, dragging: false, startY: 0, startScroll: 0 },
-    month:  { listEl: wheelMonthList,  items: [], index: 0, scrollTop: 0, dragging: false, startY: 0, startScroll: 0 },
-    day:    { listEl: wheelDayList,    items: [], index: 0, scrollTop: 0, dragging: false, startY: 0, startScroll: 0 }
+    year:   { listEl: wheelYearList,   items: [], index: 0, scrollTop: 0, itemH: DATE_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 },
+    month:  { listEl: wheelMonthList,  items: [], index: 0, scrollTop: 0, itemH: DATE_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 },
+    day:    { listEl: wheelDayList,    items: [], index: 0, scrollTop: 0, itemH: DATE_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 },
+    hour:   { listEl: wheelHourList,   items: [], index: 8, scrollTop: 0, itemH: TIME_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 },
+    minute: { listEl: wheelMinuteList, items: [], index: 0, scrollTop: 0, itemH: TIME_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 }
   };
 
   // 获取指定年月的天数
@@ -1472,6 +1475,7 @@ const datetimePickerModule = (function () {
   // 渲染单个滚轮列
   function renderWheel(col, items, selectedIndex) {
     const state = wheelState[col];
+    const h = state.itemH;
     state.items = items;
     state.index = selectedIndex;
     state.listEl.innerHTML = items.map((val, i) => {
@@ -1481,16 +1485,17 @@ const datetimePickerModule = (function () {
       else cls += ' far';
       return '<div class="' + cls + '" data-idx="' + i + '">' + val + '</div>';
     }).join('');
-    state.scrollTop = selectedIndex * ITEM_HEIGHT;
+    state.scrollTop = selectedIndex * h;
     state.listEl.style.transform = 'translateY(' + (-state.scrollTop) + 'px)';
   }
 
   // 滚动并吸附到最近项
   function snapWheel(col) {
     const state = wheelState[col];
-    const rawIndex = Math.round(state.scrollTop / ITEM_HEIGHT);
+    const h = state.itemH;
+    const rawIndex = Math.round(state.scrollTop / h);
     state.index = Math.max(0, Math.min(state.items.length - 1, rawIndex));
-    state.scrollTop = state.index * ITEM_HEIGHT;
+    state.scrollTop = state.index * h;
     state.listEl.style.transform = 'translateY(' + (-state.scrollTop) + 'px)';
     // 更新选中项样式
     state.listEl.querySelectorAll('.dp-wheel-item').forEach((el, i) => {
@@ -1504,6 +1509,7 @@ const datetimePickerModule = (function () {
   // 绑定滚轮列的拖拽和滚轮事件
   function bindWheel(col, onChange) {
     const state = wheelState[col];
+    const h = state.itemH;
     const listEl = state.listEl;
 
     // 鼠标拖拽
@@ -1517,8 +1523,7 @@ const datetimePickerModule = (function () {
       if (!state.dragging) return;
       const delta = state.startY - e.clientY;
       state.scrollTop = state.startScroll + delta;
-      // 限制范围
-      state.scrollTop = Math.max(0, Math.min(state.scrollTop, (state.items.length - 1) * ITEM_HEIGHT));
+      state.scrollTop = Math.max(0, Math.min(state.scrollTop, (state.items.length - 1) * h));
       listEl.style.transform = 'translateY(' + (-state.scrollTop) + 'px)';
     });
     document.addEventListener('mouseup', function () {
@@ -1532,11 +1537,10 @@ const datetimePickerModule = (function () {
     // 滚轮事件
     listEl.addEventListener('wheel', function (e) {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? ITEM_HEIGHT : -ITEM_HEIGHT;
+      const delta = e.deltaY > 0 ? h : -h;
       const newTop = state.scrollTop + delta;
-      state.scrollTop = Math.max(0, Math.min(newTop, (state.items.length - 1) * ITEM_HEIGHT));
+      state.scrollTop = Math.max(0, Math.min(newTop, (state.items.length - 1) * h));
       listEl.style.transform = 'translateY(' + (-state.scrollTop) + 'px)';
-      // 吸附
       clearTimeout(state._wheelTimer);
       state._wheelTimer = setTimeout(function () {
         snapWheel(col);
@@ -1549,7 +1553,7 @@ const datetimePickerModule = (function () {
       const item = e.target.closest('.dp-wheel-item');
       if (!item) return;
       const idx = parseInt(item.dataset.idx);
-      state.scrollTop = idx * ITEM_HEIGHT;
+      state.scrollTop = idx * h;
       snapWheel(col);
       if (onChange) onChange();
     });
@@ -1565,7 +1569,7 @@ const datetimePickerModule = (function () {
       if (!state.dragging) return;
       const delta = state.startY - e.touches[0].clientY;
       state.scrollTop = state.startScroll + delta;
-      state.scrollTop = Math.max(0, Math.min(state.scrollTop, (state.items.length - 1) * ITEM_HEIGHT));
+      state.scrollTop = Math.max(0, Math.min(state.scrollTop, (state.items.length - 1) * h));
       listEl.style.transform = 'translateY(' + (-state.scrollTop) + 'px)';
     }, { passive: true });
     listEl.addEventListener('touchend', function () {
@@ -1600,10 +1604,24 @@ const datetimePickerModule = (function () {
     for (let d = 1; d <= daysInMonth; d++) days.push(d + '日');
     renderWheel('day', days, currentD - 1);
 
-    // 绑定事件
+    // 小时：0 ~ 23
+    const hours = [];
+    for (let h = 0; h < 24; h++) hours.push(String(h).padStart(2, '0'));
+    renderWheel('hour', hours, currentHour);
+
+    // 分钟：0 ~ 59
+    const minutes = [];
+    for (let m = 0; m < 60; m++) minutes.push(String(m).padStart(2, '0'));
+    renderWheel('minute', minutes, currentMinute);
+
+    // 绑定日期滚轮事件
     bindWheel('year', onWheelDateChange);
     bindWheel('month', onWheelDateChange);
     bindWheel('day', onWheelDateChange);
+
+    // 绑定时间滚轮事件
+    bindWheel('hour', onWheelTimeChange);
+    bindWheel('minute', onWheelTimeChange);
   }
 
   // 滚轮日期变化回调
@@ -1615,13 +1633,11 @@ const datetimePickerModule = (function () {
     const m = parseInt(monthVal);
     const d = parseInt(dayVal);
 
-    // 如果日期超出当月范围，调整到当月最大日
     const maxDay = getDaysInMonth(y, m);
     if (wheelState.day.index >= maxDay) {
       const days = [];
       for (let i = 1; i <= maxDay; i++) days.push(i + '日');
-      const newIdx = maxDay - 1;
-      renderWheel('day', days, newIdx);
+      renderWheel('day', days, maxDay - 1);
     }
 
     currentDate = new Date(y, m - 1, d);
@@ -1631,18 +1647,28 @@ const datetimePickerModule = (function () {
     updateDisplay();
   }
 
+  // 滚轮时间变化回调
+  function onWheelTimeChange() {
+    currentHour = wheelState.hour.index;
+    currentMinute = wheelState.minute.index;
+    activeTimePreset = null;
+    timePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+    updateDisplay();
+  }
+
   // 设置滚轮到指定日期
   function setWheelToDate(date) {
     const y = date.getFullYear();
     const m = date.getMonth() + 1;
     const d = date.getDate();
+    const DATE_H = wheelState.year.itemH;
 
     // 年份
     const yearIdx = wheelState.year.items.indexOf(y + '年');
     if (yearIdx >= 0) {
       wheelState.year.index = yearIdx;
-      wheelState.year.scrollTop = yearIdx * ITEM_HEIGHT;
-      wheelState.year.listEl.style.transform = 'translateY(' + (-yearIdx * ITEM_HEIGHT) + 'px)';
+      wheelState.year.scrollTop = yearIdx * DATE_H;
+      wheelState.year.listEl.style.transform = 'translateY(' + (-yearIdx * DATE_H) + 'px)';
       wheelState.year.listEl.querySelectorAll('.dp-wheel-item').forEach((el, i) => {
         el.classList.remove('selected', 'near', 'far');
         if (i === yearIdx) el.classList.add('selected');
@@ -1654,8 +1680,8 @@ const datetimePickerModule = (function () {
     // 月份
     const monthIdx = m - 1;
     wheelState.month.index = monthIdx;
-    wheelState.month.scrollTop = monthIdx * ITEM_HEIGHT;
-    wheelState.month.listEl.style.transform = 'translateY(' + (-monthIdx * ITEM_HEIGHT) + 'px)';
+    wheelState.month.scrollTop = monthIdx * DATE_H;
+    wheelState.month.listEl.style.transform = 'translateY(' + (-monthIdx * DATE_H) + 'px)';
     wheelState.month.listEl.querySelectorAll('.dp-wheel-item').forEach((el, i) => {
       el.classList.remove('selected', 'near', 'far');
       if (i === monthIdx) el.classList.add('selected');
@@ -1663,7 +1689,7 @@ const datetimePickerModule = (function () {
       else el.classList.add('far');
     });
 
-    // 日期（需要先根据年月重新渲染）
+    // 日期
     const maxDay = getDaysInMonth(y, m);
     const days = [];
     for (let i = 1; i <= maxDay; i++) days.push(i + '日');
@@ -1671,23 +1697,48 @@ const datetimePickerModule = (function () {
     renderWheel('day', days, dayIdx);
   }
 
-  // 初始化下拉选项
-  function initTimeSelects() {
-    for (let h = 0; h < 24; h++) {
-      const opt = document.createElement('option');
-      opt.value = String(h).padStart(2, '0');
-      opt.textContent = String(h).padStart(2, '0');
-      hourSelect.appendChild(opt);
-    }
-    for (let m = 0; m < 60; m += 5) {
-      const opt = document.createElement('option');
-      opt.value = String(m).padStart(2, '0');
-      opt.textContent = String(m).padStart(2, '0');
-      minuteSelect.appendChild(opt);
-    }
+  // 设置时间滚轮
+  function setWheelToTime(hour, minute) {
+    const H = wheelState.hour.itemH;
+    // 小时
+    wheelState.hour.index = hour;
+    wheelState.hour.scrollTop = hour * H;
+    wheelState.hour.listEl.style.transform = 'translateY(' + (-hour * H) + 'px)';
+    wheelState.hour.listEl.querySelectorAll('.dp-wheel-item').forEach((el, i) => {
+      el.classList.remove('selected', 'near', 'far');
+      if (i === hour) el.classList.add('selected');
+      else if (Math.abs(i - hour) <= 1) el.classList.add('near');
+      else el.classList.add('far');
+    });
+    // 分钟
+    wheelState.minute.index = minute;
+    wheelState.minute.scrollTop = minute * H;
+    wheelState.minute.listEl.style.transform = 'translateY(' + (-minute * H) + 'px)';
+    wheelState.minute.listEl.querySelectorAll('.dp-wheel-item').forEach((el, i) => {
+      el.classList.remove('selected', 'near', 'far');
+      if (i === minute) el.classList.add('selected');
+      else if (Math.abs(i - minute) <= 1) el.classList.add('near');
+      else el.classList.add('far');
+    });
   }
 
-  // 格式化显示文本
+  // 选择时间预设
+  function selectTimePreset(preset) {
+    const presets = {
+      morning: { h: 8, m: 0 },
+      noon: { h: 12, m: 0 },
+      evening: { h: 20, m: 0 }
+    };
+    const p = presets[preset];
+    if (!p) return;
+    currentHour = p.h;
+    currentMinute = p.m;
+    setWheelToTime(p.h, p.m);
+    timePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.time === preset);
+    });
+    activeTimePreset = preset;
+  }
   function formatDisplayText() {
     if (!currentDate) return '选择提醒时间（可选）';
     const d = new Date(currentDate);
@@ -1840,6 +1891,7 @@ const datetimePickerModule = (function () {
     // 重置滚轮到今天
     const now = new Date();
     setWheelToDate(now);
+    setWheelToTime(8, 0);
     close();
   }
 
@@ -1852,8 +1904,7 @@ const datetimePickerModule = (function () {
       currentMinute = d.getMinutes();
       // 同步到滚轮
       setWheelToDate(currentDate);
-      hourSelect.value = String(currentHour).padStart(2, '0');
-      minuteSelect.value = String(currentMinute).padStart(2, '0');
+      setWheelToTime(currentHour, currentMinute);
     }
     if (recurrence) {
       currentRecurrence = recurrence;
@@ -1875,7 +1926,6 @@ const datetimePickerModule = (function () {
 
   // 绑定事件
   function bind() {
-    initTimeSelects();
     initWheelPicker();
 
     // 触发按钮点击 → 打开/关闭
@@ -1900,20 +1950,6 @@ const datetimePickerModule = (function () {
       const btn = e.target.closest('.dp-preset');
       if (!btn) return;
       selectDatePreset(btn.dataset.date);
-      updateDisplay();
-    });
-
-    // 时间下拉
-    hourSelect.addEventListener('change', function () {
-      currentHour = parseInt(hourSelect.value);
-      activeTimePreset = null;
-      timePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
-      updateDisplay();
-    });
-    minuteSelect.addEventListener('change', function () {
-      currentMinute = parseInt(minuteSelect.value);
-      activeTimePreset = null;
-      timePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
       updateDisplay();
     });
 
