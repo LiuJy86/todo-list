@@ -4,6 +4,148 @@
 
 ---
 
+## [v2.2.0] - 2026-08-18
+
+### 优化 (Optimized) — 整体布局整洁度 + 视觉层级
+
+针对用户反馈"UI 不够整洁"，在**不改变整体布局骨架**的前提下对 5 处关键区域进行了精简优化：
+
+- **输入区改为两行布局**（解决三元素并排拥挤问题）：
+  - 第一行：文本框独占整行（`#todoInput flex: 1 1 100%`），输入区域更宽敞
+  - 第二行：`datetime-local`（`max-width: 260px`）+ "添加"按钮并排，`flex-wrap: wrap` 保证窄屏自动换行
+  - 统一由 `.input-area` 管理 gap 与对齐，视觉节奏更干净
+- **提示条样式收敛**（从醒目的橙红虚线改为清晰但不抢焦点的橙色柔和边框）：
+  - 文字：12px / 字重 500 / `#b8741a`（深橙棕），比之前 `var(--text-secondary)` 更清晰可读
+  - 背景：`rgba(255,167,38, 0.12)` + 1px `rgba(255,167,38, 0.35)` 边框，语义明确但不喧宾夺主
+  - 结构：改为 `display: flex`，左侧文字居中、右侧测试按钮紧凑
+- **列表项紧凑度提升**：
+  - 上下内边距从 12px → 10px，列表密度更高
+  - 阴影强度：`0 4px 20px rgba(31,38,135,0.12)` → `0 2px 12px rgba(31,38,135,0.06)`，视觉更轻盈
+  - Hover 效果：`translateY(-2px)` → `translateY(-1px)`，反馈克制不浮夸
+- **提醒徽章精致化**：内边距微调 + 字间距 0.2px，视觉更清爽
+
+### 新增 (Added) — 🔊 音效测试按钮 + MP3 提示音
+
+- **🔊 测试音效按钮**：与提示条"浏览器关闭后无法触发提醒"并排的胶囊形紫色按钮（`#soundTest-btn`）：
+  - 任何时间点击可验证提示音是否正常出声（800ms 节流防抖 + 绿色脉冲动画做视觉确认）
+  - 按钮点击本身就是用户交互手势，能同时触发 AudioContext unlock 与 HTMLAudio prime，确保到点提醒时播放不受浏览器自动播放策略拦截
+  - 响应式：≤480px 窄屏时按钮换行到第二行居中，不挤压提示文字
+- **提示音改为项目根目录 MP3 文件**（`提示音效.mp3`）：
+  - 路径使用 `encodeURI('提示音效.mp3')` 兼容中文文件名，`new Audio()` 单例复用，避免每次播放新建实例
+  - 模块启动时立即 `ensureMp3Audio()` 设置 `src` + `preload='auto'` + `load()` 预加载
+  - 首次用户交互时 `unlockAudio()` 内对 HTMLAudio 执行 `play() → pause() → currentTime=0` prime 授权，让后续 setTimeout 到点触发的提醒也能合法 play
+
+### 变更 (Changed) — 音效可靠性升级
+
+- **播放链路从单一 Web Audio 改为"MP3 优先 + Web Audio 兜底"的双重保障**：
+  1. 优先分支：`playReminderSound()` → 若 `mp3Ready=true` → `currentTime=0` 打断重播 + `play()`
+  2. 兜底分支：MP3 `play().catch()` 或加载失败 → `tryPlayBeepsFallback()` → 原 `doPlayBeeps()` 合成"叮咚"两声（880Hz + 660Hz，音量 0.5）
+- **AudioContext 状态管理修复**（解决"到点无音效"问题）：
+  - 原 `playReminderSound` 只判 `if (!audioCtx) return;`，未处理 `state === 'suspended'`（标签页失焦时浏览器自动挂起）
+  - 新逻辑：suspended 分支 `resume().then(doPlayBeeps)`；失败记录明确 warn；`unlockAudio` 的 `resume()` 加 `.catch()`
+
+### 新增暴露接口 (Exposed API)
+
+- `window.reminderModule.isMp3Ready()` → MP3 文件是否加载成功
+- `window.reminderModule.getMp3Src()` → MP3 实际编码路径（调试用）
+- 保留 3 个调试 getter：`hasAudioCtx` / `isMp3Ready` / `getMp3Src`（用户场景无感知，仅控制台可用）
+
+### 修正 (Corrected) — 已知限制与描述更新
+
+- v2.1.0 "已知限制"第 2 条从"未首次交互前完全无法播放音效"修正为：**首次交互前到点会触发视觉反馈（高亮/抖动/史迪奇气泡），只是无声音；首次任意点击/按键后即可出声**
+- 浏览器缓存 CSS 导致样式更新未生效：`index.html` CSS 链接加版本参数 `style.css?v=N`，每次优化后递增确保用户取到最新样式
+
+### 验证 (Verified)
+
+- ✅ 输入区两行布局正确：文本框独占首行，datetime-local + 添加按钮在第二行
+- ✅ 提示条不再过浅：颜色加深（`#b8741a`）、字号 12px、加橙色细边框，清晰但不抢焦点
+- ✅ 🔊 测试音效按钮：点击后 `Mp3Ready=true`、`hasAudioCtx=true`、playing 类触发脉冲动画、600ms 后自动清除
+- ✅ 3 秒短时提醒到点后：`reminded=true`、徽章变 overdue、控制台零错误（MP3 分支正常播放）
+- ✅ 播放容错：MP3 加载失败时自动回退合成"叮咚"声（双保险）
+- ✅ 节流防抖：800ms 内连续点击测试按钮只响一次（无 oscillator 叠音爆音）
+- ✅ 收纳、桌宠、轮播、toast 气泡、徽章倒计时等功能无回归
+
+### 核心文件
+
+- `index.html`：提示条改为 flex 结构，新增 `<button class="sound-test-btn" id="soundTestBtn">🔊 测试音效</button>`；CSS 链接版本号递增
+- `style.css`：`.reminder-notice` 改为 flex + flex-wrap；新增 `.sound-test-btn` / `.sound-test-btn:hover` / `.sound-test-btn:active` / `.sound-test-btn.playing` + `@keyframes soundPulse`；`.input-area` 加 `flex-wrap: wrap`；`#todoInput`/`#remindAtInput` 调整 flex 与 max-width；`.todo-item` 阴影与 padding 收紧；新增窄屏 @media ≤480px 响应式
+- `script.js`：11.4 节提示音模块重写（MP3 单例 + ensureMp3Audio + unlockAudio prime 授权 + playReminderSound 双分支兜底 + tryPlayBeepsFallback）；11.8 新增 3 个 API；11.8b 新增测试按钮绑定逻辑（800ms 节流 + playing class 强制重排重启动画）
+
+---
+
+## [v2.1.0] - 2026-08-18
+
+### 新增 (Added) — 待办事项提醒日期 + 音效
+
+- **待办事项可设置提醒时间**，支持两种输入方式（互补）：
+  - **自然语言解析**：在文本框输入「8:00 吃饭」「明天8:00 跑步」「8月15日 8:00 开会」「8月15日 出差」等，自动解析时间并剥离时间词
+  - **原生 datetime-local 选择器**：精确选择提醒日期与时间
+  - 两者结合：自然语言解析成功时自动同步到 datetime-local 让用户确认；解析失败时回退到 datetime-local 的值；都为空则纯添加（不阻断流程）
+- **到点「叮咚」提示音**：使用 Web Audio API 程序合成两声提示音（880Hz「叮」+ 660Hz「咚」，间隔 180ms），无需任何音频文件
+- **提醒徽章按紧迫度变色**：
+  - 远期（> 1 天）：灰色 `#8888a0`
+  - 接近（≤ 1 天，> 1 小时）：紫色 `#667eea`
+  - 紧迫（≤ 1 小时）：橙色 `#ffa726` + 脉冲动画 + 「还有 N 分钟」倒计时
+  - 已过期：红色 `#ff6b6b` + 删除线
+- **到点视觉反馈链路**：对应待办项红框 + 抖动动画 6 秒 + 史迪奇弹气泡「该 XXX 啦！」（黄色 warning 边框）
+- **三道触发保障**确保不漏提醒：
+  - 精确 `setTimeout` 到点触发
+  - `visibilitychange` 切回前台时补触发切走期间错过的提醒
+  - 60 秒 `setInterval` 兜底检查（应对后台标签页定时器降频）
+- **提醒徽章实时倒计时**：每 30 秒刷新所有徽章文案（仅改 textContent，不触发 render，避免反复写 localStorage）
+- **浏览器关闭无法提醒的提示条**：列表区上方虚线橙色提示条告知用户保持页面打开
+
+### 变更 (Changed)
+
+- **存储从 `sessionStorage` 升级到 `localStorage`**：数据永久保留，跨会话触发提醒（提醒功能的本质需求）
+  - **一次性迁移**：老版本用户首次打开 v2.1.0 时，若 localStorage 无数据但 sessionStorage 有旧数据，自动搬到 localStorage 并清掉 sessionStorage，无感知升级
+- **`todos` 数据结构新增两个可选字段**（向后兼容，旧数据自动补齐）：
+  - `remindAt`：提醒时间戳（毫秒），无提醒为 `null`
+  - `reminded`：是否已触发过提醒，触发后置 `true` 防重复响铃
+- **`addTodo(remindAt)` 函数签名扩展**：接受可选的提醒时间戳参数，返回新增事项对象供调度
+- **`createTodoElement` 增加提醒徽章**：有 `remindAt` 时追加 `<span class="reminder-badge">`，文案与颜色由 `updateReminderBadge` 刷新
+- **`updateItemState` 增加 `reminded` class 切换**：CSS 据此显示左上角小铃铛 🔔 标识
+- **`toggleTodo` 集成提醒调度**：勾选完成时 `cancelReminder`；取消完成时若提醒未到则重新 `scheduleReminder`
+- **`deleteTodo` 集成 `cancelReminder`**：删除事项时清除定时器，避免幽灵提醒
+- **`wrappedAddTodo` 整合解析与调度**：自然语言解析 → 同步 datetime-local → addTodo(remindAt) → scheduleReminder
+
+### 新增模块 (Module)
+
+- **第 11 节「提醒模块」IIFE**（script.js 末尾）：独立闭包封装，对外暴露 `window.reminderModule` 接口
+  - `parse(text)`：自然语言解析提醒时间
+  - `schedule(todo)` / `scheduleAll()` / `cancel(id)`：调度管理
+  - `checkMissed()`：漏检补触发
+  - `trigger(todo)`：完整触发反馈链路
+  - `playSound()` / `unlockAudio()`：Web Audio 提示音
+  - `formatToLocalInputValue(date)`：datetime-local 格式转换
+
+### 已知限制 (Known Limitations)
+
+- **浏览器完全关闭后无法触发提醒**：纯前端无后台进程，setTimeout/setInterval/AudioContext 全部失效；通过 UI 提示条明确告知用户保持页面打开
+- **未首次交互前无法播放音效**：浏览器自动播放策略要求 AudioContext 在用户首次交互后才能 resume；首次交互前到点仍会触发视觉反馈（高亮、抖动、气泡），只是无声音
+- **长时间后台标签页可能延迟**：部分浏览器对后台标签页定时器降频（最小 1 分钟）；通过 visibilitychange + 60s 兜底确保最迟 1 分钟内补触发
+- **跨设备不同步**：localStorage 仅限当前浏览器当前设备；要跨设备需后端，超出项目约束
+
+### 验证 (Verified)
+
+- ✅ 输入「8:00 吃饭」→ 文本框变「吃饭」，datetime-local 显示今天 08:00
+- ✅ 输入「8月15日 8:00 开会」→ 解析为当年 8 月 15 日 08:00
+- ✅ 设置 30 秒后提醒 → 到点播放「叮咚」声 + 红框抖动 + 史迪奇弹气泡
+- ✅ reminded = true 写入 localStorage，刷新后不再响
+- ✅ 到点前删除/完成事项 → 不触发提醒
+- ✅ 切后台再切回 → 漏掉的提醒补触发
+- ✅ 徽章按紧迫度变色（灰/紫/橙/红）
+- ✅ 老版本 sessionStorage 数据自动迁移到 localStorage
+- ✅ 现有收纳、桌宠、GIF 轮播功能无回归
+
+### 核心文件
+
+- `index.html`：输入区新增 `datetime-local` + 列表区上方提示条
+- `script.js`：存储升级 localStorage 含迁移；`addTodo` 扩展接受 `remindAt`；`createTodoElement`/`updateItemState` 增加徽章；`toggleTodo`/`deleteTodo` 集成 `cancelReminder`；`wrappedAddTodo` 整合解析+调度；新增第 11 节提醒模块 IIFE
+- `style.css`：新增 4 个 CSS 变量（`--reminder-far/soon/urgent/overdue`）；`#remindAtInput` 样式；`.reminder-badge` + 4 种状态变体；`.todo-item.reminding` 抖动动画；`.todo-item.reminded::before` 铃铛；`.reminder-notice` 提示条；窄屏适配
+
+---
+
 ## [v2.0.0] - 2026-08-18
 
 ### 修复 (Fixed) — 桌宠图片路径 404

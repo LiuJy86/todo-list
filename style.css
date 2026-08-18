@@ -31,6 +31,12 @@
   
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* 提醒徽章颜色（按紧迫度分级） */
+  --reminder-far: #8888a0;       /* 远期：灰色 */
+  --reminder-soon: #667eea;      /* 接近：紫色（主色） */
+  --reminder-urgent: #ffa726;    /* 紧迫：橙色 */
+  --reminder-overdue: #ff6b6b;   /* 已过期：红色（与删除色统一） */
 }
 
 /* ===== 全局重置 ===== */
@@ -78,7 +84,7 @@ main {
 .input-area {
   display: flex;
   gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
   /* 玻璃拟态容器 */
   background: var(--card-bg);
   backdrop-filter: blur(12px);
@@ -87,10 +93,24 @@ main {
   padding: var(--spacing-sm);
   box-shadow: var(--card-shadow);
   border: 1px solid var(--card-border);
+  /* 改为两行布局：第一行文本框占满，第二行 datetime-local + 按钮 */
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* 窄屏适配：datetime-local 换行避免挤压文本框 */
+@media (max-width: 600px) {
+  .input-area {
+    flex-wrap: wrap;
+  }
+  #remindAtInput {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
 }
 
 #todoInput {
-  flex: 1;
+  flex: 1 1 100%;  /* 占满第一行 */
   padding: var(--spacing-md) var(--spacing-lg);
   font-size: 15px;
   color: var(--text-primary);
@@ -111,6 +131,29 @@ main {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
+/* 日期时间选择器：与文本框风格统一，第二行 */
+#remindAtInput {
+  padding: var(--spacing-md) var(--spacing-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: all var(--transition-smooth);
+  min-width: 180px;
+  max-width: 260px;
+  cursor: pointer;
+  font-family: inherit;
+  flex: 0 1 auto;
+}
+
+#remindAtInput:focus {
+  background: #fff;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 #addBtn {
   width: auto;
   min-width: 80px;
@@ -126,6 +169,7 @@ main {
   transition: all var(--transition-smooth);
   /* 按钮阴影 */
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  flex-shrink: 0;
 }
 
 #addBtn:hover {
@@ -143,7 +187,7 @@ main {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: 10px;
 }
 
 /* 单条待办事项 */
@@ -154,13 +198,14 @@ main {
   background: var(--card-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  padding: var(--spacing-md) var(--spacing-lg);
+  padding: 10px var(--spacing-lg);
   border-radius: var(--radius-md);
   border: 1px solid var(--card-border);
-  box-shadow: 0 4px 20px rgba(31, 38, 135, 0.08);
+  box-shadow: 0 2px 12px rgba(31, 38, 135, 0.06);
   transition: all var(--transition-smooth);
   /* 进入动画 */
   animation: slideIn 0.3s ease-out;
+  position: relative;  /* 用于已提醒 ::before 铃铛定位 */
 }
 
 @keyframes slideIn {
@@ -175,8 +220,8 @@ main {
 }
 
 .todo-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(31, 38, 135, 0.12);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(31, 38, 135, 0.1);
 }
 
 /* 自定义复选框 */
@@ -225,6 +270,57 @@ main {
   transition: all var(--transition-fast);
 }
 
+/* ===== 提醒徽章：紧贴事项文本右侧，按紧迫度变色 ===== */
+.reminder-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;            /* 推到右侧（删除按钮左侧） */
+  margin-right: var(--spacing-sm);
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  letter-spacing: 0.2px;
+}
+
+/* 远期（> 1 天）：灰色 */
+.reminder-badge-far {
+  color: var(--reminder-far);
+  background: rgba(136, 136, 160, 0.12);
+  border-color: rgba(136, 136, 160, 0.3);
+}
+
+/* 接近（≤ 1 天，> 1 小时）：紫色（主色） */
+.reminder-badge-soon {
+  color: var(--reminder-soon);
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+/* 紧迫（≤ 1 小时）：橙色 + 脉冲动画 */
+.reminder-badge-urgent {
+  color: #fff;
+  background: var(--reminder-urgent);
+  border-color: var(--reminder-urgent);
+  animation: badge-pulse 1s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(255, 167, 38, 0.5); }
+  50%      { transform: scale(1.05); box-shadow: 0 0 0 4px rgba(255, 167, 38, 0); }
+}
+
+/* 已过期：红色 + 删除线 */
+.reminder-badge-overdue {
+  color: var(--reminder-overdue);
+  background: rgba(255, 107, 107, 0.12);
+  border-color: rgba(255, 107, 107, 0.4);
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
 /* 删除按钮 */
 .delete-btn {
   width: auto;
@@ -261,6 +357,115 @@ main {
 .todo-item.completed .todo-checkbox:checked {
   background: var(--text-muted);
   border-color: var(--text-muted);
+}
+
+/* ===== 到点提醒高亮：红框 + 抖动动画 ===== */
+.todo-item.reminding {
+  border-color: var(--reminder-overdue);
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.12), rgba(255, 167, 38, 0.08));
+  box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.25), 0 8px 25px rgba(255, 107, 107, 0.3);
+  animation: reminder-shake 0.5s ease-in-out 4;  /* 抖动 4 次，共 2 秒 */
+}
+
+@keyframes reminder-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-6px); }
+  40%      { transform: translateX(6px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(4px); }
+}
+
+/* 已提醒过的待办：左上角小铃铛标识（::before 需要 .todo-item 设 position: relative）*/
+.todo-item.reminded::before {
+  content: '🔔';
+  position: absolute;
+  left: -6px;
+  top: -8px;
+  font-size: 14px;
+  filter: grayscale(0.3);
+  pointer-events: none;
+}
+
+/* ===== 提醒功能限制提示条（清晰可读，含测试按钮） ===== */
+.reminder-notice {
+  display: flex;                           /* 左右布局：左侧提示文字，右侧测试按钮 */
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: #b8741a;
+  padding: 6px var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  background: rgba(255, 167, 38, 0.12);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 167, 38, 0.35);
+  letter-spacing: 0.2px;
+  line-height: 1.4;
+}
+
+.reminder-notice-text {
+  flex: 1 1 auto;
+  text-align: center;
+  min-width: 0;
+}
+
+/* 音效测试按钮：紧凑、与整体风格呼应，不抢视觉焦点 */
+.sound-test-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  background: linear-gradient(135deg, #7c6fce, #5c4fc0);   /* 与主按钮同色系，略浅 */
+  border: none;
+  border-radius: 999px;        /* 胶囊形，低调精致 */
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 6px rgba(92, 79, 192, 0.18);
+  line-height: 1;
+}
+
+.sound-test-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(92, 79, 192, 0.3);
+  background: linear-gradient(135deg, #8c7fd8, #6a5cd1);
+}
+
+.sound-test-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(92, 79, 192, 0.25);
+}
+
+/* 播放中状态：变绿 + 脉冲动画（便于肉眼确认"声音确实触发了"） */
+.sound-test-btn.playing {
+  background: linear-gradient(135deg, #34c759, #28a745);
+  box-shadow: 0 2px 10px rgba(40, 167, 69, 0.35);
+  animation: soundPulse 0.5s ease-in-out 1;
+}
+
+@keyframes soundPulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* 响应式：窄屏时按钮换行到第二行居中 */
+@media (max-width: 480px) {
+  .reminder-notice {
+    justify-content: center;
+  }
+  .reminder-notice-text {
+    flex-basis: 100%;
+    text-align: center;
+  }
+  .sound-test-btn {
+    flex: 0 0 auto;
+  }
 }
 
 /* ===== 空状态提示 ===== */

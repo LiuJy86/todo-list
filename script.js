@@ -4,11 +4,15 @@
 // ---------- 1. 数据层 ----------
 
 // 数据源：所有待办事项都存在这个数组里
-// 每条事项结构：{ id: 唯一标识, text: 内容文本, done: 是否已完成 }
-// 后续的「添加 / 标记完成 / 删除 / 持久化」都围绕这个数组进行
+// 每条事项结构：
+//   { id: 唯一标识, text: 内容文本, done: 是否已完成,
+//     remindAt: 提醒时间戳（毫秒，无提醒为 null）,
+//     reminded: 是否已触发过提醒（防重复响铃） }
+// 后续的「添加 / 标记完成 / 删除 / 持久化 / 提醒调度」都围绕这个数组进行
 let todos = [];
 
-// sessionStorage 的键名（固定常量，便于统一管理与修改）
+// localStorage 的键名（固定常量，便于统一管理与修改）
+// v2.1.0 起从 sessionStorage 升级为 localStorage，让数据跨会话保留以支持提醒功能
 const STORAGE_KEY = 'todos';
 
 // 收纳状态：已完成项超过此数量则自动收纳
@@ -21,22 +25,38 @@ let isExpanded = false;
 
 // ---------- 1.1 存储相关：保存与读取 ----------
 
-// 保存：把当前 todos 数组序列化为 JSON 字符串，存入 sessionStorage
+// 保存：把当前 todos 数组序列化为 JSON 字符串，存入 localStorage
 // 调用时机：任何数据变更后统一调用（见 render() 末尾）
 function save() {
-  // JSON.stringify 把 JS 数组转成字符串，因为 sessionStorage 只能存字符串
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+  // JSON.stringify 把 JS 数组转成字符串，因为 localStorage 只能存字符串
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
 }
 
-// 读取：从 sessionStorage 取出字符串并反序列化回数组
-// 调用时机：页面加载时调用一次，恢复上次会话的数据
+// 读取：从 localStorage 取出字符串并反序列化回数组
+// 调用时机：页面加载时调用一次，恢复上次的数据
+// 兼容老版本：若 localStorage 没数据但 sessionStorage 有，则一次性迁移过来
 function load() {
   // getItem 取出字符串；若键不存在则返回 null
-  const data = sessionStorage.getItem(STORAGE_KEY);
+  let data = localStorage.getItem(STORAGE_KEY);
+  // 迁移：localStorage 没有、但 sessionStorage 有旧数据时，搬到 localStorage
+  // 这样老版本用户首次打开 v2.1.0 时数据自动迁移，无感知
+  if (!data) {
+    const legacyData = sessionStorage.getItem(STORAGE_KEY);
+    if (legacyData) {
+      localStorage.setItem(STORAGE_KEY, legacyData);
+      sessionStorage.removeItem(STORAGE_KEY);  // 清掉旧位置，避免双源
+      data = legacyData;
+    }
+  }
   // 只有存在数据时才解析，避免 JSON.parse(null) 报错
   if (data) {
     // JSON.parse 把字符串还原成 JS 数组，赋值回 todos
     todos = JSON.parse(data);
+    // 数据兼容：补齐旧事项缺失的新字段（无提醒）
+    todos.forEach(function (t) {
+      if (t.remindAt === undefined) t.remindAt = null;
+      if (t.reminded === undefined) t.reminded = false;
+    });
   }
 }
 
@@ -45,6 +65,7 @@ function load() {
 
 // 通过 id 拿到 HTML 中的关键元素，后续操作都基于这些引用
 const todoInput = document.getElementById('todoInput');  // 输入框
+const remindAtInput = document.getElementById('remindAtInput');  // 日期时间选择器（v2.1.0 新增）
 const addBtn = document.getElementById('addBtn');        // 添加按钮
 const todoList = document.getElementById('todoList');    // 列表容器（<ul>）
 
@@ -253,6 +274,19 @@ function createTodoElement(todo) {
   span.className = 'todo-text';
   span.textContent = todo.text;
 
+  // 若该事项设置了提醒时间，创建提醒徽章
+  // 徽章的具体文案与颜色由 updateReminderBadge() 在每次渲染时刷新
+  if (todo.remindAt) {
+    const badge = document.createElement('span');
+    badge.className = 'reminder-badge';
+    li.appendChild(checkbox);
+    li.appendChild(span);
+    li.appendChild(badge);
+  } else {
+    li.appendChild(checkbox);
+    li.appendChild(span);
+  }
+
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'delete-btn';
   deleteBtn.textContent = '删除';
@@ -265,8 +299,6 @@ function createTodoElement(todo) {
     }
   });
 
-  li.appendChild(checkbox);
-  li.appendChild(span);
   li.appendChild(deleteBtn);
   return li;
 }
@@ -276,16 +308,72 @@ function createTodoElement(todo) {
 
 function updateItemState(li, todo) {
   li.classList.toggle('completed', todo.done);
+  // 切换已提醒标记 class（CSS 据此显示左上角小铃铛）
+  li.classList.toggle('reminded', !!todo.reminded);
   const checkbox = li.querySelector('.todo-checkbox');
   if (checkbox) {
     checkbox.checked = todo.done;
+  }
+  // 刷新提醒徽章的文案与颜色（按距离提醒时间变色）
+  updateReminderBadge(li, todo);
+}
+
+
+// ---------- 4.3 提醒徽章刷新 ----------
+
+// 时间戳格式化为"8月15日 08:00"样式，便于用户阅读
+function formatReminderText(ts) {
+  const d = new Date(ts);
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return m + '月' + day + '日 ' + hh + ':' + mm;
+}
+
+// 根据距离提醒时间的远近，刷新徽章文案与颜色 class
+// 规则：> 1天 灰色 / ≤1天且>1小时 紫色 / ≤1小时 橙色脉冲 / 已过期 红色删除线
+function updateReminderBadge(li, todo) {
+  const badge = li.querySelector('.reminder-badge');
+  if (!badge) return;       // 无徽章节点（未设提醒的事项）
+  if (!todo.remindAt) return;
+
+  const now = Date.now();
+  const diff = todo.remindAt - now;  // 正：未来；负：已过期
+
+  // 清掉旧的状态类，避免叠加
+  badge.classList.remove(
+    'reminder-badge-far', 'reminder-badge-soon',
+    'reminder-badge-urgent', 'reminder-badge-overdue'
+  );
+
+  if (todo.reminded || diff <= 0) {
+    // 已提醒过或已过期：红色删除线
+    badge.textContent = formatReminderText(todo.remindAt) + ' 已过';
+    badge.classList.add('reminder-badge-overdue');
+  } else if (diff > 86400000) {
+    // > 1 天：灰色
+    badge.textContent = formatReminderText(todo.remindAt);
+    badge.classList.add('reminder-badge-far');
+  } else if (diff > 3600000) {
+    // ≤ 1 天且 > 1 小时：紫色
+    badge.textContent = formatReminderText(todo.remindAt);
+    badge.classList.add('reminder-badge-soon');
+  } else {
+    // ≤ 1 小时：橙色 + 脉冲 + 倒计时
+    const mins = Math.max(1, Math.round(diff / 60000));
+    badge.textContent = '还有 ' + mins + ' 分钟';
+    badge.classList.add('reminder-badge-urgent');
   }
 }
 
 
 // ---------- 4. 添加待办事项 ----------
 
-function addTodo() {
+// 添加待办事项
+// 参数：remindAt（可选）— 提醒时间戳（毫秒）；未传或为假值则不设提醒
+// 返回值：新增的事项对象（供调用方调度提醒）；空输入时返回 undefined
+function addTodo(remindAt) {
   // 1) 读取输入框的值，并用 trim() 去除首尾空格
   const text = todoInput.value.trim();
 
@@ -301,11 +389,16 @@ function addTodo() {
 
   // 3) 构造新事项对象，推入数组
   // id 用 Date.now()（当前毫秒时间戳）保证唯一
-  todos.push({
+  // remindAt：提醒时间戳（毫秒），无提醒为 null
+  // reminded：是否已触发过提醒，初始 false
+  const newTodo = {
     id: Date.now(),
     text: text,
-    done: false
-  });
+    done: false,
+    remindAt: remindAt || null,
+    reminded: false
+  };
+  todos.push(newTodo);
 
   // 4) 数据已变，重新渲染列表
   render();
@@ -313,6 +406,9 @@ function addTodo() {
   // 5) 清空输入框并重新聚焦，方便用户继续输入下一条
   todoInput.value = '';
   todoInput.focus();
+
+  // 6) 返回新增的事项对象，供调用方调度提醒
+  return newTodo;
 }
 
 
@@ -334,6 +430,17 @@ function toggleTodo(id) {
 
   // 翻转完成状态（true 变 false，false 变 true）
   todo.done = !todo.done;
+
+  // 提醒调度联动：
+  //   - 勾选完成 → 取消该事项的提醒定时器（已完成无需再提醒）
+  //   - 取消完成 → 若提醒时间未到且未提醒过，重新调度提醒
+  if (window.reminderModule) {
+    if (todo.done) {
+      window.reminderModule.cancel(id);
+    } else if (todo.remindAt && !todo.reminded) {
+      window.reminderModule.schedule(todo);
+    }
+  }
 
   // 从数组中移除该事项，准备重新插入到合适位置
   const remaining = todos.filter(function (t) {
@@ -371,6 +478,11 @@ function toggleTodo(id) {
 // 通过 id 从数组中移除对应事项，再重新渲染
 // 用 filter 返回一个不含目标 id 的新数组，赋值回 todos
 function deleteTodo(id) {
+  // 删除前先取消该事项的提醒定时器，避免定时器残留导致幽灵提醒
+  if (window.reminderModule) {
+    window.reminderModule.cancel(id);
+  }
+
   // filter 会遍历数组，返回 true 的元素保留、返回 false 的丢弃
   // 这里保留所有「id 不等于目标 id」的事项，即把目标事项排除掉
   todos = todos.filter(function (t) {
@@ -1110,12 +1222,52 @@ const COMPLETE_TODO_TOASTS = [
 // 直接重新赋值函数不会改变已绑定的监听器。这里采用「包装」方案：
 // 移除旧监听器，添加新监听器调用包装后的逻辑。
 
-// 包装 addTodo：先调用原逻辑，再触发表情 + toast
+// 包装 addTodo：整合自然语言解析 + datetime-local + 调度提醒 + 桌宠反馈
 function wrappedAddTodo() {
-  addTodo();  // 调用原始函数（函数声明被 hoist）
+  const rawText = todoInput.value.trim();
+  if (rawText === '') {
+    // 文本框为空：调用原 addTodo 触发红边框提示并返回（addTodo 内部会处理空输入）
+    addTodo();
+    return;
+  }
+
+  let remindAt = null;
+
+  // 1) 优先尝试自然语言解析（如 "8:00 吃饭" → 今天 8:00 + 文本"吃饭"）
+  if (window.reminderModule) {
+    const parsed = window.reminderModule.parse(rawText);
+    if (parsed.remindAt) {
+      remindAt = parsed.remindAt;
+      // 解析成功：把解析后的纯文本覆盖回输入框（剥离时间词）
+      // 同时同步到 datetime-local 让用户看到确认
+      todoInput.value = parsed.text;
+      remindAtInput.value = window.reminderModule.formatToLocalInputValue(new Date(remindAt));
+    }
+  }
+
+  // 2) 自然语言解析失败，但用户填了 datetime-local → 用 datetime-local 的值
+  if (!remindAt && remindAtInput.value) {
+    remindAt = new Date(remindAtInput.value).getTime();
+  }
+  // 3) 都没有 → remindAt 保持 null，纯添加（不阻断流程）
+
+  // 调用扩展后的 addTodo（接受 remindAt 参数），返回新增事项对象
+  const newTodo = addTodo(remindAt);
+
+  // 为新增事项调度提醒定时器（仅当有 remindAt）
+  if (newTodo && newTodo.remindAt && window.reminderModule) {
+    window.reminderModule.schedule(newTodo);
+  }
+
+  // 清空 datetime-local（文本框已由 addTodo 清空）
+  remindAtInput.value = '';
+
+  // 触发桌宠反馈：有提醒时用专门文案，否则用随机文案
   if (window.petMood) {
     window.petMood.excited();
-    const msg = ADD_TODO_TOASTS[Math.floor(Math.random() * ADD_TODO_TOASTS.length)];
+    const msg = remindAt
+      ? '已设好提醒，到点我会叫你！'
+      : ADD_TODO_TOASTS[Math.floor(Math.random() * ADD_TODO_TOASTS.length)];
     window.petMood.toast(msg, 'success');
   }
 }
@@ -1173,3 +1325,455 @@ todoInput.addEventListener('keydown', function (e) {
     wrappedAddTodo();
   }
 }, true);  // capture 阶段先执行
+
+
+// ===== 11. 提醒模块（提醒日期 + 音效）=====
+// 独立 IIFE 封装，避免污染全局。对外暴露 window.reminderModule 接口供其他模块调用。
+// 功能：自然语言解析提醒时间 / Web Audio 程序合成提示音 / 精确 setTimeout 调度 / 漏检补触发
+
+(function () {
+  'use strict';
+
+  // ---------- 11.1 模块状态 ----------
+  // 调度表：key 为 todo.id，value 为 setTimeout 返回的 timerId
+  // 用于在事项被删除/完成/重新编辑时取消旧定时器，避免幽灵提醒
+  const reminderTimers = new Map();
+  // AudioContext 实例（首次用户交互后创建并 resume）
+  let audioCtx = null;
+
+
+  // ---------- 11.2 时间格式化 ----------
+
+  // 把 Date 对象转换为 datetime-local 输入框接受的格式：yyyy-MM-ddTHH:mm
+  // 注意：datetime-local 不接受秒，也不接受时区后缀
+  function formatToLocalInputValue(date) {
+    const yyyy = date.getFullYear();
+    const MM = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const HH = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    return yyyy + '-' + MM + '-' + dd + 'T' + HH + ':' + mm;
+  }
+
+
+  // ---------- 11.3 自然语言解析 ----------
+
+  // 解析文本中的提醒时间，并返回剥离时间词后的纯事项文本
+  // 支持规则：
+  //   "8:00"          → 今天 8:00（若今天已过则改用明天 8:00）
+  //   "15:30"         → 今天 15:30（已过则明天）
+  //   "明天8:00"       → 明天 8:00
+  //   "8月15日 8:00"   → 当年 8 月 15 日 8:00（已过则明年）
+  //   "8月15日"        → 当年 8 月 15 日 9:00（默认 9 点）
+  //   "明天"           → 明天 9:00（默认 9 点）
+  // 失败：返回 { text: 原文, remindAt: null }（不阻断添加流程）
+  function parseReminderFromText(rawText) {
+    let text = rawText.trim();
+    let remindAt = null;
+    const now = new Date();
+
+    // 规则 1：含"月""日"的明确日期 + 可选时间
+    // 例：8月15日 8:00  或  8月15日
+    const dateRe = /(\d{1,2})月(\d{1,2})日(?:\s*(\d{1,2}):(\d{2}))?/;
+    const m1 = text.match(dateRe);
+    if (m1) {
+      const month = parseInt(m1[1], 10);
+      const day = parseInt(m1[2], 10);
+      const hour = m1[3] ? parseInt(m1[3], 10) : 9;   // 未给时间默认 9 点
+      const min = m1[4] ? parseInt(m1[4], 10) : 0;
+      const d = new Date(now.getFullYear(), month - 1, day, hour, min, 0);
+      // 若该日期已过则推到明年
+      if (d.getTime() <= now.getTime()) d.setFullYear(d.getFullYear() + 1);
+      remindAt = d.getTime();
+      text = text.replace(dateRe, '').trim();
+      return { text: text || rawText, remindAt: remindAt };
+    }
+
+    // 规则 2："明天" + 时间
+    // 例：明天8:00  或  明天 15:30
+    const tomorrowRe = /明天\s*(\d{1,2}):(\d{2})/;
+    const m2 = text.match(tomorrowRe);
+    if (m2) {
+      const d = new Date(now);
+      d.setDate(d.getDate() + 1);
+      d.setHours(parseInt(m2[1], 10), parseInt(m2[2], 10), 0, 0);
+      remindAt = d.getTime();
+      text = text.replace(tomorrowRe, '').trim();
+      return { text: text || rawText, remindAt: remindAt };
+    }
+
+    // 规则 3：纯时间 "HH:MM"，默认今天（已过则明天）
+    const timeRe = /(\d{1,2}):(\d{2})/;
+    const m3 = text.match(timeRe);
+    if (m3) {
+      const d = new Date(now);
+      d.setHours(parseInt(m3[1], 10), parseInt(m3[2], 10), 0, 0);
+      if (d.getTime() <= now.getTime()) {
+        // 今天这个点已过，推到明天
+        d.setDate(d.getDate() + 1);
+      }
+      remindAt = d.getTime();
+      text = text.replace(timeRe, '').trim();
+      return { text: text || rawText, remindAt: remindAt };
+    }
+
+    // 规则 4：单独"明天"（无具体时间），默认明天 9:00
+    if (/^明天/.test(text) || /\s明天$/.test(text) || /明天$/.test(text)) {
+      const d = new Date(now);
+      d.setDate(d.getDate() + 1);
+      d.setHours(9, 0, 0, 0);
+      remindAt = d.getTime();
+      text = text.replace(/明天/, '').trim();
+      return { text: text || rawText, remindAt: remindAt };
+    }
+
+    // 解析失败：原文不动，无提醒
+    return { text: rawText, remindAt: null };
+  }
+
+
+  // ---------- 11.4 提示音播放（优先 MP3，兜底 Web Audio 合成） ----------
+
+  // MP3 音效路径（与 index.html 同目录）。URL encode 中文路径以免部分浏览器无法加载
+  const REMINDER_MP3_SRC = encodeURI('提示音效.mp3');
+
+  // 单例 HTMLAudio 元素（全局只创建一次，复用避免每次 new Audio 造成泄漏和延迟）
+  let mp3Audio = null;
+  // MP3 是否成功加载（true 代表可以走 MP3 分支；false 走 Web Audio 兜底）
+  let mp3Ready = false;
+
+  // AudioContext 实例（首次用户交互后创建并 resume）—— 作为 MP3 加载失败时的兜底
+  // 注意：audioCtx 已在 11.1 "模块状态" 中声明，这里不再重复声明
+
+  // 创建并配置 HTMLAudio 元素（只执行一次）
+  function ensureMp3Audio() {
+    if (mp3Audio) return mp3Audio;
+    try {
+      mp3Audio = new Audio();
+      mp3Audio.src = REMINDER_MP3_SRC;
+      mp3Audio.preload = 'auto';         // 提前预加载数据（若浏览器允许）
+      mp3Audio.volume = 1.0;              // 最大音量（原音效文件自行控制音量）
+      // 成功加载 → 标记可用
+      mp3Audio.addEventListener('canplaythrough', function () {
+        mp3Ready = true;
+      }, { once: true });
+      // 加载失败 → 标记不可用，后续走 Web Audio 兜底
+      mp3Audio.addEventListener('error', function (e) {
+        mp3Ready = false;
+        console.warn('提示音效 MP3 加载失败，将使用合成音作为兜底：', e);
+      }, { once: true });
+      // 主动触发加载（某些浏览器仅在设置 src 后不会自动开始加载）
+      if (typeof mp3Audio.load === 'function') {
+        try { mp3Audio.load(); } catch (e) { /* ignore */ }
+      }
+    } catch (e) {
+      mp3Audio = null;
+      mp3Ready = false;
+      console.warn('创建 Audio 元素失败：', e);
+    }
+    return mp3Audio;
+  }
+
+  // 模块启动时立即创建 Audio 元素并触发预加载（src 会被设置，但 play() 仍需用户手势）
+  ensureMp3Audio();
+
+  // 在用户首次交互（点击/按键/触摸）时初始化音频资源
+  // 包含两部分：1) Web Audio AudioContext 的 unlock + resume
+  //             2) HTMLAudio 的 prime（play 立即 pause，让浏览器给此元素放行 autoplay）
+  function unlockAudio() {
+    // --- A. Web Audio（兜底路径） ---
+    if (!audioCtx) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) {
+        console.warn('当前浏览器不支持 Web Audio API，合成兜底音将不可用');
+      }
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(function (e) {
+        console.warn('AudioContext 恢复失败:', e);
+      });
+    }
+
+    // --- B. HTMLAudio（MP3 路径）---
+    // 关键：在用户手势回调中"快速 play→pause"把此 Audio 元素标记为"已获用户授权"
+    // 之后 scheduleReminder 触发时（即使没有用户手势）也能调用 play()
+    ensureMp3Audio();
+    if (mp3Audio) {
+      const playPromise = mp3Audio.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.then(function () {
+          // 成功开始播放，立即暂停并回到开头 —— 这一步完成"授权 prime"
+          try {
+            mp3Audio.pause();
+            mp3Audio.currentTime = 0;
+          } catch (e) { /* ignore */ }
+          mp3Ready = true;
+        }).catch(function (e) {
+          // 某些浏览器即便在用户手势下 play() 仍会拒绝（例如 headless、静音环境）
+          // 这只是"授权 prime 失败"，文件本身已加载好，仍可在 playReminderSound 中再尝试
+          // 因此不把 mp3Ready 置为 false，仅记录日志（若真播放失败由 playReminderSound 兜底回退）
+          console.warn('MP3 prime 被拒绝（playReminderSound 仍会尝试首次播放，失败则回退合成音）：', e);
+        });
+      } else {
+        // 老浏览器：play() 为同步，立即回到开头
+        try {
+          mp3Audio.pause();
+          mp3Audio.currentTime = 0;
+        } catch (e) { /* ignore */ }
+      }
+    }
+  }
+
+  // 主入口：播放提示音（优先 MP3，失败/未加载时用 Web Audio 合成兜底）
+  // 调用前必须保证：1) unlockAudio() 至少被调用过一次（用户交互后） 2) audioCtx / mp3Audio 状态可接受
+  function playReminderSound() {
+    // --- 1) 优先尝试 MP3 ---
+    if (mp3Ready && mp3Audio) {
+      try {
+        // 连点时重播：先回到 0 再 play（currentTime=0 可打断当前播放直接从头来）
+        try { mp3Audio.currentTime = 0; } catch (e) { /* ignore */ }
+        const p = mp3Audio.play();
+        if (p && typeof p.then === 'function') {
+          p.catch(function (e) {
+            // MP3 play() 被浏览器拦截（非常罕见），回退到合成音
+            console.warn('MP3 play 被拦截，回退合成音：', e);
+            tryPlayBeepsFallback();
+          });
+        }
+        return;  // MP3 分支已触发（或 promise 里会兜底）
+      } catch (e) {
+        console.warn('MP3 播放异常，回退合成音：', e);
+        // 直接落入 Web Audio 兜底
+      }
+    }
+
+    // --- 2) 兜底：Web Audio 合成"叮咚"声 ---
+    tryPlayBeepsFallback();
+  }
+
+  // Web Audio 合成兜底：检查 audioCtx 状态 → 合成播放
+  function tryPlayBeepsFallback() {
+    if (!audioCtx) {
+      console.warn('提示音未播放：用户尚未与页面交互，AudioContext 未初始化');
+      return;
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().then(function () {
+        doPlayBeeps();
+      }).catch(function (e) {
+        console.warn('恢复 AudioContext 失败，无法播放合成提示音：', e);
+      });
+    } else {
+      doPlayBeeps();
+    }
+  }
+
+  // 合成"叮咚"两声（内部函数）
+  function doPlayBeeps() {
+    if (!audioCtx || audioCtx.state !== 'running') return;
+    const now = audioCtx.currentTime;
+
+    // 两个频率：880Hz（叮）+ 660Hz（咚），间隔 180ms
+    const beeps = [
+      { freq: 880, start: 0,    duration: 0.20 },
+      { freq: 660, start: 0.24, duration: 0.28 }
+    ];
+
+    beeps.forEach(function (b) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = b.freq;
+
+      // 音量包络：0 → 0.5 → 0，避免开始/结束的爆音
+      gain.gain.setValueAtTime(0, now + b.start);
+      gain.gain.linearRampToValueAtTime(0.5, now + b.start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + b.start + b.duration);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now + b.start);
+      osc.stop(now + b.start + b.duration + 0.05);  // 多留 50ms 避免尾部咔哒
+    });
+  }
+
+  // 首次用户交互时 unlock 音频（once: true 自动移除监听）
+  ['click', 'keydown', 'touchstart'].forEach(function (evt) {
+    document.addEventListener(evt, unlockAudio, { once: true });
+  });
+
+
+  // ---------- 11.5 调度与触发 ----------
+
+  // 为单条事项注册精确 setTimeout
+  // 思路：到点时间 - 当前时间 = 等待毫秒数；若已过期（≤0）立即触发
+  function scheduleReminder(todo) {
+    // 无提醒时间 / 已提醒过 / 已完成 → 跳过
+    if (!todo.remindAt || todo.reminded || todo.done) return;
+
+    // 先清掉该事项的旧定时器（避免重复调度造成多次触发）
+    const oldTimer = reminderTimers.get(todo.id);
+    if (oldTimer) clearTimeout(oldTimer);
+
+    const delay = todo.remindAt - Date.now();
+    if (delay <= 0) {
+      // 已过期：立即触发（可能页面刚加载就有漏掉的提醒）
+      triggerReminder(todo);
+    } else {
+      // 未来时间：精确等待到点
+      const timerId = setTimeout(function () {
+        triggerReminder(todo);
+      }, delay);
+      reminderTimers.set(todo.id, timerId);
+    }
+  }
+
+  // 启动时扫描所有未提醒事项，逐个调度
+  function scheduleAllReminders() {
+    todos.forEach(function (t) {
+      if (t.remindAt && !t.reminded && !t.done) {
+        scheduleReminder(t);
+      }
+    });
+  }
+
+  // 取消某条事项的定时器（删除/完成时调用）
+  function cancelReminder(id) {
+    const t = reminderTimers.get(id);
+    if (t) {
+      clearTimeout(t);
+      reminderTimers.delete(id);
+    }
+  }
+
+  // 漏检检查：扫描所有"已到点但 reminded 还是 false"的事项，补触发
+  // 调用时机：visibilitychange 切回前台 / 60 秒 setInterval 兜底
+  function checkMissedReminders() {
+    const now = Date.now();
+    todos.forEach(function (t) {
+      if (t.remindAt && !t.reminded && !t.done && t.remindAt <= now) {
+        triggerReminder(t);
+      }
+    });
+  }
+
+  // 触发提醒：完整反馈链路
+  function triggerReminder(todo) {
+    // 防重：已提醒过直接返回（避免兜底定时器与精确定时器重复触发）
+    if (todo.reminded) return;
+
+    // 1) 先标记为已提醒 + 持久化（防止后续动画回调或刷新后再次触发）
+    todo.reminded = true;
+    save();
+
+    // 2) 播放"叮咚"音效
+    playReminderSound();
+
+    // 3) 找到对应 <li> 节点，加高亮 + 抖动动画类
+    const li = nodeCache.get(todo.id);
+    if (li) {
+      li.classList.add('reminding');
+      // 6 秒后撤销高亮，避免长期占用视觉
+      setTimeout(function () {
+        li.classList.remove('reminding');
+      }, 6000);
+    }
+
+    // 4) 史迪奇弹气泡："该 [text] 啦！"（黄色 warning 边框）
+    if (window.petMood) {
+      window.petMood.excited();                                  // 兴奋跳一下
+      window.petMood.toast('该 ' + todo.text + ' 啦！', 'warning');
+    }
+
+    // 5) 取消该事项的定时器（已触发，无需再等）
+    cancelReminder(todo.id);
+
+    // 6) 重新渲染，让徽章切换到"已过期"状态
+    render();
+  }
+
+
+  // ---------- 11.6 兜底定时器 ----------
+
+  // 60 秒兜底检查：用于后台标签页（浏览器会降频 setTimeout，60 秒兜底确保不漏）
+  setInterval(checkMissedReminders, 60000);
+
+  // 30 秒刷新所有徽章文案（仅改 textContent，不调用 render，避免反复写 localStorage）
+  // 让"还有 N 分钟"倒计时每 30 秒更新一次
+  setInterval(function () {
+    nodeCache.forEach(function (li, id) {
+      const todo = todos.find(function (t) { return t.id === id; });
+      if (todo) updateReminderBadge(li, todo);
+    });
+  }, 30000);
+
+
+  // ---------- 11.7 页面可见性联动 ----------
+  // 切回前台时补触发切走期间错过的提醒
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) {
+      checkMissedReminders();
+    }
+  });
+
+
+  // ---------- 11.8 暴露接口 ----------
+  window.reminderModule = {
+    parse: parseReminderFromText,
+    schedule: scheduleReminder,
+    scheduleAll: scheduleAllReminders,
+    cancel: cancelReminder,
+    checkMissed: checkMissedReminders,
+    trigger: triggerReminder,
+    playSound: playReminderSound,
+    unlockAudio: unlockAudio,
+    hasAudioCtx: function () { return !!audioCtx && audioCtx.state === 'running'; },
+    isMp3Ready: function () { return mp3Ready; },
+    getMp3Src: function () { return REMINDER_MP3_SRC; },
+    formatToLocalInputValue: formatToLocalInputValue
+  };
+
+
+  // ---------- 11.8b 绑定"🔊 测试音效"按钮 ----------
+  // 节流：避免用户高频连点造成多个 oscillator 叠加爆音
+  let soundTestCooldown = false;
+  const SOUND_TEST_COOLDOWN_MS = 800;  // 至少留足"叮咚"两声时长
+
+  function bindSoundTestButton() {
+    const btn = document.getElementById('soundTestBtn');
+    if (!btn) return;
+
+    btn.addEventListener('click', function () {
+      // 冷却中：忽略，不给任何反馈，避免进一步引导连点
+      if (soundTestCooldown) return;
+      soundTestCooldown = true;
+      setTimeout(function () { soundTestCooldown = false; }, SOUND_TEST_COOLDOWN_MS);
+
+      // 1) 按钮本身就是用户交互，先确保 AudioContext 被 unlock + resume
+      unlockAudio();
+
+      // 2) 加播放中样式（脉冲动画 0.5s，视觉确认）
+      btn.classList.remove('playing');
+      // 强制重排以重启动画（否则移除后立即添加不会触发）
+      void btn.offsetWidth;
+      btn.classList.add('playing');
+      setTimeout(function () {
+        btn.classList.remove('playing');
+      }, 600);  // 略长于动画 0.5s
+
+      // 3) 播放"叮咚"两声
+      playReminderSound();
+    });
+  }
+
+  // DOM 按钮一定在 reminderModule IIFE 之前解析（按钮写在 body 中，script 在 body 末尾）
+  // 为稳妥起见仍用 setTimeout 延迟到下一轮事件循环
+  setTimeout(bindSoundTestButton, 0);
+
+
+  // ---------- 11.9 启动调度 ----------
+  // 推到下一个事件循环，确保 todos 已通过 load() 加载、render() 已执行
+  setTimeout(scheduleAllReminders, 0);
+
+})();

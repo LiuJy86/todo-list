@@ -291,6 +291,38 @@ Claude_ToDoList_2_workshop\
   - 切换时淡入淡出正常，控制台无报错
 - **产出文件**：`index.html`、`script.js`、`style.css`
 
+### 任务 15：待办事项提醒日期 + 音效（v2.1.0）
+
+- **目标**：待办事项可设置提醒时间（如「8:00 提醒我吃饭」「8月15日 提醒我开会」），到点通过音效提醒用户。
+- **包含逻辑**：
+  - **存储升级**：`save()` / `load()` 从 `sessionStorage` 改用 `localStorage`；load 时若 localStorage 无数据但 sessionStorage 有旧数据则一次性迁移（搬到 localStorage 并清掉 sessionStorage），让提醒数据跨会话保留
+  - **数据结构扩展**：todos 元素新增 `remindAt`（提醒时间戳，无提醒为 null）和 `reminded`（是否已触发，防重复响铃）两个可选字段；load 后补齐旧事项缺失字段
+  - **双重输入**：
+    - 文本框自然语言解析 `parseReminderFromText`：支持「8:00」「15:30」「明天8:00」「8月15日 8:00」「8月15日」「明天」等格式，解析成功剥离时间词返回纯文本
+    - 原生 `<input type="datetime-local">` 精确选时间
+    - `wrappedAddTodo` 整合：自然语言解析 → 同步 datetime-local → addTodo(remindAt) → scheduleReminder
+  - **Web Audio 提示音**：`playReminderSound()` 用 oscillator + gain 包络合成「叮咚」两声（880Hz + 660Hz，间隔 180ms）；`unlockAudio()` 监听首次 click/keydown/touchstart（once:true）创建并 resume AudioContext
+  - **三道触发保障**：
+    - `scheduleReminder(todo)` 精确 setTimeout 到点触发
+    - `visibilitychange` 切回前台时 `checkMissedReminders` 补触发
+    - 60 秒 `setInterval(checkMissedReminders, 60000)` 兜底（应对后台标签页降频）
+  - **到点反馈链路** `triggerReminder`：先置 reminded=true + save 防重 → playReminderSound → li.classList.add('reminding') 红框抖动 6s → petMood.excited + petMood.toast('该 XXX 啦！', 'warning') → cancelReminder → render
+  - **提醒徽章** `updateReminderBadge`：按距离提醒时间变色（>1天灰 / ≤1天紫 / ≤1小时橙脉冲+倒计时 / 已过期红删除线）；每 30 秒 setInterval 刷新徽章文案
+  - **集成点**：`addTodo(remindAt)` 接受可选参数并返回新增对象；`toggleTodo` 完成时 cancelReminder、取消完成时重 schedule；`deleteTodo` 调 cancelReminder
+  - **第 11 节提醒模块 IIFE**：独立闭包封装，对外暴露 `window.reminderModule` 接口
+- **思路要点**：用 setTimeout 精确到点触发为主路径，visibilitychange + 60s setInterval 为兜底；reminded 标志位防重复响铃；Web Audio 程序合成音效避免文件依赖；自然语言解析与 datetime-local 互补，解析失败不阻断添加流程。
+- **验收标准**：
+  - 输入「8:00 吃饭」→ 文本框变「吃饭」，datetime-local 显示今天 08:00
+  - 输入「8月15日 8:00 开会」→ 解析为当年 8 月 15 日 08:00
+  - 设置 30 秒后提醒 → 到点播放「叮咚」声 + 红框抖动 + 史迪奇弹气泡
+  - reminded=true 写入 localStorage，刷新后不再响
+  - 到点前删除/完成事项 → 不触发提醒
+  - 切后台再切回 → 漏掉的提醒补触发
+  - 徽章按紧迫度变色（灰/紫/橙/红）
+  - 老版本 sessionStorage 数据自动迁移到 localStorage
+  - 现有收纳、桌宠、GIF 轮播功能无回归
+- **产出文件**：`index.html`、`script.js`、`style.css`
+
 ---
 
 ## 四、整体验收标准（最终交付）
@@ -301,7 +333,7 @@ Claude_ToDoList_2_workshop\
 2. ✅ 点击「添加」后，事项显示在列表中
 3. ✅ 每条事项可标记为已完成（有视觉区分）
 4. ✅ 每条事项可删除
-5. ✅ 刷新页面后，事项数据仍存在于 `sessionStorage` 中
+5. ✅ 刷新页面后，事项数据仍存在于 `localStorage` 中（v2.1.0 起从 sessionStorage 升级）
 6. ✅ 代码仅使用 HTML / CSS / JavaScript，无框架、无后端
 7. ✅ 关键代码均有中文注释，思路清晰，适合无开发经验者阅读
 8. ✅ 页面在常见分辨率下无滚动条，布局整洁无抖动
@@ -317,6 +349,8 @@ Claude_ToDoList_2_workshop\
 18. ✅ 待办操作反馈通过史迪奇对话气泡展示（无独立 toast 提示条），按类型切换气泡颜色
 19. ✅ 桌宠图片取自 `img/` 文件夹，3-5 秒随机轮播切换多张 GIF，切换有淡入淡出
 20. ✅ 桌宠图片路径正确无 404，图片边界经 mask 羽化自然融入背景，柔和投影立体浮于页面
+21. ✅ 待办事项可设置提醒时间（自然语言 + datetime-local 双重输入），到点播放「叮咚」音效 + 红框抖动 + 史迪奇弹气泡（v2.1.0）
+22. ✅ 提醒徽章按紧迫度变色（灰/紫/橙/红），数据存 localStorage 跨会话保留，三道触发保障不漏提醒（v2.1.0）
 
 ---
 
@@ -339,5 +373,6 @@ Claude_ToDoList_2_workshop\
 | 12 | 视觉与交互优化（GIF 动效 / 收拉框对比度 / toast 改为对话气泡） | ✅ 已完成 | `index.html`、`script.js`、`style.css` |
 | 13 | 桌宠 GIF 多图轮播（img 文件夹下 7 张 gif，3-5 秒随机切换） | ✅ 已完成 | `index.html`、`script.js` |
 | 14 | 桌宠边界融入优化（修正路径 404 + mask 羽化 + 双层投影） | ✅ 已完成 | `index.html`、`script.js`、`style.css` |
+| 15 | 待办事项提醒日期 + 音效（自然语言解析 + Web Audio + 三道触发保障） | ✅ 已完成 | `index.html`、`script.js`、`style.css` |
 
 > 状态标记：⬜ 未开始 / 🔄 进行中 / ✅ 已完成

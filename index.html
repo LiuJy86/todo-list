@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>待办事项清单</title>
   <!-- 引入样式表，负责页面外观 -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 
@@ -37,15 +37,29 @@
     <!-- 输入区：用户在这里输入新的待办事项 -->
     <section class="input-area">
       <!-- 文本输入框，id 用于 JS 获取其内容 -->
+      <!-- placeholder 改为带示例，引导用户尝试自然语言解析（如"8:00 吃饭"） -->
       <input
         type="text"
         id="todoInput"
-        placeholder="请输入一条待办事项..."
+        placeholder="如：8:00 吃饭  或  8月15日 8:00 开会"
         autocomplete="off"
+      >
+      <!-- 日期时间选择器：精确指定提醒时间（可选，留空则无提醒） -->
+      <!-- 与文本框互补：文本框支持自然语言，本框支持精确选择 -->
+      <input
+        type="datetime-local"
+        id="remindAtInput"
+        title="选择提醒时间（可选，留空则不设提醒）"
       >
       <!-- 添加按钮，id 用于 JS 监听点击事件 -->
       <button id="addBtn">添加</button>
     </section>
+
+    <!-- 提醒功能限制提示条：告知用户浏览器关闭后无法触发提醒 + 音效测试按钮 -->
+    <div class="reminder-notice" id="reminderNotice">
+      <span class="reminder-notice-text">提示：浏览器完全关闭后无法触发提醒，请保持本页面打开</span>
+      <button type="button" class="sound-test-btn" id="soundTestBtn" title='点击播放"叮咚"提示音'>🔊 测试音效</button>
+    </div>
 
     <!-- 列表区：所有待办事项会显示在这里 -->
     <section class="list-area">
