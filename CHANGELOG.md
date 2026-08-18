@@ -4,6 +4,88 @@
 
 ---
 
+## [v2.3.1] - 2026-08-18
+
+### 变更 (Changed) — 操作指南入口位置调整
+
+根据用户反馈"操作文档右下角比较好"，将操作指南入口从**标题旁并排**改为**右下角悬浮 FAB**：
+
+- **入口按钮位置迁移**：`<a class="guide-link">📖 操作指南</a>`（header 内）→ `<a class="guide-fab">📖</a>`（body 末尾，固定悬浮）
+  - **理由**：指南属辅助功能，不应与标题抢焦点；列表滚动后仍可触达；符合 Web 应用"帮助按钮在右下角"习惯
+  - **无冲突设计**：左下角已有 `#petRestoreBtn`（桌宠恢复按钮，仅隐藏桌宠后出现），右下角原空闲，两按钮对称分居左右两角，z-index 同为 9998
+- **header 恢复简洁居中**：从 `flex + justify-content: center + flex-wrap` 改回 `text-align: center`，标题区视觉干净
+- **FAB 样式**：
+  - 圆形（`border-radius: 50%`，52×52px），紫色渐变背景，2px 白色描边
+  - `position: fixed; right: 24px; bottom: 24px`，悬浮于视口右下角
+  - hover 时 `translateY(-2px) scale(1.06)` + 阴影加深，active 回弹
+  - 窄屏（≤480px）：缩为 46×46px、贴近边缘 16px，避免遮挡内容
+  - 带 `title` 和 `aria-label` 双重无障碍标注
+
+### 验证 (Verified)
+
+- ✅ header 恢复简洁：`block | children=1 | text=待办事项清单`（只有 h1）
+- ✅ 旧 `.guide-link` 已清零（`count=0`），新 `.guide-fab` 存在
+- ✅ FAB 位置正确：`position=fixed, right=24px, bottom=24px, viewportRight=686, distanceFromRight=24, distanceFromBottom=24`
+- ✅ FAB 样式正确：52×52px, `border-radius=50%`, `z-index=9998`, 紫色渐变背景
+- ✅ href 正确指向 `user_guide.html`，点击可跳转
+- ✅ 指南页 9 个 `.guide-section` 齐全，控制台零错误
+
+### 核心文件
+
+- `index.html`：`<header>` 移除 `<a class="guide-link">`，仅保留 `<h1>`；`</main>` 后新增 `<a class="guide-fab">📖</a>`；CSS 链接 `?v=8` → `?v=9`
+- `style.css`：`header` 改回 `text-align: center`；删除 `.guide-link` / `.guide-link:hover` / `.guide-link:active`；新增 `.guide-fab` / `.guide-fab:hover` / `.guide-fab:active` + 窄屏 @media ≤480px
+
+---
+
+## [v2.3.0] - 2026-08-18
+
+### 新增 (Added) — 操作指南文档 + UI 入口
+
+针对真实用户场景，新增一份**完整可点击查阅的操作指南**，让用户在浏览器内即可随时学习所有功能，无需翻阅代码或外部 README：
+
+- **新增独立页面 `user_guide.html`**（项目根目录）：
+  - 复用主应用的 CSS 变量（颜色 / 圆角 / 间距），视觉风格与主应用统一
+  - 顶部带 9 项**双列目录**，可点击锚点跳转；窄屏自动转单列
+  - 右上角"← 返回待办"按钮，随时回到主应用
+  - **9 个章节**覆盖全部功能：
+    1. 添加待办（基础输入 + Enter 快捷键）
+    2. 自然语言提醒（`8:00 吃饭` / `明天8:00 跑步` / `8月15日 8:00 开会` 等示例）
+    3. 精确选择提醒时间（datetime-local 与文本框互补）
+    4. 到点提醒与音效（三层反馈 + 🔊 测试音效按钮用法 + 自动播放策略提示）
+    5. 紧迫度徽章（灰/紫/橙/红 四种状态，直接渲染真实 `.reminder-badge` 元素示例）
+    6. 完成与删除（自动沉底 + 提醒联动）
+    7. 双组收纳（未完成≥5 / 已完成≥3）
+    8. 史迪奇桌宠（6 项互动能力）
+    9. 常见问题（5 个高频 Q&A：浏览器关闭/无声/数据丢失/后台漏提醒/换 MP3）
+  - 小贴士块（橙色左竖线）强调重点；内联代码（紫色背景）展示示例命令
+
+- **主页面新增入口按钮**：
+  - `index.html` 的 `<header>` 标题旁加入 `<a href="user_guide.html" class="guide-link">📖 操作指南</a>`
+  - 紫色渐变胶囊按钮，与「🔊 测试音效」按钮风格统一，hover 上浮 + 阴影加深
+  - `header` 从 `text-align: center` 改为 `flex + justify-content: center + flex-wrap: wrap`，标题与按钮并排，窄屏自动换行
+
+### 变更 (Changed) — 样式与缓存
+
+- **`header` 布局重构**：从单文本居中改为 flex 容器，支持标题 + 多个入口按钮并排展示，为后续可能新增的入口（如设置、关于等）预留扩展位
+- **CSS 缓存版本递增**：`index.html` 的 `style.css?v=7` → `?v=8`，确保用户取到含 `.guide-link` 样式的最新 CSS
+
+### 验证 (Verified)
+
+- ✅ 入口按钮存在且 href 正确：`📖 操作指南 | href=user_guide.html`
+- ✅ header 布局正确：`flex | children=2`（h1 + a）
+- ✅ 按钮样式生效：`border-radius: 999px` + 紫色渐变背景 + 白字
+- ✅ 指南页可访问：标题 `操作指南 · 待办事项清单`，9 个 `.guide-section` 章节
+- ✅ 控制台零错误零警告
+- ✅ 主应用其它功能（添加/提醒/收纳/桌宠/音效）无回归
+
+### 核心文件
+
+- `user_guide.html`（**新增**）：完整操作指南页面，含目录 / 9 章节 / 返回按钮 / 内联专用样式
+- `index.html`：`<header>` 内新增 `<a class="guide-link">📖 操作指南</a>`；CSS 链接版本号 `?v=7` → `?v=8`
+- `style.css`：`header` 改为 flex 布局 + `flex-wrap: wrap`；新增 `.guide-link` / `.guide-link:hover` / `.guide-link:active` 样式
+
+---
+
 ## [v2.2.0] - 2026-08-18
 
 ### 优化 (Optimized) — 整体布局整洁度 + 视觉层级

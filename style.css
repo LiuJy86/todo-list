@@ -73,6 +73,48 @@ header h1 {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
+/* 操作指南悬浮入口（右下角 FAB） */
+/* 与左下角的 #petRestoreBtn（桌宠恢复按钮）对称，两者不会同时出现冲突 */
+.guide-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9998;  /* 与桌宠恢复按钮同层，但分居左右两角 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  font-size: 22px;
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(135deg, #667eea 0%, #5c4fc0 100%);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  cursor: pointer;
+  line-height: 1;
+  user-select: none;
+}
+.guide-fab:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.55);
+  background: linear-gradient(135deg, #5c4fc0 0%, #4d3fb0 100%);
+}
+.guide-fab:active { transform: translateY(0) scale(1); }
+
+/* 窄屏：稍微缩小并贴近边缘，避免遮挡内容 */
+@media (max-width: 480px) {
+  .guide-fab {
+    width: 46px;
+    height: 46px;
+    font-size: 20px;
+    right: 16px;
+    bottom: 16px;
+  }
+}
+
 /* ===== 主体内容区 ===== */
 main {
   max-width: 520px;

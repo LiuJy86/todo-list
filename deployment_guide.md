@@ -66,12 +66,14 @@
 1. **将以下文件和目录**上传至服务器的 `/var/www/todolist` 目录（缺一不可）：
    ```
    index.html        # 页面主文件
-   style.css         # 样式文件（含史迪奇 / 提醒 / 音效按钮 / 响应式等所有样式）
+   user_guide.html   # 【v2.3+】内置操作指南页（主页面标题旁有入口按钮跳转）
+   style.css         # 样式文件（含史迪奇 / 提醒 / 音效按钮 / 指南入口 / 响应式等所有样式）
    script.js         # 交互脚本（含提醒 / 收纳 / 桌宠 / 存储迁移等）
    提示音效.mp3       # MP3 提示音（务必一起上传！否则自动回退合成音兜底）
    img/              # 史迪奇 GIF 动图（需保留内部 6 张 gif，_original 可选）
    ```
-   > `Task.md`、`CHANGELOG.md`、`deployment_guide.md`、`verify_*.py`、`screenshots/`、`.claude/`、`.trae/` 均为开发期文档/脚本/截图，**非运行必需**，可不上传。
+   > `Task.md`、`CHANGELOG.md`、`deployment_guide.md`、`README.md`、`verify_*.py`、`screenshots/`、`.claude/`、`.trae/` 均为开发期文档/脚本/截图，**非运行必需**，可不上传。
+   > **注意**：`user_guide.html` 虽然技术上不算"主流程必需"（缺了主应用也能跑），但主页面标题旁的「📖 操作指南」按钮会指向它，**缺文件会导致点击 404**，强烈建议一起上传。
 
 2. 在 Nginx 配置中添加静态文件服务：
    ```nginx
@@ -141,13 +143,20 @@ playwright install chromium
   - 输入「8:00 吃饭」自动解析时间，datetime-local 同步显示
   - 点击「🔊 测试音效」按钮有声音 + 按钮脉冲动画
   - 设置 3 秒后提醒 → 到点播放 MP3 / 合成音 + 红框抖动 + 史迪奇气泡
+- **操作指南页（v2.3+，可纳入 Playwright 用例）**：
+  - 主页面 `<a class="guide-fab">` 存在且 href 指向 `user_guide.html`（v2.3.1 起改为右下角悬浮 FAB，旧版 `.guide-link` 已废弃）
+  - FAB 位置：`position=fixed, right=24px, bottom=24px, z-index=9998`，与左下角的 `#petRestoreBtn` 对称不冲突
+  - 点击后跳转到指南页，`document.title` 为「操作指南 · 待办事项清单」
+  - 指南页 `.guide-section` 节点数量 = 9（9 个章节齐全）
+  - 点击右上角「← 返回待办」按钮可回到 `index.html`
 
 ## 6. 目录结构（运行必需）
 
 ```
 project-root/
-├── index.html               # 页面主文件
-├── style.css                # 样式文件（含史迪奇 / 提醒 / 收纳 / 音效按钮 / 响应式等）
+├── index.html               # 页面主文件（含「📖 操作指南」入口按钮）
+├── user_guide.html          # 【v2.3+】内置操作指南页（9 章节 + 目录 + 返回按钮）
+├── style.css                # 样式文件（含史迪奇 / 提醒 / 收纳 / 音效按钮 / 指南入口 / 响应式等）
 ├── script.js                # 交互脚本（含提醒 IIFE、收纳、桌宠、toast 气泡、存储迁移）
 ├── 提示音效.mp3              # 【必需】自定义 MP3 提示音，缺失时自动回退合成音
 ├── img/                     # 桌宠 GIF（6 张：史迪奇1.gif ~ 史迪奇6.gif）
