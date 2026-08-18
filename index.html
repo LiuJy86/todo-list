@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>待办事项清单</title>
   <!-- 引入样式表，负责页面外观 -->
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
 
@@ -44,14 +44,74 @@
         placeholder="如：8:00 吃饭  或  8月15日 8:00 开会"
         autocomplete="off"
       >
-      <!-- 日期时间选择器：精确指定提醒时间（可选，留空则无提醒） -->
-      <!-- lang="en" 强制浏览器用英文格式渲染 datetime-local（4 位年份 mm/dd/yyyy），避免中文 Windows 下显示 yy -->
-      <input
-        type="datetime-local"
-        id="remindAtInput"
-        title="选择提醒时间（可选，留空则不设提醒）"
-        lang="en"
-      >
+      <!-- 日期时间选择器（自定义 Popover 浮层，替代原生 datetime-local） -->
+      <div class="datetime-picker" id="datetimePicker">
+        <div class="datetime-trigger" id="datetimeTrigger" title="点击选择提醒时间">
+          <span class="datetime-display" id="datetimeDisplay">选择提醒时间（可选）</span>
+          <span class="datetime-icon">📅</span>
+        </div>
+        <!-- Popover 浮层 -->
+        <div class="datetime-popover" id="datetimePopover">
+          <!-- 日期区 -->
+          <div class="dp-section">
+            <div class="dp-label">日期</div>
+            <div class="dp-preset-row" id="dpDatePresets">
+              <button type="button" class="dp-preset" data-date="today">今天</button>
+              <button type="button" class="dp-preset" data-date="tomorrow">明天</button>
+              <button type="button" class="dp-preset" data-date="dayAfter">后天</button>
+              <button type="button" class="dp-preset" data-date="nextWeek">下周一</button>
+            </div>
+            <input type="date" id="dpDateInput" class="dp-date-input">
+          </div>
+          <!-- 时间区 -->
+          <div class="dp-section">
+            <div class="dp-label">时间</div>
+            <div class="dp-time-row">
+              <select id="dpHourSelect" class="dp-time-select"></select>
+              <span class="dp-time-sep">:</span>
+              <select id="dpMinuteSelect" class="dp-time-select"></select>
+            </div>
+            <div class="dp-preset-row" id="dpTimePresets">
+              <button type="button" class="dp-preset" data-time="morning">早上 8:00</button>
+              <button type="button" class="dp-preset" data-time="noon">中午 12:00</button>
+              <button type="button" class="dp-preset" data-time="evening">晚上 20:00</button>
+            </div>
+          </div>
+          <!-- 循环提醒区 -->
+          <div class="dp-section dp-cycle-section">
+            <div class="dp-label-row">
+              <span class="dp-label">🔄 循环提醒</span>
+              <label class="dp-toggle">
+                <input type="checkbox" id="dpCycleToggle">
+                <span class="dp-toggle-slider"></span>
+              </label>
+            </div>
+            <div class="dp-cycle-options" id="dpCycleOptions" style="display:none;">
+              <div class="dp-preset-row" id="dpCyclePresets">
+                <button type="button" class="dp-preset" data-cycle="30m">每 30 分钟</button>
+                <button type="button" class="dp-preset" data-cycle="1h">每 1 小时</button>
+                <button type="button" class="dp-preset" data-cycle="1d">每 1 天</button>
+                <button type="button" class="dp-preset" data-cycle="1w">每 1 周</button>
+                <button type="button" class="dp-preset" data-cycle="custom">自定义</button>
+              </div>
+              <div class="dp-custom-cycle" id="dpCustomCycle" style="display:none;">
+                <input type="number" id="dpCycleValue" min="1" max="999" placeholder="间隔值" class="dp-cycle-input">
+                <select id="dpCycleUnit" class="dp-cycle-unit">
+                  <option value="minute">分钟</option>
+                  <option value="hour">小时</option>
+                  <option value="day">天</option>
+                  <option value="week">周</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <!-- 操作按钮 -->
+          <div class="dp-actions">
+            <button type="button" class="dp-btn dp-btn-clear" id="dpClearBtn">清除</button>
+            <button type="button" class="dp-btn dp-btn-confirm" id="dpConfirmBtn">确定</button>
+          </div>
+        </div>
+      </div>
       <!-- 添加按钮，id 用于 JS 监听点击事件 -->
       <button id="addBtn">添加</button>
     </section>
@@ -82,6 +142,6 @@
   </a>
 
   <!-- 引入脚本，负责页面交互逻辑 -->
-  <script src="script.js"></script>
+  <script src="script.js?v=11"></script>
 </body>
 </html>

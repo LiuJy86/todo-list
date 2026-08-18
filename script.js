@@ -4,10 +4,18 @@
 // ---------- 1. 数据层 ----------
 
 // 数据源：所有待办事项都存在这个数组里
-// 每条事项结构：
+// 每条事项结构（v2.4.0 扩展）：
 //   { id: 唯一标识, text: 内容文本, done: 是否已完成,
 //     remindAt: 提醒时间戳（毫秒，无提醒为 null）,
-//     reminded: 是否已触发过提醒（防重复响铃） }
+//     reminded: 是否已触发过本轮提醒（防重复响铃）,
+//     recurrence: {                    // 循环设置（null=不循环）
+//       enabled: true/false,
+//       interval: 30,                   // 间隔数值
+//       unit: 'minute'|'hour'|'day'|'week',
+//     },
+//     completionCount: 0,               // 完成次数（循环专用）
+//     lastRemindAt: 上次实际提醒时间戳,    // 循环调度用
+//   }
 // 后续的「添加 / 标记完成 / 删除 / 持久化 / 提醒调度」都围绕这个数组进行
 let todos = [];
 
@@ -52,10 +60,13 @@ function load() {
   if (data) {
     // JSON.parse 把字符串还原成 JS 数组，赋值回 todos
     todos = JSON.parse(data);
-    // 数据兼容：补齐旧事项缺失的新字段（无提醒）
+    // 数据兼容：补齐旧事项缺失的新字段
     todos.forEach(function (t) {
       if (t.remindAt === undefined) t.remindAt = null;
       if (t.reminded === undefined) t.reminded = false;
+      if (t.recurrence === undefined) t.recurrence = null;
+      if (t.completionCount === undefined) t.completionCount = 0;
+      if (t.lastRemindAt === undefined) t.lastRemindAt = null;
     });
   }
 }
@@ -65,7 +76,11 @@ function load() {
 
 // 通过 id 拿到 HTML 中的关键元素，后续操作都基于这些引用
 const todoInput = document.getElementById('todoInput');  // 输入框
-const remindAtInput = document.getElementById('remindAtInput');  // 日期时间选择器（v2.1.0 新增）
+const remindAtInput = document.getElementById('remindAtInput');  // 已废弃（v2.4.0 用 datetime picker 替代），保留兼容引用
+const datetimePicker = document.getElementById('datetimePicker');  // 自定义日期时间选择器容器
+const datetimeTrigger = document.getElementById('datetimeTrigger');  // 触发按钮
+const datetimeDisplay = document.getElementById('datetimeDisplay');  // 显示文本
+const datetimePopover = document.getElementById('datetimePopover');  // Popover 浮层
 const addBtn = document.getElementById('addBtn');        // 添加按钮
 const todoList = document.getElementById('todoList');    // 列表容器（<ul>）
 
@@ -262,7 +277,6 @@ function createTodoElement(todo) {
   checkbox.type = 'checkbox';
   checkbox.className = 'todo-checkbox';
   checkbox.addEventListener('change', function () {
-    // 优先使用带情绪/toast 联动的包装版本（若存在），否则回退到原始 toggleTodo
     if (typeof window.wrappedToggleTodo === 'function') {
       window.wrappedToggleTodo(todo.id);
     } else {
@@ -274,14 +288,61 @@ function createTodoElement(todo) {
   span.className = 'todo-text';
   span.textContent = todo.text;
 
+  // 构造 Tooltip 内容
+  const tooltipParts = [];
+  if (todo.remindAt) {
+    const d = new Date(todo.remindAt);
+    const dateStr = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' +
+      String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    tooltipParts.push('⏰ ' + dateStr);
+  }
+  if (todo.recurrence && todo.recurrence.enabled) {
+    const unitMap = { minute: '分钟', hour: '小时', day: '天', week: '周' };
+    tooltipParts.push('🔄 循环：每 ' + todo.recurrence.interval + ' ' + unitMap[todo.recurrence.unit]);
+  }
+  if (todo.completionCount > 0) {
+    tooltipParts.push('✅ 已完成 ' + todo.completionCount + ' 次');
+  }
+  if (tooltipParts.length > 0) {
+    li.title = tooltipParts.join(' | ');
+    li.classList.add('has-tooltip');
+  }
+
   // 若该事项设置了提醒时间，创建提醒徽章
-  // 徽章的具体文案与颜色由 updateReminderBadge() 在每次渲染时刷新
   if (todo.remindAt) {
     const badge = document.createElement('span');
     badge.className = 'reminder-badge';
     li.appendChild(checkbox);
     li.appendChild(span);
     li.appendChild(badge);
+
+    // 循环徽章装饰
+    if (todo.recurrence && todo.recurrence.enabled) {
+      badge.classList.add('reminder-badge-cycle');
+      // 完成次数小徽章
+      if (todo.completionCount > 0) {
+        const countBadge = document.createElement('span');
+        countBadge.className = 'completion-count';
+        countBadge.textContent = '×' + todo.completionCount;
+        li.appendChild(countBadge);
+      }
+    }
+
+    // 停止循环按钮
+    if (todo.recurrence && todo.recurrence.enabled) {
+      const stopBtn = document.createElement('button');
+      stopBtn.className = 'stop-cycle-btn';
+      stopBtn.textContent = '⏹';
+      stopBtn.title = '停止循环提醒';
+      stopBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        if (window.reminderModule) {
+          window.reminderModule.stopCycle(todo.id);
+        }
+      });
+      li.appendChild(stopBtn);
+    }
   } else {
     li.appendChild(checkbox);
     li.appendChild(span);
@@ -291,7 +352,6 @@ function createTodoElement(todo) {
   deleteBtn.className = 'delete-btn';
   deleteBtn.textContent = '删除';
   deleteBtn.addEventListener('click', function () {
-    // 优先使用带情绪/toast 联动的包装版本（若存在），否则回退到原始 deleteTodo
     if (typeof window.wrappedDeleteTodo === 'function') {
       window.wrappedDeleteTodo(todo.id);
     } else {
@@ -371,9 +431,9 @@ function updateReminderBadge(li, todo) {
 // ---------- 4. 添加待办事项 ----------
 
 // 添加待办事项
-// 参数：remindAt（可选）— 提醒时间戳（毫秒）；未传或为假值则不设提醒
+// 参数：remindAt（可选）— 提醒时间戳（毫秒）；recurrence（可选）— 循环设置对象
 // 返回值：新增的事项对象（供调用方调度提醒）；空输入时返回 undefined
-function addTodo(remindAt) {
+function addTodo(remindAt, recurrence) {
   // 1) 读取输入框的值，并用 trim() 去除首尾空格
   const text = todoInput.value.trim();
 
@@ -390,13 +450,18 @@ function addTodo(remindAt) {
   // 3) 构造新事项对象，推入数组
   // id 用 Date.now()（当前毫秒时间戳）保证唯一
   // remindAt：提醒时间戳（毫秒），无提醒为 null
-  // reminded：是否已触发过提醒，初始 false
+  // reminded：是否已触发过本轮提醒，初始 false
+  // recurrence：循环设置，无循环为 null
+  // completionCount：完成次数，初始 0
   const newTodo = {
     id: Date.now(),
     text: text,
     done: false,
     remindAt: remindAt || null,
-    reminded: false
+    reminded: false,
+    recurrence: recurrence || null,
+    completionCount: 0,
+    lastRemindAt: null
   };
   todos.push(newTodo);
 
@@ -419,21 +484,43 @@ function addTodo(remindAt) {
 //   - 取消勾选（done 由 true → false）：将该事项插入到「所有未完成事项之后、
 //     已完成事项之前」，保持未完成组按原添加顺序向上冒泡
 function toggleTodo(id) {
-  // 用 find 在数组中按 id 查找对应事项
   const todo = todos.find(function (t) {
     return t.id === id;
   });
 
-  if (!todo) {
-    return;  // 未找到则直接返回
+  if (!todo) return;
+
+  // 循环待办：勾选完成时的特殊处理（v2.4.0）
+  if (todo.recurrence && todo.recurrence.enabled && !todo.done) {
+    // 1) 记录完成次数
+    todo.completionCount = (todo.completionCount || 0) + 1;
+
+    // 2) 推进到下一个周期
+    if (window.reminderModule) {
+      const intervalMs = window.reminderModule.getIntervalMs(todo.recurrence);
+      if (intervalMs) {
+        todo.remindAt = Date.now() + intervalMs;
+        todo.reminded = false;
+        todo.lastRemindAt = Date.now();
+      }
+    }
+
+    // 3) 保持未完成态
+    todo.done = false;
+
+    // 4) 调度下一轮
+    if (window.reminderModule && todo.remindAt) {
+      window.reminderModule.schedule(todo);
+    }
+
+    save();
+    render();
+    return;
   }
 
-  // 翻转完成状态（true 变 false，false 变 true）
+  // 非循环待办：保持原有逻辑
   todo.done = !todo.done;
 
-  // 提醒调度联动：
-  //   - 勾选完成 → 取消该事项的提醒定时器（已完成无需再提醒）
-  //   - 取消完成 → 若提醒时间未到且未提醒过，重新调度提醒
   if (window.reminderModule) {
     if (todo.done) {
       window.reminderModule.cancel(id);
@@ -442,33 +529,25 @@ function toggleTodo(id) {
     }
   }
 
-  // 从数组中移除该事项，准备重新插入到合适位置
   const remaining = todos.filter(function (t) {
     return t.id !== id;
   });
 
   if (todo.done) {
-    // 勾选完成 -> 追加到数组末尾（已完成区末尾）
     remaining.push(todo);
   } else {
-    // 取消勾选 -> 插入到「第一个已完成事项」之前，即未完成区末尾
-    // 这样未完成事项保持原添加顺序向上冒泡，已完成事项整体沉底
     const firstDoneIndex = remaining.findIndex(function (t) {
       return t.done;
     });
     if (firstDoneIndex === -1) {
-      // 没有已完成事项，直接追加到末尾
       remaining.push(todo);
     } else {
-      // 在第一个已完成事项之前插入
       remaining.splice(firstDoneIndex, 0, todo);
     }
   }
 
-  // 用重排后的数组更新数据源
   todos = remaining;
-
-  // 数据已变，重新渲染列表（复选框勾选状态与 completed 样式会同步更新）
+  save();
   render();
 }
 
@@ -1222,51 +1301,56 @@ const COMPLETE_TODO_TOASTS = [
 // 直接重新赋值函数不会改变已绑定的监听器。这里采用「包装」方案：
 // 移除旧监听器，添加新监听器调用包装后的逻辑。
 
-// 包装 addTodo：整合自然语言解析 + datetime-local + 调度提醒 + 桌宠反馈
+// 包装 addTodo：整合自然语言解析 + 日期选择器 + 循环设置 + 调度提醒 + 桌宠反馈
 function wrappedAddTodo() {
   const rawText = todoInput.value.trim();
   if (rawText === '') {
-    // 文本框为空：调用原 addTodo 触发红边框提示并返回（addTodo 内部会处理空输入）
     addTodo();
     return;
   }
 
   let remindAt = null;
+  let recurrence = null;
 
-  // 1) 优先尝试自然语言解析（如 "8:00 吃饭" → 今天 8:00 + 文本"吃饭"）
+  // 1) 优先尝试自然语言解析
   if (window.reminderModule) {
     const parsed = window.reminderModule.parse(rawText);
     if (parsed.remindAt) {
       remindAt = parsed.remindAt;
-      // 解析成功：把解析后的纯文本覆盖回输入框（剥离时间词）
-      // 同时同步到 datetime-local 让用户看到确认
       todoInput.value = parsed.text;
-      remindAtInput.value = window.reminderModule.formatToLocalInputValue(new Date(remindAt));
+      // 同步到日期选择器显示
+      if (window.datetimePickerModule) {
+        window.datetimePickerModule.syncFromTimestamp(remindAt, null);
+      }
     }
   }
 
-  // 2) 自然语言解析失败，但用户填了 datetime-local → 用 datetime-local 的值
-  if (!remindAt && remindAtInput.value) {
-    remindAt = new Date(remindAtInput.value).getTime();
+  // 2) 从日期选择器获取时间（覆盖自然语言解析结果）
+  const pickerTs = window.datetimePickerModule ? window.datetimePickerModule.getTimestamp() : null;
+  if (pickerTs) {
+    remindAt = pickerTs;
+    recurrence = window.datetimePickerModule.getRecurrence();
   }
-  // 3) 都没有 → remindAt 保持 null，纯添加（不阻断流程）
 
-  // 调用扩展后的 addTodo（接受 remindAt 参数），返回新增事项对象
-  const newTodo = addTodo(remindAt);
+  // 3) 都没有 → 纯添加（不设提醒）
+  const newTodo = addTodo(remindAt, recurrence);
 
-  // 为新增事项调度提醒定时器（仅当有 remindAt）
   if (newTodo && newTodo.remindAt && window.reminderModule) {
     window.reminderModule.schedule(newTodo);
   }
 
-  // 清空 datetime-local（文本框已由 addTodo 清空）
-  remindAtInput.value = '';
+  // 清空日期选择器
+  if (window.datetimePickerModule) {
+    window.datetimePickerModule.clearAll();
+  }
 
-  // 触发桌宠反馈：有提醒时用专门文案，否则用随机文案
+  // 触发桌宠反馈
   if (window.petMood) {
     window.petMood.excited();
     const msg = remindAt
-      ? '已设好提醒，到点我会叫你！'
+      ? (recurrence && recurrence.enabled
+          ? '已设好循环提醒，到点我会叫你！'
+          : '已设好提醒，到点我会叫你！')
       : ADD_TODO_TOASTS[Math.floor(Math.random() * ADD_TODO_TOASTS.length)];
     window.petMood.toast(msg, 'success');
   }
@@ -1276,15 +1360,21 @@ function wrappedAddTodo() {
 function wrappedToggleTodo(id) {
   const todo = todos.find(function (t) { return t.id === id; });
   const wasDone = todo ? todo.done : false;
-  toggleTodo(id);  // 调用原始函数
+  const wasCycle = todo && todo.recurrence && todo.recurrence.enabled;
+  const oldCount = todo ? (todo.completionCount || 0) : 0;
+
+  toggleTodo(id);
+
   if (window.petMood) {
-    if (todo && todo.done) {
-      // 勾选完成 → 开心 + 庆祝 toast
+    if (wasCycle && !todo.done && todo.completionCount > oldCount) {
+      // 循环待办完成一次 → 庆祝 + 下一轮倒计时
+      window.petMood.happy();
+      window.petMood.toast('完成第 ' + todo.completionCount + ' 次！下一轮提醒已安排', 'success');
+    } else if (todo && todo.done) {
       window.petMood.happy();
       const msg = COMPLETE_TODO_TOASTS[Math.floor(Math.random() * COMPLETE_TODO_TOASTS.length)];
       window.petMood.toast(msg, 'success');
     } else if (wasDone && !todo.done) {
-      // 取消勾选 → 提示 toast
       window.petMood.toast('取消完成？没关系，继续加油！', 'info');
     }
   }
@@ -1325,6 +1415,386 @@ todoInput.addEventListener('keydown', function (e) {
     wrappedAddTodo();
   }
 }, true);  // capture 阶段先执行
+
+
+// ===== 10.5 自定义日期时间选择器（Popover 浮层）=====
+// v2.4.0 新增：替代原生 datetime-local，支持日期/时间/循环三合一设置
+
+const datetimePickerModule = (function () {
+  // 模块内部状态
+  let currentDate = null;       // 已选日期 (Date 对象，时间部分为 00:00)
+  let currentHour = 8;          // 已选小时
+  let currentMinute = 0;        // 已选分钟
+  let currentRecurrence = null; // 循环设置对象
+  let activeDatePreset = null;  // 当前激活的日期预设
+  let activeTimePreset = null;  // 当前激活的时间预设
+  let activeCyclePreset = null; // 当前激活的循环预设
+
+  // DOM 引用
+  const datetimePicker = document.getElementById('datetimePicker');
+  const datetimeTrigger = document.getElementById('datetimeTrigger');
+  const datetimeDisplay = document.getElementById('datetimeDisplay');
+  const datetimePopover = document.getElementById('datetimePopover');
+  const datePresetRow = document.getElementById('dpDatePresets');
+  const dateInput = document.getElementById('dpDateInput');
+  const hourSelect = document.getElementById('dpHourSelect');
+  const minuteSelect = document.getElementById('dpMinuteSelect');
+  const timePresetRow = document.getElementById('dpTimePresets');
+  const cycleToggle = document.getElementById('dpCycleToggle');
+  const cycleOptions = document.getElementById('dpCycleOptions');
+  const cyclePresetRow = document.getElementById('dpCyclePresets');
+  const customCycle = document.getElementById('dpCustomCycle');
+  const cycleValueInput = document.getElementById('dpCycleValue');
+  const cycleUnitSelect = document.getElementById('dpCycleUnit');
+  const clearBtn = document.getElementById('dpClearBtn');
+  const confirmBtn = document.getElementById('dpConfirmBtn');
+
+  // 初始化下拉选项
+  function initTimeSelects() {
+    for (let h = 0; h < 24; h++) {
+      const opt = document.createElement('option');
+      opt.value = String(h).padStart(2, '0');
+      opt.textContent = String(h).padStart(2, '0');
+      hourSelect.appendChild(opt);
+    }
+    for (let m = 0; m < 60; m += 5) {
+      const opt = document.createElement('option');
+      opt.value = String(m).padStart(2, '0');
+      opt.textContent = String(m).padStart(2, '0');
+      minuteSelect.appendChild(opt);
+    }
+  }
+
+  // 格式化显示文本
+  function formatDisplayText() {
+    if (!currentDate) return '选择提醒时间（可选）';
+    const d = new Date(currentDate);
+    const hh = String(currentHour).padStart(2, '0');
+    const mm = String(currentMinute).padStart(2, '0');
+    const dateStr = (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    const timeStr = hh + ':' + mm;
+    let text = dateStr + ' ' + timeStr;
+    if (currentRecurrence) {
+      text += ' · ' + formatRecurrenceShort(currentRecurrence);
+    }
+    return text;
+  }
+
+  function formatRecurrenceShort(r) {
+    if (!r || !r.enabled) return '';
+    const unitMap = { minute: '分钟', hour: '小时', day: '天', week: '周' };
+    return '每' + r.interval + unitMap[r.unit];
+  }
+
+  function formatRecurrenceLong(r) {
+    if (!r || !r.enabled) return '';
+    const unitMap = { minute: '分钟', hour: '小时', day: '天', week: '周' };
+    return '每 ' + r.interval + ' ' + unitMap[r.unit] + '循环';
+  }
+
+  // 获取当前选中的完整时间戳
+  function getTimestamp() {
+    if (!currentDate) return null;
+    const d = new Date(currentDate);
+    d.setHours(currentHour, currentMinute, 0, 0);
+    return d.getTime();
+  }
+
+  // 获取循环设置
+  function getRecurrence() {
+    return currentRecurrence;
+  }
+
+  // 打开 popover
+  function open() {
+    datetimePopover.classList.add('open');
+    datetimeTrigger.classList.add('active');
+    // 初始化日期为今天
+    if (!currentDate) {
+      selectDatePreset('today');
+    }
+  }
+
+  // 关闭 popover
+  function close() {
+    datetimePopover.classList.remove('open');
+    datetimeTrigger.classList.remove('active');
+  }
+
+  // 选择日期预设
+  function selectDatePreset(preset) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let d = new Date(today);
+    switch (preset) {
+      case 'today': break;
+      case 'tomorrow': d.setDate(d.getDate() + 1); break;
+      case 'dayAfter': d.setDate(d.getDate() + 2); break;
+      case 'nextWeek':
+        const day = d.getDay();
+        const diff = day === 1 ? 7 : (8 - day);
+        d.setDate(d.getDate() + diff);
+        break;
+      default: return;
+    }
+    currentDate = d;
+    currentDate.setHours(0, 0, 0, 0);
+    // 更新 UI
+    dateInput.value = d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+    // 高亮预设按钮
+    datePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.date === preset);
+    });
+    activeDatePreset = preset;
+  }
+
+  // 选择时间预设
+  function selectTimePreset(preset) {
+    const presets = {
+      morning: { h: 8, m: 0 },
+      noon: { h: 12, m: 0 },
+      evening: { h: 20, m: 0 }
+    };
+    const p = presets[preset];
+    if (!p) return;
+    currentHour = p.h;
+    currentMinute = p.m;
+    hourSelect.value = String(p.h).padStart(2, '0');
+    minuteSelect.value = String(p.m).padStart(2, '0');
+    timePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.time === preset);
+    });
+    activeTimePreset = preset;
+  }
+
+  // 选择循环预设
+  function selectCyclePreset(preset) {
+    let r = null;
+    switch (preset) {
+      case '30m': r = { enabled: true, interval: 30, unit: 'minute' }; break;
+      case '1h': r = { enabled: true, interval: 1, unit: 'hour' }; break;
+      case '1d': r = { enabled: true, interval: 1, unit: 'day' }; break;
+      case '1w': r = { enabled: true, interval: 1, unit: 'week' }; break;
+      case 'custom':
+        customCycle.style.display = 'flex';
+        cycleValueInput.value = cycleValueInput.value || '30';
+        cycleUnitSelect.value = cycleUnitSelect.value || 'minute';
+        r = {
+          enabled: true,
+          interval: parseInt(cycleValueInput.value) || 30,
+          unit: cycleUnitSelect.value
+        };
+        break;
+      default: return;
+    }
+    currentRecurrence = r;
+    cyclePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.cycle === preset);
+    });
+    activeCyclePreset = preset;
+  }
+
+  // 清除所有选择
+  function clearAll() {
+    currentDate = null;
+    currentHour = 8;
+    currentMinute = 0;
+    currentRecurrence = null;
+    activeDatePreset = null;
+    activeTimePreset = null;
+    activeCyclePreset = null;
+    datetimeDisplay.textContent = '选择提醒时间（可选）';
+    datetimeDisplay.classList.add('placeholder');
+    // 清除预设高亮
+    datePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+    timePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+    cyclePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+    // 重置循环
+    cycleToggle.checked = false;
+    cycleOptions.style.display = 'none';
+    customCycle.style.display = 'none';
+    // 重置日期输入
+    dateInput.value = '';
+    hourSelect.value = '08';
+    minuteSelect.value = '00';
+    close();
+  }
+
+  // 同步值到显示（在自然语言解析成功后调用）
+  function syncFromTimestamp(timestamp, recurrence) {
+    if (timestamp) {
+      const d = new Date(timestamp);
+      currentDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      currentHour = d.getHours();
+      currentMinute = d.getMinutes();
+      dateInput.value = d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+      hourSelect.value = String(currentHour).padStart(2, '0');
+      minuteSelect.value = String(currentMinute).padStart(2, '0');
+    }
+    if (recurrence) {
+      currentRecurrence = recurrence;
+      cycleToggle.checked = true;
+      cycleOptions.style.display = 'block';
+    }
+    updateDisplay();
+  }
+
+  function updateDisplay() {
+    const text = formatDisplayText();
+    datetimeDisplay.textContent = text;
+    if (!currentDate) {
+      datetimeDisplay.classList.add('placeholder');
+    } else {
+      datetimeDisplay.classList.remove('placeholder');
+    }
+  }
+
+  // 绑定事件
+  function bind() {
+    initTimeSelects();
+
+    // 触发按钮点击 → 打开/关闭
+    datetimeTrigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (datetimePopover.classList.contains('open')) {
+        close();
+      } else {
+        open();
+      }
+    });
+
+    // 点击外部关闭
+    document.addEventListener('click', function (e) {
+      if (!datetimePicker.contains(e.target)) {
+        close();
+      }
+    });
+
+    // 日期预设按钮
+    datePresetRow.addEventListener('click', function (e) {
+      const btn = e.target.closest('.dp-preset');
+      if (!btn) return;
+      selectDatePreset(btn.dataset.date);
+      updateDisplay();
+    });
+
+    // 手动日期输入
+    dateInput.addEventListener('change', function () {
+      if (dateInput.value) {
+        const parts = dateInput.value.split('-');
+        currentDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        currentDate.setHours(0, 0, 0, 0);
+        activeDatePreset = null;
+        datePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+        updateDisplay();
+      }
+    });
+
+    // 时间下拉
+    hourSelect.addEventListener('change', function () {
+      currentHour = parseInt(hourSelect.value);
+      activeTimePreset = null;
+      timePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+      updateDisplay();
+    });
+    minuteSelect.addEventListener('change', function () {
+      currentMinute = parseInt(minuteSelect.value);
+      activeTimePreset = null;
+      timePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+      updateDisplay();
+    });
+
+    // 时间预设
+    timePresetRow.addEventListener('click', function (e) {
+      const btn = e.target.closest('.dp-preset');
+      if (!btn) return;
+      selectTimePreset(btn.dataset.time);
+      updateDisplay();
+    });
+
+    // 循环开关
+    cycleToggle.addEventListener('change', function () {
+      if (cycleToggle.checked) {
+        cycleOptions.style.display = 'block';
+        // 默认选每 30 分钟
+        if (!currentRecurrence || !currentRecurrence.enabled) {
+          selectCyclePreset('30m');
+          updateDisplay();
+        }
+      } else {
+        cycleOptions.style.display = 'none';
+        customCycle.style.display = 'none';
+        currentRecurrence = null;
+        activeCyclePreset = null;
+        cyclePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+        updateDisplay();
+      }
+    });
+
+    // 循环预设
+    cyclePresetRow.addEventListener('click', function (e) {
+      const btn = e.target.closest('.dp-preset');
+      if (!btn) return;
+      selectCyclePreset(btn.dataset.cycle);
+      updateDisplay();
+    });
+
+    // 自定义循环值变化时更新
+    cycleValueInput.addEventListener('input', function () {
+      if (currentRecurrence && activeCyclePreset === 'custom') {
+        currentRecurrence.interval = parseInt(cycleValueInput.value) || 30;
+        updateDisplay();
+      }
+    });
+    cycleUnitSelect.addEventListener('change', function () {
+      if (currentRecurrence && activeCyclePreset === 'custom') {
+        currentRecurrence.unit = cycleUnitSelect.value;
+        updateDisplay();
+      }
+    });
+
+    // 清除按钮
+    clearBtn.addEventListener('click', function () {
+      clearAll();
+    });
+
+    // 确定按钮：关闭 popover（实际提交在 wrappedAddTodo 中处理）
+    confirmBtn.addEventListener('click', function () {
+      if (!currentDate) {
+        // 没有选日期，关闭不做任何事
+        close();
+        return;
+      }
+      updateDisplay();
+      close();
+    });
+
+    // ESC 关闭
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && datetimePopover.classList.contains('open')) {
+        close();
+      }
+    });
+  }
+
+  // 公开接口
+  return {
+    bind: bind,
+    getTimestamp: getTimestamp,
+    getRecurrence: getRecurrence,
+    syncFromTimestamp: syncFromTimestamp,
+    clearAll: clearAll,
+    formatRecurrenceShort: formatRecurrenceShort,
+    formatRecurrenceLong: formatRecurrenceLong
+  };
+})();
+
+// 启动日期选择器
+datetimePickerModule.bind();
 
 
 // ===== 11. 提醒模块（提醒日期 + 音效）=====
@@ -1607,21 +2077,23 @@ todoInput.addEventListener('keydown', function (e) {
   // ---------- 11.5 调度与触发 ----------
 
   // 为单条事项注册精确 setTimeout
-  // 思路：到点时间 - 当前时间 = 等待毫秒数；若已过期（≤0）立即触发
   function scheduleReminder(todo) {
-    // 无提醒时间 / 已提醒过 / 已完成 → 跳过
-    if (!todo.remindAt || todo.reminded || todo.done) return;
+    // 无提醒时间 / 已完成 → 跳过
+    // 循环提醒允许 reminded=true（刚触发过正在推进中的），由 advanceCycle 重置 reminded 后再调度
+    if (!todo.remindAt || todo.done) return;
 
-    // 先清掉该事项的旧定时器（避免重复调度造成多次触发）
+    // 非循环事项：已提醒过则不重复调度
+    if (!todo.recurrence || !todo.recurrence.enabled) {
+      if (todo.reminded) return;
+    }
+
     const oldTimer = reminderTimers.get(todo.id);
     if (oldTimer) clearTimeout(oldTimer);
 
     const delay = todo.remindAt - Date.now();
     if (delay <= 0) {
-      // 已过期：立即触发（可能页面刚加载就有漏掉的提醒）
       triggerReminder(todo);
     } else {
-      // 未来时间：精确等待到点
       const timerId = setTimeout(function () {
         triggerReminder(todo);
       }, delay);
@@ -1660,36 +2132,87 @@ todoInput.addEventListener('keydown', function (e) {
 
   // 触发提醒：完整反馈链路
   function triggerReminder(todo) {
-    // 防重：已提醒过直接返回（避免兜底定时器与精确定时器重复触发）
+    // 防重：已提醒过直接返回
     if (todo.reminded) return;
 
-    // 1) 先标记为已提醒 + 持久化（防止后续动画回调或刷新后再次触发）
+    // 1) 先标记为已提醒 + 持久化
     todo.reminded = true;
     save();
 
     // 2) 播放"叮咚"音效
     playReminderSound();
 
-    // 3) 找到对应 <li> 节点，加高亮 + 抖动动画类
+    // 3) 找到对应 <li> 节点，加高亮 + 抖动动画
     const li = nodeCache.get(todo.id);
     if (li) {
       li.classList.add('reminding');
-      // 6 秒后撤销高亮，避免长期占用视觉
       setTimeout(function () {
         li.classList.remove('reminding');
       }, 6000);
     }
 
-    // 4) 史迪奇弹气泡："该 [text] 啦！"（黄色 warning 边框）
+    // 4) 史迪奇弹气泡
     if (window.petMood) {
-      window.petMood.excited();                                  // 兴奋跳一下
-      window.petMood.toast('该 ' + todo.text + ' 啦！', 'warning');
+      window.petMood.excited();
+      const cycleMsg = todo.recurrence && todo.recurrence.enabled
+        ? '循环提醒：该 ' + todo.text + ' 啦！（已完成 ' + (todo.completionCount || 0) + ' 次）'
+        : '该 ' + todo.text + ' 啦！';
+      window.petMood.toast(cycleMsg, 'warning');
     }
 
-    // 5) 取消该事项的定时器（已触发，无需再等）
+    // 5) 取消该事项的定时器
     cancelReminder(todo.id);
 
-    // 6) 重新渲染，让徽章切换到"已过期"状态
+    // 6) 循环提醒：推进到下一个周期并重新调度
+    if (todo.recurrence && todo.recurrence.enabled && !todo.done) {
+      advanceCycle(todo);
+    }
+
+    // 7) 重新渲染
+    render();
+  }
+
+  // 循环提醒：推进到下一个周期
+  function advanceCycle(todo) {
+    if (!todo.recurrence || !todo.recurrence.enabled) return;
+
+    const intervalMs = getIntervalMs(todo.recurrence);
+    if (!intervalMs) return;
+
+    // 从当前 remindAt 开始累加（用户选择的"从起始时间累加"策略）
+    // 如果本次 remindAt 已经过期，则从现在开始算下一个周期
+    const now = Date.now();
+    const baseTime = todo.remindAt > now ? todo.remindAt : now;
+    todo.remindAt = baseTime + intervalMs;
+    todo.reminded = false;  // 重置以便下一轮能触发
+    todo.lastRemindAt = now;
+    save();
+    scheduleReminder(todo);
+  }
+
+  // 将循环间隔转换为毫秒
+  function getIntervalMs(recurrence) {
+    if (!recurrence) return 0;
+    const unitMs = {
+      minute: 60 * 1000,
+      hour: 60 * 60 * 1000,
+      day: 24 * 60 * 60 * 1000,
+      week: 7 * 24 * 60 * 60 * 1000
+    };
+    const multiplier = unitMs[recurrence.unit];
+    if (!multiplier) return 0;
+    return recurrence.interval * multiplier;
+  }
+
+  // 停止循环提醒（用户手动操作）
+  function stopCycleReminder(id) {
+    const todo = todos.find(function (t) { return t.id === id; });
+    if (!todo) return;
+    todo.recurrence = null;
+    todo.completionCount = 0;
+    todo.lastRemindAt = null;
+    cancelReminder(id);
+    save();
     render();
   }
 
@@ -1728,10 +2251,22 @@ todoInput.addEventListener('keydown', function (e) {
     trigger: triggerReminder,
     playSound: playReminderSound,
     unlockAudio: unlockAudio,
+    stopCycle: stopCycleReminder,
+    getIntervalMs: getIntervalMs,
     hasAudioCtx: function () { return !!audioCtx && audioCtx.state === 'running'; },
     isMp3Ready: function () { return mp3Ready; },
     getMp3Src: function () { return REMINDER_MP3_SRC; },
     formatToLocalInputValue: formatToLocalInputValue
+  };
+
+  // 同时暴露日期选择器模块
+  window.datetimePickerModule = {
+    getTimestamp: datetimePickerModule.getTimestamp,
+    getRecurrence: datetimePickerModule.getRecurrence,
+    syncFromTimestamp: datetimePickerModule.syncFromTimestamp,
+    clearAll: datetimePickerModule.clearAll,
+    formatRecurrenceShort: datetimePickerModule.formatRecurrenceShort,
+    formatRecurrenceLong: datetimePickerModule.formatRecurrenceLong
   };
 
 
