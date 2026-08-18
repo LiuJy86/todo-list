@@ -149,6 +149,12 @@ playwright install chromium
   - 点击后跳转到指南页，`document.title` 为「操作指南 · 待办事项清单」
   - 指南页 `.guide-section` 节点数量 = 9（9 个章节齐全）
   - 点击右上角「← 返回待办」按钮可回到 `index.html`
+- **GitHub 仓库入口（v2.3.2+，可纳入 Playwright 用例）**：
+  - 主页面 `<a class="github-fab">` 存在，href 为 `https://github.com/LiuJy86/todo-list`
+  - `target="_blank"` 且 `rel` 含 `noopener noreferrer`（安全加固）
+  - 位置：`position=fixed, right=24px, bottom=88px, z-index=9998`，与下方 `.guide-fab` 垂直堆叠不重叠（实测 gap=12px）
+  - 内部含 `<svg>` 图标（离线可用，不依赖网络字体）
+  - **注意**：点击跳转需联网，离线/内网部署环境跳转会失败但不影响主应用功能
 
 ## 6. 目录结构（运行必需）
 

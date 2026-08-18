@@ -4,6 +4,44 @@
 
 ---
 
+## [v2.3.2] - 2026-08-18
+
+### 新增 (Added) — GitHub 仓库悬浮入口
+
+在右下角操作指南按钮上方新增一个 GitHub 仓库入口，方便用户在有网络时一键跳转到源码仓库：
+
+- **新增 `<a class="github-fab">`**（位于 `.guide-fab` 正上方）：
+  - href：`https://github.com/LiuJy86/todo-list`
+  - `target="_blank" rel="noopener noreferrer"`：新标签页打开 + 防 tab-nabbing 安全加固
+  - 图标使用**内联 SVG**（GitHub 官方 logo path），离线可用、无需网络字体、矢量无失真
+  - 带 `title` 和 `aria-label` 双重无障碍标注
+- **样式设计**（与 `.guide-fab` 区分又协调）：
+  - 深色渐变背景（`#24292e → #1a1e22`，GitHub 品牌色调）
+  - 同尺寸 52×52px 圆形、同 `right: 24px` 右对齐、同 `z-index: 9998`
+  - `bottom: 88px`（指南按钮高 52 + 间距 36 = 88），保证两按钮垂直堆叠不重叠，实测 gap=12px
+  - hover 时 `translateY(-2px) scale(1.06)` + 阴影加深
+  - 窄屏（≤480px）：缩为 46×46px、`bottom: 74px`、SVG 缩为 20×20px，与窄屏 `.guide-fab` 保持 12px 间距
+- **右下角布局规划**（三按钮垂直堆叠，互不冲突）：
+  - 底层：`.guide-fab` 📖（紫色，操作指南）
+  - 上层：`.github-fab` GitHub logo（深色，仓库入口）
+  - 左下角：`#petRestoreBtn` 🐾（仅隐藏桌宠后出现，与右下角无冲突）
+
+### 验证 (Verified)
+
+- ✅ `.github-fab` 存在，href 正确指向 `https://github.com/LiuJy86/todo-list`
+- ✅ 两按钮不重叠：`gap=12px`（github.bottom=620, guide.top=632）
+- ✅ 两按钮右对齐：`right` 均为 686px
+- ✅ SVG 图标正确渲染
+- ✅ 窄屏响应式：两按钮同步缩小并保持 12px 间距
+- ✅ 控制台零错误零警告
+
+### 核心文件
+
+- `index.html`：`</main>` 后新增 `<a class="github-fab">` 含内联 SVG；CSS 链接 `?v=9` → `?v=10`
+- `style.css`：新增 `.github-fab` / `.github-fab:hover` / `.github-fab:active` + `.github-fab svg` + 窄屏 @media ≤480px
+
+---
+
 ## [v2.3.1] - 2026-08-18
 
 ### 变更 (Changed) — 操作指南入口位置调整

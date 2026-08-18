@@ -115,6 +115,47 @@ header h1 {
   }
 }
 
+/* GitHub 仓库悬浮入口（右下角，位于 .guide-fab 上方） */
+/* 深色风格与紫色 .guide-fab 区分；同 right/bottom 对齐，垂直堆叠 */
+.github-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 88px;  /* .guide-fab 高度 52 + 间距 36 = 88，保证两按钮不重叠 */
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  color: #fff;
+  background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  cursor: pointer;
+  line-height: 1;
+  user-select: none;
+}
+.github-fab svg { display: block; }
+.github-fab:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, #2f363d 0%, #24292e 100%);
+}
+.github-fab:active { transform: translateY(0) scale(1); }
+
+/* 窄屏：与 .guide-fab 同步缩小并保持垂直间距 */
+@media (max-width: 480px) {
+  .github-fab {
+    width: 46px;
+    height: 46px;
+    right: 16px;
+    bottom: 74px;  /* 16 + 46 + 12 = 74，保持与窄屏 .guide-fab 的 12px 间距 */
+  }
+  .github-fab svg { width: 20px; height: 20px; }
+}
+
 /* ===== 主体内容区 ===== */
 main {
   max-width: 520px;
