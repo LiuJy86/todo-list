@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>待办事项清单</title>
   <!-- 引入样式表，负责页面外观 -->
-  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
 
@@ -50,65 +50,71 @@
           <span class="datetime-display" id="datetimeDisplay">选择提醒时间（可选）</span>
           <span class="datetime-icon">📅</span>
         </div>
-        <!-- Popover 浮层 -->
+        <!-- Popover 浮层（两列布局） -->
         <div class="datetime-popover" id="datetimePopover">
-          <!-- 日期区 -->
-          <div class="dp-section">
-            <div class="dp-label">日期</div>
-            <div class="dp-preset-row" id="dpDatePresets">
-              <button type="button" class="dp-preset" data-date="today">今天</button>
-              <button type="button" class="dp-preset" data-date="tomorrow">明天</button>
-              <button type="button" class="dp-preset" data-date="dayAfter">后天</button>
-              <button type="button" class="dp-preset" data-date="nextWeek">下周一</button>
-            </div>
-            <input type="date" id="dpDateInput" class="dp-date-input">
-          </div>
-          <!-- 时间区 -->
-          <div class="dp-section">
-            <div class="dp-label">时间</div>
-            <div class="dp-time-row">
-              <select id="dpHourSelect" class="dp-time-select"></select>
-              <span class="dp-time-sep">:</span>
-              <select id="dpMinuteSelect" class="dp-time-select"></select>
-            </div>
-            <div class="dp-preset-row" id="dpTimePresets">
-              <button type="button" class="dp-preset" data-time="morning">早上 8:00</button>
-              <button type="button" class="dp-preset" data-time="noon">中午 12:00</button>
-              <button type="button" class="dp-preset" data-time="evening">晚上 20:00</button>
-            </div>
-          </div>
-          <!-- 循环提醒区 -->
-          <div class="dp-section dp-cycle-section">
-            <div class="dp-label-row">
-              <span class="dp-label">🔄 循环提醒</span>
-              <label class="dp-toggle">
-                <input type="checkbox" id="dpCycleToggle">
-                <span class="dp-toggle-slider"></span>
-              </label>
-            </div>
-            <div class="dp-cycle-options" id="dpCycleOptions" style="display:none;">
-              <div class="dp-preset-row" id="dpCyclePresets">
-                <button type="button" class="dp-preset" data-cycle="30m">每 30 分钟</button>
-                <button type="button" class="dp-preset" data-cycle="1h">每 1 小时</button>
-                <button type="button" class="dp-preset" data-cycle="1d">每 1 天</button>
-                <button type="button" class="dp-preset" data-cycle="1w">每 1 周</button>
-                <button type="button" class="dp-preset" data-cycle="custom">自定义</button>
+          <!-- 左列：日期 + 时间 -->
+          <div class="dp-col dp-col-left">
+            <!-- 日期区 -->
+            <div class="dp-section">
+              <div class="dp-label">日期</div>
+              <div class="dp-preset-row" id="dpDatePresets">
+                <button type="button" class="dp-preset" data-date="today">今天</button>
+                <button type="button" class="dp-preset" data-date="tomorrow">明天</button>
+                <button type="button" class="dp-preset" data-date="dayAfter">后天</button>
+                <button type="button" class="dp-preset" data-date="nextWeek">下周一</button>
               </div>
-              <div class="dp-custom-cycle" id="dpCustomCycle" style="display:none;">
-                <input type="number" id="dpCycleValue" min="1" max="999" placeholder="间隔值" class="dp-cycle-input">
-                <select id="dpCycleUnit" class="dp-cycle-unit">
-                  <option value="minute">分钟</option>
-                  <option value="hour">小时</option>
-                  <option value="day">天</option>
-                  <option value="week">周</option>
-                </select>
+              <input type="date" id="dpDateInput" class="dp-date-input">
+            </div>
+            <!-- 时间区 -->
+            <div class="dp-section">
+              <div class="dp-label">时间</div>
+              <div class="dp-time-row">
+                <select id="dpHourSelect" class="dp-time-select"></select>
+                <span class="dp-time-sep">:</span>
+                <select id="dpMinuteSelect" class="dp-time-select"></select>
+              </div>
+              <div class="dp-preset-row" id="dpTimePresets">
+                <button type="button" class="dp-preset" data-time="morning">8:00</button>
+                <button type="button" class="dp-preset" data-time="noon">12:00</button>
+                <button type="button" class="dp-preset" data-time="evening">20:00</button>
               </div>
             </div>
           </div>
-          <!-- 操作按钮 -->
-          <div class="dp-actions">
-            <button type="button" class="dp-btn dp-btn-clear" id="dpClearBtn">清除</button>
-            <button type="button" class="dp-btn dp-btn-confirm" id="dpConfirmBtn">确定</button>
+          <!-- 右列：循环提醒 + 操作按钮 -->
+          <div class="dp-col dp-col-right">
+            <!-- 循环提醒区 -->
+            <div class="dp-section dp-cycle-section">
+              <div class="dp-label-row">
+                <span class="dp-label">🔄 循环提醒</span>
+                <label class="dp-toggle">
+                  <input type="checkbox" id="dpCycleToggle">
+                  <span class="dp-toggle-slider"></span>
+                </label>
+              </div>
+              <div class="dp-cycle-options" id="dpCycleOptions" style="display:none;">
+                <div class="dp-preset-row" id="dpCyclePresets">
+                  <button type="button" class="dp-preset" data-cycle="30m">30 分钟</button>
+                  <button type="button" class="dp-preset" data-cycle="1h">1 小时</button>
+                  <button type="button" class="dp-preset" data-cycle="1d">1 天</button>
+                  <button type="button" class="dp-preset" data-cycle="1w">1 周</button>
+                  <button type="button" class="dp-preset" data-cycle="custom">自定义</button>
+                </div>
+                <div class="dp-custom-cycle" id="dpCustomCycle" style="display:none;">
+                  <input type="number" id="dpCycleValue" min="1" max="999" placeholder="值" class="dp-cycle-input">
+                  <select id="dpCycleUnit" class="dp-cycle-unit">
+                    <option value="minute">分钟</option>
+                    <option value="hour">小时</option>
+                    <option value="day">天</option>
+                    <option value="week">周</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <!-- 操作按钮 -->
+            <div class="dp-actions">
+              <button type="button" class="dp-btn dp-btn-clear" id="dpClearBtn">清除</button>
+              <button type="button" class="dp-btn dp-btn-confirm" id="dpConfirmBtn">确定</button>
+            </div>
           </div>
         </div>
       </div>

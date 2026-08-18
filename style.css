@@ -271,31 +271,53 @@ main {
   flex-shrink: 0;
 }
 
-/* Popover 浮层 — 紧凑版 */
+/* Popover 浮层 — 两列紧凑版 */
 .datetime-popover {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   right: auto;
-  min-width: 260px;
-  max-width: 280px;
+  width: 420px;
   background: #fff;
   border: 1px solid var(--border-color);
   border-radius: 12px;
   box-shadow: 0 6px 24px rgba(31, 38, 135, 0.14);
-  padding: 12px;
+  padding: 14px;
   z-index: 10000;
   display: none;
   animation: popoverIn 0.18s ease-out;
 }
 
+/* 两列布局 */
+.datetime-popover {
+  display: none;
+}
+.datetime-popover.open {
+  display: flex;
+  gap: 14px;
+}
+
+.dp-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dp-col-left {
+  flex: 1.2;  /* 日期时间列稍宽 */
+}
+
+.dp-col-right {
+  flex: 1;     /* 循环 + 按钮列 */
+  border-left: 1px solid rgba(0, 0, 0, 0.05);
+  padding-left: 14px;
+}
+
 @keyframes popoverIn {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
-}
-
-.datetime-popover.open {
-  display: block;
 }
 
 .dp-section {
@@ -495,12 +517,13 @@ main {
   border-color: var(--accent-color);
 }
 
-/* 操作按钮 */
+/* 操作按钮 — 右列底部 */
 .dp-actions {
   display: flex;
   gap: 6px;
   justify-content: flex-end;
   padding-top: 8px;
+  margin-top: auto;  /* 推到右列底部 */
   border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
