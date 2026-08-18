@@ -1767,10 +1767,7 @@ const datetimePickerModule = (function () {
     // 更新"现在"按钮显示
     const nowBtn = document.getElementById('dpNowBtn');
     if (nowBtn) {
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      nowBtn.textContent = '现在 ' + hh + ':' + mm;
+      nowBtn.textContent = '现在';
     }
     // 初始化日期为今天
     if (!currentDate) {
