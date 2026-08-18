@@ -434,7 +434,7 @@ main {
   right: 0;
   will-change: transform;
   transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
-  padding: 40px 0; /* 容器中心40px，让选中项垂直居中 */
+  padding: 35px 0; /* 80px容器中心40px，item高10px，顶=40-5=35px */
 }
 
 .dp-wheel-item {
@@ -519,7 +519,7 @@ main {
 }
 
 .dp-wheel-picker-compact .dp-wheel-list {
-  padding: 40px 0;
+  padding: 35px 0;
 }
 
 .dp-wheel-picker-compact .dp-wheel-item {
