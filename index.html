@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>待办事项清单</title>
   <!-- 引入样式表，负责页面外观 -->
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 
@@ -63,7 +63,24 @@
                 <button type="button" class="dp-preset" data-date="dayAfter">后天</button>
                 <button type="button" class="dp-preset" data-date="nextWeek">下周一</button>
               </div>
-              <input type="date" id="dpDateInput" class="dp-date-input">
+              <!-- 滚轮日期选择器 -->
+              <div class="dp-wheel-picker" id="dpWheelPicker">
+                <div class="dp-wheel-col" id="dpWheelYear">
+                  <div class="dp-wheel-mask"></div>
+                  <div class="dp-wheel-highlight"></div>
+                  <div class="dp-wheel-list" id="dpWheelYearList"></div>
+                </div>
+                <div class="dp-wheel-col" id="dpWheelMonth">
+                  <div class="dp-wheel-mask"></div>
+                  <div class="dp-wheel-highlight"></div>
+                  <div class="dp-wheel-list" id="dpWheelMonthList"></div>
+                </div>
+                <div class="dp-wheel-col" id="dpWheelDay">
+                  <div class="dp-wheel-mask"></div>
+                  <div class="dp-wheel-highlight"></div>
+                  <div class="dp-wheel-list" id="dpWheelDayList"></div>
+                </div>
+              </div>
             </div>
             <!-- 时间区 -->
             <div class="dp-section">
@@ -148,6 +165,6 @@
   </a>
 
   <!-- 引入脚本，负责页面交互逻辑 -->
-  <script src="script.js?v=11"></script>
+  <script src="script.js?v=12"></script>
 </body>
 </html>

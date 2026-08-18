@@ -381,21 +381,99 @@ main {
   border-color: var(--accent-color);
 }
 
-.dp-date-input {
-  width: 100%;
-  padding: 4px 8px;
-  font-size: 12px;
+/* 滚轮日期选择器 */
+.dp-wheel-picker {
+  display: flex;
+  gap: 2px;
+  height: 120px;
+  background: linear-gradient(180deg, #f8f9ff 0%, #fff 50%, #f8f9ff 100%);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  outline: none;
-  font-family: inherit;
-  color: var(--text-primary);
-  box-sizing: border-box;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
 }
 
-.dp-date-input:focus {
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+.dp-wheel-col {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+}
+
+.dp-wheel-list {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  padding: 48px 0; /* 上下各留3行空间用于滚动 */
+}
+
+.dp-wheel-item {
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, opacity 0.15s;
+  user-select: none;
+  font-weight: 500;
+}
+
+.dp-wheel-item.selected {
+  color: var(--accent-color);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.dp-wheel-item.near {
+  color: var(--text-primary);
+  opacity: 0.7;
+}
+
+.dp-wheel-item.far {
+  opacity: 0.3;
+}
+
+/* 中央高亮线 */
+.dp-wheel-highlight {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 24px;
+  border-top: 1px solid var(--accent-color);
+  border-bottom: 1px solid var(--accent-color);
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 3px;
+}
+
+/* 上下遮罩渐变 */
+.dp-wheel-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    rgba(248, 249, 255, 0.95) 0%,
+    rgba(248, 249, 255, 0.5) 30%,
+    transparent 50%,
+    rgba(248, 249, 255, 0.5) 70%,
+    rgba(248, 249, 255, 0.95) 100%
+  );
+}
+
+/* 滚动条隐藏 */
+.dp-wheel-col::-webkit-scrollbar {
+  display: none;
 }
 
 .dp-time-row {
