@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- 页面字符编码与视口设置，视口设置保证移动端也能正常显示 -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>待办事项清单</title>
+  <!-- 引入样式表，负责页面外观 -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 史迪奇桌宠（左侧图片桌宠） -->
+  <div id="stitchPet" class="stitch-pet">
+    <!-- 光环效果 -->
+    <div class="pet-glow"></div>
+    <!-- 粒子容器 -->
+    <div class="pet-particles" id="petParticles"></div>
+    <!-- 对话气泡 -->
+    <div class="pet-bubble" id="petBubble"></div>
+    <!-- 桌宠图片（img 文件夹下的 GIF 动图，3-5 秒随机轮播切换） -->
+    <img src="img/史迪奇1.gif" alt="Stitch 桌宠" class="pet-img" id="petImg" draggable="false" />
+    <!-- 影子 -->
+    <div class="pet-shadow"></div>
+    <!-- 关闭按钮 -->
+    <button class="pet-close" id="petClose" title="隐藏">×</button>
+  </div>
+
+  <!-- 页面头部：标题 -->
+  <header>
+    <h1>待办事项清单</h1>
+  </header>
+
+  <!-- 主体内容区 -->
+  <main>
+
+    <!-- 输入区：用户在这里输入新的待办事项 -->
+    <section class="input-area">
+      <!-- 文本输入框，id 用于 JS 获取其内容 -->
+      <input
+        type="text"
+        id="todoInput"
+        placeholder="请输入一条待办事项..."
+        autocomplete="off"
+      >
+      <!-- 添加按钮，id 用于 JS 监听点击事件 -->
+      <button id="addBtn">添加</button>
+    </section>
+
+    <!-- 列表区：所有待办事项会显示在这里 -->
+    <section class="list-area">
+      <!-- 空的无序列表，后续由 JS 动态添加 <li> 列表项 -->
+      <ul id="todoList"></ul>
+    </section>
+
+  </main>
+
+  <!-- 引入脚本，负责页面交互逻辑 -->
+  <script src="script.js"></script>
+</body>
+</html>
