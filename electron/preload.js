@@ -19,5 +19,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('always-on-top-changed', function (event, isEnabled) {
       callback(isEnabled);
     });
+  },
+  // 调整窗口大小（用于便签模式折叠/展开）
+  // resizable: 是否允许用户拖拽调整窗口大小
+  resizeWindow: function (width, height, resizable) {
+    ipcRenderer.send('resize-window', width, height, resizable);
   }
 });

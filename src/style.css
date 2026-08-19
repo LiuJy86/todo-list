@@ -66,11 +66,25 @@ header {
 }
 
 header h1 {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 26px;
+  font-weight: 800;
+  /* 渐变文字效果：紫蓝渐变 */
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   letter-spacing: -0.5px;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* emoji logo 保持原色（不参与渐变） */
+.logo-emoji {
+  -webkit-text-fill-color: initial;
+  font-size: 22px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
 }
 
 /* 操作指南悬浮入口（右下角 FAB） */
@@ -803,6 +817,7 @@ main {
 .todo-item:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(31, 38, 135, 0.1);
+  z-index: 100;  /* 悬浮时提升层级，避免被桌宠遮挡 */
 }
 
 /* 自定义复选框 */
@@ -840,15 +855,43 @@ main {
   transform: rotate(45deg);
 }
 
-/* 待办事项文本 */
+/* 待办事项文本：自动换行 + 超长时折叠 */
 .todo-text {
   flex: 1;
   font-size: 15px;
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;           /* 允许任意位置换行 */
+  white-space: normal;              /* 正常换行 */
+  line-height: 1.5;
   transition: all var(--transition-fast);
+  /* 默认最多显示 3 行 */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* 展开状态：显示全部 */
+.todo-text.expanded {
+  -webkit-line-clamp: unset;
+  display: block;
+  overflow: visible;
+}
+/* 展开/收起按钮：紧跟在文本后面 */
+.todo-expand-btn {
+  display: none;                     /* 默认隐藏 */
+  font-size: 12px;
+  color: var(--accent-color);
+  cursor: pointer;
+  padding-left: 4px;
+  white-space: nowrap;
+  user-select: none;
+}
+.todo-expand-btn:hover {
+  text-decoration: underline;
+}
+/* 待办项有超长文本时显示展开按钮（紧跟文本） */
+.todo-item.has-long-text .todo-expand-btn {
+  display: inline;
 }
 
 /* ===== 目标次数输入框 ===== */
@@ -1145,6 +1188,11 @@ main {
   pointer-events: none;
 }
 
+/* 桌面端（Electron）：隐藏提醒提示条 */
+body.electron .reminder-notice {
+  display: none !important;
+}
+
 /* ===== 提醒功能限制提示条（清晰可读，含测试按钮） ===== */
 .reminder-notice {
   display: flex;                           /* 左右布局：左侧提示文字，右侧测试按钮 */
@@ -1340,7 +1388,7 @@ main {
   position: fixed;
   left: 24px;
   bottom: 24px;
-  z-index: 9999;
+  z-index: 10;  /* 降低层级，不遮挡内容 */
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
@@ -1753,12 +1801,6 @@ main {
   }
 }
 
-/* 响应式：超窄屏隐藏桌宠（窗口宽度 < 360px 时隐藏） */
-@media (max-width: 360px) {
-  .stitch-pet {
-    display: none;
-  }
-}
 
 /* ====================================================
    史迪奇对话气泡增强样式
@@ -1915,6 +1957,29 @@ header {
   padding: 4px;
   border-radius: 4px;
 }
+/* 便签模式折叠按钮：在置顶按钮左边，不重叠 */
+#stickyCollapseBtn {
+  right: 50px;
+}
+
+/* 便签模式折叠后：只显示标题栏，隐藏其他所有内容 */
+.sticky-mode.sticky-collapsed main,
+.sticky-mode.sticky-collapsed .input-area,
+.sticky-mode.sticky-collapsed .list-area,
+.sticky-mode.sticky-collapsed .reminder-notice,
+.sticky-mode.sticky-collapsed .stitch-pet,
+.sticky-mode.sticky-collapsed .guide-fab,
+.sticky-mode.sticky-collapsed .github-fab {
+  display: none !important;
+}
+.sticky-mode.sticky-collapsed header {
+  padding: 8px 0;
+  margin: 0;
+}
+/* 折叠时取消 body 最小高度限制 */
+.sticky-mode.sticky-collapsed {
+  min-height: auto !important;
+}
 .pin-btn:hover {
   opacity: 1;
   background: rgba(0,0,0,0.05);
@@ -1955,3 +2020,4 @@ header {
 .sticky-mode .todo-text {
   font-size: 14px;
 }
+

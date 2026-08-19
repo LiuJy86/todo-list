@@ -23,14 +23,14 @@ function getIconPath() {
   return gifPath;
 }
 
-// 创建主窗口
-function createWindow() {
-  mainWindow = new BrowserWindow({
+// 创建主窗口（isToolbar: 是否用 toolbar 类型，便签模式使用）
+function createWindow(isToolbar) {
+  const config = {
     width: 480,
     height: 760,
     minWidth: 360,
     minHeight: 520,
-    title: '待办事项清单',
+    title: 'ToDoList',
     icon: getIconPath(),
     autoHideMenuBar: true,        // 隐藏菜单栏
     backgroundColor: '#c9a0dc',   // 与页面渐变起始色一致，避免白屏
@@ -40,7 +40,12 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),  // 预加载脚本
       spellcheck: false
     }
-  });
+  };
+  // toolbar 类型：Windows+D 不会最小化，不在任务栏和 Alt+Tab 显示（仅 Windows）
+  if (isToolbar && process.platform === 'win32') {
+    config.type = 'toolbar';
+  }
+  mainWindow = new BrowserWindow(config);
 
   // 加载本地页面（index.html 位于 src/ 目录）
   mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
@@ -59,7 +64,7 @@ function createWindow() {
       if (tray && !tray._notifiedOnce) {
         tray.displayBalloon({
           iconType: 'info',
-          title: '待办事项清单',
+          title: 'ToDoList',
           content: '我还在后台运行哦～提醒不会漏掉的！点击托盘图标重新打开。'
         });
         tray._notifiedOnce = true;
@@ -70,6 +75,7 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
 }
 
 // 创建系统托盘
@@ -87,7 +93,7 @@ function createTray() {
   }
 
   tray = new Tray(trayIcon);
-  tray.setToolTip('待办事项清单 · 点击显示/隐藏');
+  tray.setToolTip('ToDoList · 点击显示/隐藏');
 
   // 托盘右键菜单
   stickyMenu = Menu.buildFromTemplate([
@@ -214,20 +220,36 @@ ipcMain.on('toggle-always-on-top', function () {
   mainWindow.webContents.send('always-on-top-changed', newState);
 });
 
+// 处理窗口大小调整（用于便签模式折叠/展开）
+ipcMain.on('resize-window', function (_, width, height, resizable) {
+  if (!mainWindow) return;
+  // 折叠时取消最小高度限制，允许缩到标题栏高度
+  if (height < 100) {
+    mainWindow.setMinimumSize(200, 50);
+  } else {
+    mainWindow.setMinimumSize(360, 520);
+  }
+  mainWindow.setSize(width, height);
+  // 设置窗口是否可拖拽调整大小（折叠时固定大小）
+  mainWindow.setResizable(resizable !== false);
+});
+
 // 切换便签模式
 function toggleStickyMode(enable) {
   if (!mainWindow) return;
+
+  // 状态没变则不操作
+  if (isStickyMode === enable) return;
   isStickyMode = enable;
 
   if (enable) {
-    // 进入便签模式
+    // 进入便签模式：用 toolbar 类型重建窗口（Windows+D 无法最小化）
     const { screen } = require('electron');
     const display = screen.getPrimaryDisplay();
-    const { width: screenW, height: screenH } = display.workArea;
+    const { width: screenW } = display.workArea;
 
     let posX, posY;
     if (stickyPosition) {
-      // 使用上次记住的位置
       posX = stickyPosition.x;
       posY = stickyPosition.y;
     } else {
@@ -236,19 +258,114 @@ function toggleStickyMode(enable) {
       posY = 10;
     }
 
-    // 设置为不置顶、不抢焦点
-    mainWindow.setAlwaysOnTop(false);
-    mainWindow.setPosition(posX, posY);
+    // 保存旧窗口的 URL，重建后恢复
+    const oldUrl = mainWindow.webContents.getURL();
 
-    // 通知页面进入便签模式
-    mainWindow.webContents.send('sticky-mode', true);
+    // 销毁旧窗口
+    mainWindow.destroy();
 
-    // 开始监听拖动，记住位置
+    // 创建 toolbar 类型窗口（不受 Windows+D 影响）
+    mainWindow = new BrowserWindow({
+      width: 480,
+      height: 760,
+      minWidth: 360,
+      minHeight: 520,
+      x: posX,
+      y: posY,
+      title: 'ToDoList',
+      icon: getIconPath(),
+      autoHideMenuBar: true,
+      backgroundColor: '#c9a0dc',
+      type: 'toolbar',  // 关键：toolbar 类型不受 Windows+D 影响
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        preload: path.join(__dirname, 'preload.js'),
+        spellcheck: false
+      }
+    });
+
+    // 重新加载页面
+    mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
+
+    // 页面加载完成后通知进入便签模式
+    mainWindow.webContents.on('did-finish-load', () => {
+      mainWindow.webContents.send('sticky-mode', true);
+    });
+
+    // 重新绑定关闭拦截
+    mainWindow.on('close', (e) => {
+      if (!isQuitting) {
+        e.preventDefault();
+        mainWindow.hide();
+      }
+    });
+
+    mainWindow.on('closed', () => {
+      mainWindow = null;
+    });
+
+    // 监听拖动，记住位置
     mainWindow.on('move', saveStickyPosition);
+
   } else {
-    // 退出便签模式
-    mainWindow.webContents.send('sticky-mode', false);
-    mainWindow.removeListener('move', saveStickyPosition);
+    // 退出便签模式：恢复普通窗口
+    const oldUrl = mainWindow.webContents.getURL();
+    const [posX, posY] = mainWindow.getPosition();
+
+    // 保存当前位置
+    stickyPosition = { x: posX, y: posY };
+
+    // 销毁 toolbar 窗口
+    mainWindow.destroy();
+
+    // 创建普通窗口
+    mainWindow = new BrowserWindow({
+      width: 480,
+      height: 760,
+      minWidth: 360,
+      minHeight: 520,
+      x: posX,
+      y: posY,
+      title: 'ToDoList',
+      icon: getIconPath(),
+      autoHideMenuBar: true,
+      backgroundColor: '#c9a0dc',
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        preload: path.join(__dirname, 'preload.js'),
+        spellcheck: false
+      }
+    });
+
+    // 重新加载页面
+    mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
+
+    // 页面加载完成后通知退出便签模式
+    mainWindow.webContents.on('did-finish-load', () => {
+      mainWindow.webContents.send('sticky-mode', false);
+    });
+
+    // 重新绑定关闭拦截
+    mainWindow.on('close', (e) => {
+      if (!isQuitting) {
+        e.preventDefault();
+        mainWindow.hide();
+        if (tray && !tray._notifiedOnce) {
+          tray.displayBalloon({
+            iconType: 'info',
+            title: 'ToDoList',
+            content: '我还在后台运行哦～提醒不会漏掉的！点击托盘图标重新打开。'
+          });
+          tray._notifiedOnce = true;
+        }
+      }
+    });
+
+    mainWindow.on('closed', () => {
+      mainWindow = null;
+    });
   }
 }
 

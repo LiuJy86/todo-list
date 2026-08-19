@@ -33,6 +33,11 @@ const VISIBLE_PENDING_LIMIT = 5;
 let isExpanded = false;
 
 
+// 【新增】便签模式折叠状态（默认展开）
+let stickyCollapsed = false;
+let stickyWidthBeforeCollapse = 480; // 折叠前记住的宽度
+
+
 // ---------- 1.1 存储相关：保存与读取 ----------
 
 // 保存：把当前 todos 数组序列化为 JSON 字符串，存入 localStorage
@@ -488,6 +493,23 @@ function createTodoElement(todo) {
     }
   });
 
+  // 【长文本展开/收起】文字超过 3 行时添加展开按钮
+  // 通过比较 scrollHeight 和 clientHeight 判断是否被截断
+  requestAnimationFrame(function () {
+    if (span.scrollHeight > span.clientHeight + 2) {
+      li.classList.add('has-long-text');
+      const expandBtn = document.createElement('span');
+      expandBtn.className = 'todo-expand-btn';
+      expandBtn.textContent = '展开';
+      expandBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        span.classList.toggle('expanded');
+        expandBtn.textContent = span.classList.contains('expanded') ? '收起' : '展开';
+      });
+      li.appendChild(expandBtn);
+    }
+  });
+
   li.appendChild(deleteBtn);
   return li;
 }
@@ -746,6 +768,11 @@ load();
 // 再根据读取到的数据渲染列表（若有历史数据则会显示出来）
 render();
 
+// 检测 Electron 环境，给 body 添加 class（用于隐藏桌面端不需要的元素）
+if (window.electronAPI) {
+  document.body.classList.add('electron');
+}
+
 // ---------- 9. 便签模式与置顶（Electron 通信） ----------
 
 // 监听 Electron 主进程发来的便签模式切换消息
@@ -754,11 +781,50 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
     // 给 body 加/便签模式 class，CSS 负责隐藏多余元素
     if (enabled) {
       document.body.classList.add('sticky-mode');
+      // 便签模式：显示折叠按钮
+      var collapseBtn = document.getElementById('stickyCollapseBtn');
+      if (collapseBtn) collapseBtn.style.display = 'inline-block';
     } else {
       document.body.classList.remove('sticky-mode');
+      // 退出便签模式：隐藏折叠按钮并重置状态
+      var collapseBtn = document.getElementById('stickyCollapseBtn');
+      if (collapseBtn) {
+        collapseBtn.style.display = 'none';
+        collapseBtn.textContent = '▼';
+        collapseBtn.title = '折叠列表';
+      }
+      stickyCollapsed = false;
+      document.body.classList.remove('sticky-collapsed');
     }
   });
 }
+
+// 便签模式折叠按钮：点击折叠/展开整个窗口
+(function () {
+  var collapseBtn = document.getElementById('stickyCollapseBtn');
+  if (!collapseBtn) return;
+  collapseBtn.addEventListener('click', function () {
+    stickyCollapsed = !stickyCollapsed;
+    if (stickyCollapsed) {
+      // 折叠：记住当前宽度，高度缩到 80px
+      stickyWidthBeforeCollapse = window.innerWidth;
+      document.body.classList.add('sticky-collapsed');
+      if (window.electronAPI && window.electronAPI.resizeWindow) {
+        window.electronAPI.resizeWindow(stickyWidthBeforeCollapse, 80);
+      }
+      collapseBtn.textContent = '▲';
+      collapseBtn.title = '展开窗口';
+    } else {
+      // 展开：恢复到折叠前的宽度
+      document.body.classList.remove('sticky-collapsed');
+      if (window.electronAPI && window.electronAPI.resizeWindow) {
+        window.electronAPI.resizeWindow(stickyWidthBeforeCollapse, 760);
+      }
+      collapseBtn.textContent = '▼';
+      collapseBtn.title = '折叠窗口';
+    }
+  });
+})();
 
 // 置顶按钮：点击切换窗口置顶状态
 (function () {
@@ -789,6 +855,7 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
     pinBtn.style.display = 'none';
   }
 })();
+
 
 
 // ===== 9. 史迪奇桌宠模块 =====
@@ -851,8 +918,8 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
   // 返回它们的视口矩形数组（含位置和尺寸）
   function getAvoidRects() {
     const rects = [];
-    // 选择器：所有按钮、输入框、待办项、收纳按钮、链接
-    const avoidSelectors = 'button, input, .todo-item, .collapse-btn, .collapsed-list, a, [role="button"]';
+    // 选择器：所有按钮、输入框、待办项、收纳按钮、链接、输入区域
+    const avoidSelectors = 'button, input, .input-area, .todo-item, .collapse-btn, .collapsed-list, a, [role="button"]';
     const elements = document.querySelectorAll(avoidSelectors);
     elements.forEach(function (el) {
       // 跳过桌宠自身的元素（petClose 等）
@@ -892,6 +959,23 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
         petLeft < r.right + m &&
         petBottom > r.top - m &&
         petTop < r.bottom + m
+      ) {
+        return true;  // 发生碰撞
+      }
+    }
+    return false;
+  }
+
+  // 检查给定的矩形是否与按钮矩形相交（用于气泡碰撞检测）
+  function isPositionCollidingRect(petRect, rects) {
+    for (let i = 0; i < rects.length; i++) {
+      const r = rects[i];
+      const m = r.margin || 0;
+      if (
+        petRect.right > r.left - m &&
+        petRect.left < r.right + m &&
+        petRect.bottom > r.top - m &&
+        petRect.top < r.bottom + m
       ) {
         return true;  // 发生碰撞
       }
@@ -1004,6 +1088,19 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
 
   document.addEventListener('click', onDocumentClick);
 
+  // 寻找一个不与内容重叠的随机位置
+  // 最多尝试 10 次，若都找不到空白处则本次不移动
+  function findFreePosition() {
+    const rects = getAvoidRects();
+    for (let i = 0; i < 10; i++) {
+      const pos = getRandomPosition();
+      if (!isPositionColliding(pos.x, pos.y, rects)) {
+        return pos;
+      }
+    }
+    return null;  // 找不到空白处
+  }
+
   function scheduleNextMove() {
     if (isDragging || isHidden) return;
 
@@ -1014,8 +1111,10 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
         scheduleNextMove();
         return;
       }
-      const target = getRandomPosition();
-      moveTo(target.x, target.y);
+      const target = findFreePosition();
+      if (target) {
+        moveTo(target.x, target.y);
+      }
       setTimeout(scheduleNextMove, 4000 + Math.random() * 3000);
     }, waitTime);
   }
@@ -1068,9 +1167,17 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
     e.preventDefault();
 
     const point = getPointerPos(e);
-    const newX = origX + (point.x - dragStartX);
+    let newX = origX + (point.x - dragStartX);
     // 【修复】史迪奇使用 bottom 定位，Y 轴需要反转：鼠标上移 → bottom 增大（元素上移）
-    const newY = origY - (point.y - dragStartY);
+    let newY = origY - (point.y - dragStartY);
+
+    // 拖拽时检测碰撞，若与列表/按钮相交则自动避开
+    const rects = getAvoidRects();
+    if (isPositionColliding(newX, newY, rects)) {
+      const resolved = resolveCollision(newX, newY);
+      newX = resolved.x;
+      newY = resolved.y;
+    }
 
     const clamped = clampPosition(newX, newY);
     pet.style.left = clamped.x + 'px';
@@ -1140,6 +1247,22 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
 
   // 参数：customMsg（可选）— 若传入则使用该文案，否则随机选一条
   function showBubble(customMsg) {
+    // 气泡区域与页面内容重叠时不显示对话气泡
+    // 气泡在桌宠上方（bottom: 100%），估算气泡区域进行检测
+    const petRect = pet.getBoundingClientRect();
+    const bubbleHeight = 40;   // 气泡高度（含 padding）
+    const bubbleMargin = 12;   // 气泡与桌宠间距
+    const bubbleWidth = 200;   // 气泡估算宽度
+    const bubbleRect = {
+      left: petRect.left + petRect.width / 2 - bubbleWidth / 2,
+      right: petRect.left + petRect.width / 2 + bubbleWidth / 2,
+      top: petRect.top - bubbleHeight - bubbleMargin,
+      bottom: petRect.top - bubbleMargin
+    };
+    const rects = getAvoidRects();
+    if (isPositionCollidingRect(bubbleRect, rects)) {
+      return; // 气泡区域重叠则不显示
+    }
     const msg = customMsg || bubbleMessages[Math.floor(Math.random() * bubbleMessages.length)];
     petBubble.textContent = msg;
     petBubble.classList.add('show');
@@ -1288,7 +1411,55 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
     pet.style.transition = 'none';
     pet.style.left = currentX + 'px';
     pet.style.bottom = currentY + 'px';
+    // 窗口大小变化时，检查是否有空间显示桌宠
+    updatePetVisibility();
+    // 如果有空间且桌宠可见，自动移到空白处
+    if (!pet.classList.contains('hidden') && !isHidden) {
+      const freePos = findFreePosition();
+      if (freePos) {
+        moveTo(freePos.x, freePos.y);
+      }
+    }
   });
+
+  // 根据是否有空白区域决定是否显示桌宠
+  // 只要能找到一块不被内容遮挡的位置，就显示桌宠
+  function updatePetVisibility() {
+    if (!pet) return;
+    // 桌宠最小需要的空间（考虑缩小后的尺寸）
+    const petMinWidth = 80;   // 桌宠最小宽度
+    const petMinHeight = 100; // 桌宠最小高度
+
+    // 窗口太小，连缩小后的桌宠都放不下，则隐藏
+    if (window.innerWidth < petMinWidth + 20 || window.innerHeight < petMinHeight + 20) {
+      pet.classList.add('hidden');
+      return;
+    }
+
+    // 检查是否存在空白区域可以放置桌宠
+    const rects = getAvoidRects();
+    // 在视口范围内采样多个点，看是否有不碰撞的位置
+    let hasFreeSpace = false;
+    for (let x = 10; x < window.innerWidth - petMinWidth; x += 40) {
+      for (let y = 10; y < window.innerHeight - petMinHeight; y += 40) {
+        // y 是 bottom 坐标，需要转换
+        if (!isPositionColliding(x, y, rects)) {
+          hasFreeSpace = true;
+          break;
+        }
+      }
+      if (hasFreeSpace) break;
+    }
+
+    if (hasFreeSpace) {
+      pet.classList.remove('hidden');
+    } else {
+      pet.classList.add('hidden');
+    }
+  }
+
+  // 初始化时检查一次
+  updatePetVisibility();
 
   // ---------- 9.9 空闲互动 ----------
 
@@ -1474,8 +1645,18 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
   // 启动行走拖尾
   startTrail();
 
-  // 页面加载 1 秒后开始随机移动
-  setTimeout(startRandomMovement, 1000);
+  // 初始化时检查碰撞，若重叠则自动移到安全位置
+  setTimeout(function () {
+    const rects = getAvoidRects();
+    if (isPositionColliding(currentX, currentY, rects)) {
+      const resolved = resolveCollision(currentX, currentY);
+      currentX = resolved.x;
+      currentY = resolved.y;
+      pet.style.left = currentX + 'px';
+      pet.style.bottom = currentY + 'px';
+    }
+    startRandomMovement();
+  }, 500);
 
   // 启动 GIF 轮播（3-5 秒随机切换桌宠动图）
   startGifRotation();
@@ -1692,8 +1873,16 @@ function wrappedAddTodo() {
 
   // 1) 优先尝试自然语言解析
   if (window.reminderModule) {
-    const parsed = window.reminderModule.parse(rawText);
-    if (parsed.remindAt) {
+    let parsed;
+    try {
+      parsed = window.reminderModule.parse(rawText);
+    } catch (err) {
+      console.error('解析失败:', err);
+      // 解析失败时直接添加原文本
+      addTodo();
+      return;
+    }
+    if (parsed && parsed.remindAt) {
       remindAt = parsed.remindAt;
       // 清理文本：去掉"提醒我""提醒""叫我"等前缀，提炼纯事项内容
       todoInput.value = window.reminderModule.cleanTodoText(parsed.text);
@@ -2454,14 +2643,15 @@ datetimePickerModule.bind();
     '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
     '十一': 11, '十二': 12, '十三': 13, '十四': 14, '十五': 15,
     '十六': 16, '十七': 17, '十八': 18, '十九': 19, '二十': 20,
-    '三十': 30, '四十': 40, '五十': 50
+    '三十': 30, '四十': 40, '五十': 50, '六十': 60, '七十': 70,
+    '八十': 80, '九十': 90, '百': 100
   };
 
-  // 把中文数字字符串转为整数（支持"七""十二""二十""三十""二十一""三十一"等）
+  // 把中文数字字符串转为整数（支持"七""十二""二十""二十一""三十一""一百"等）
   function cnToNumber(str) {
     if (/^\d+$/.test(str)) return parseInt(str, 10);       // 纯数字直接返回
     if (CN_NUM[str] !== undefined) return CN_NUM[str];       // 查表
-    // 组合数字：[X十][Y] 模式，如"二十一"=21、"三十一"=31、"十九"=19
+    // 组合数字：[X十][Y] 模式，如"二十一"=21、"三十一"=31、"九十九"=99
     const comboRe = /^([一二两三四五六七八九])十([一二两三四五六七八九])?$/;
     const m = str.match(comboRe);
     if (m) {
@@ -2470,6 +2660,15 @@ datetimePickerModule.bind();
       if (tens !== undefined && (m[2] === undefined || ones !== undefined)) {
         return tens * 10 + ones;
       }
+    }
+    // 组合数字：[X百][Y十][Z] 模式，如"一百"=100、"一百零一"=100
+    const hundredRe = /^([一二两三四五六七八九])百(([一二两三四五六七八九])十)?([一二两三四五六七八九])?$/;
+    const m2 = str.match(hundredRe);
+    if (m2) {
+      const hundreds = CN_NUM[m2[1]] * 100;
+      const tens = m2[3] ? CN_NUM[m2[3]] * 10 : 0;
+      const ones = m2[4] ? CN_NUM[m2[4]] : 0;
+      return hundreds + tens + ones;
     }
     return NaN;
   }
@@ -2510,8 +2709,15 @@ datetimePickerModule.bind();
   //   "八点半提醒我睡觉"    → 今天 8:30（已过则明天），文本"睡觉"
   //   "早上8点跑步"        → 今天 8:00（已过则明天）
   //   "晚上9点关灯"        → 今天 21:00
+  //   "今天晚上八点半"      → 今天 20:30（已过则明天）
+  //   "明天下午三点"        → 明天 15:00
   //   "一会儿提醒我"        → 5 分钟后
   //   "8:00"               → 今天 8:00（已过则明天）
+  //   "过10分钟"           → 10 分钟后（新）
+  //   "再过2小时"          → 2 小时后（新）
+  //   "大后天"             → 3 天后（新）
+  //   "明天早上"           → 明天 7:00（新）
+  //   "后天下午"           → 后天 15:00（新）
   // 失败：返回 { text: 原文, remindAt: null, recurrence: null }
   function parseReminderFromText(rawText) {
     // 预处理：先把中文月份/日期转为阿拉伯数字（如"八月十五号"→"8月15日"）
@@ -2527,6 +2733,8 @@ datetimePickerModule.bind();
     // ===== 辅助函数：构造返回结果并清理文本 =====
     function result(finalText, ts) {
       let t = finalText.trim();
+      // 清理残留的"提醒我/提醒/叫我"前缀，提取真正的动作
+      t = t.replace(/^(提醒我|提醒|叫我)\s*/, '').trim();
       // 如果剥离后为空但有"提醒我XXX"的动作，用动作作为文本
       if (!t && actionMatch) t = actionMatch[1];
       return { text: t || rawText, remindAt: ts, recurrence: recurrence };
@@ -2669,9 +2877,9 @@ datetimePickerModule.bind();
       return result(text, remindAt);
     }
 
-    // ===== 规则 5：相对时间（X分钟后/X小时后/X天后）=====
-    // 例：半小时后提醒我喝水、1小时后、两小时后、20分钟后、3天后
-    const relRe = /(\d+)?\s*(半|[一二两三四五六七八九十百]+)?\s*(分钟|分|小时|时|天|周|星期)后/;
+    // ===== 规则 5：相对时间（X分钟后/X小时后/X天后/过X分钟/再过Y小时）=====
+    // 例：半小时后提醒我喝水、1小时后、两小时后、20分钟后、3天后、过10分钟、再过2小时
+    const relRe = /(?:过|再过)?\s*(\d+)?\s*(半|[一二两三四五六七八九十百]+)?\s*(分钟|分|小时|时|天|周|星期)后/;
     const mRel = text.match(relRe);
     if (mRel) {
       let value = 0;
@@ -2695,27 +2903,43 @@ datetimePickerModule.bind();
 
     // ===== 规则 6：时段 + 时间（早上8点、中午12点、晚上9点、早上八点）=====
     // 例：早上8点跑步、中午12点吃饭、晚上9点关灯、早上八点晨跑
-    const periodTimeRe = /(早上|早晨|上午|中午|下午|晚上|凌晨)\s*(?:(\d{1,2}):(\d{2})|(\d{1,2})点|([一二两三四五六七八九十]+)点(?:半|一刻)?(\d{1,2})?分?)/;
+    // 新增：今天晚上八点半、今天下午三点
+    const periodTimeRe = /(今天|明天)?\s*(早上|早晨|上午|中午|下午|晚上|凌晨)\s*(?:(\d{1,2}):(\d{2})|(\d{1,2})点|([一二两三四五六七八九十]+)点(?:半|一刻)?(\d{1,2})?分?)/;
     const mPt = text.match(periodTimeRe);
     if (mPt) {
+      const dayPrefix = mPt[1];  // "今天"或"明天"（可选）
+      const period = mPt[2];     // 时段词
       let hour, min;
-      if (mPt[2]) {
+      if (mPt[3]) {
         // 数字时间：早上 8:00
-        hour = parseInt(mPt[2], 10); min = parseInt(mPt[3], 10);
-      } else if (mPt[4]) {
+        hour = parseInt(mPt[3], 10); min = parseInt(mPt[4], 10);
+      } else if (mPt[5]) {
         // 数字+点：早上8点
-        hour = parseInt(mPt[4], 10); min = 0;
+        hour = parseInt(mPt[5], 10); min = 0;
       } else {
         // 中文数字：早上八点、早上八点半
-        hour = cnToNumber(mPt[5]); min = 0;
+        hour = cnToNumber(mPt[6]); min = 0;
         if (mPt[0].includes('半')) min = 30;
         else if (mPt[0].includes('一刻')) min = 15;
-        else if (mPt[6]) min = parseInt(mPt[6], 10);
+        else if (mPt[7]) min = parseInt(mPt[7], 10);
       }
-      // 以具体时间为准
+      // 根据时段词对小时进行偏移（12 小时制 → 24 小时制）
+      const periodOffset = { '早上': 0, '早晨': 0, '上午': 0, '中午': 12, '下午': 12, '晚上': 12, '凌晨': 0 };
+      if (hour < 12) {
+        const offset = periodOffset[period];
+        if (offset !== undefined && offset > 0) hour += offset;
+      }
       const d = new Date(now);
+      // 处理"今天/明天"前缀
+      if (dayPrefix === '明天') {
+        d.setDate(d.getDate() + 1);
+      }
       d.setHours(hour, min, 0, 0);
-      if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1); // 已过则明天
+      // "今天"前缀且时间已过，则推到明天；无前缀保持原逻辑
+      if (d.getTime() <= now.getTime()) {
+        if (dayPrefix === '今天') d.setDate(d.getDate() + 1);
+        else if (!dayPrefix) d.setDate(d.getDate() + 1);
+      }
       remindAt = d.getTime();
       text = text.replace(periodTimeRe, '').trim();
       if (!text && actionMatch) text = actionMatch[1];
@@ -2761,6 +2985,24 @@ datetimePickerModule.bind();
       remindAt = d.getTime();
       text = text.replace(/^(一会儿|等会|等一下|稍后|待会|过会儿)\s*/, '').trim();
       if (!text && actionMatch) text = actionMatch[1];
+      return result(text, remindAt);
+    }
+
+    // ===== 规则 9.1："明天/后天/大后天 + 时段"（无具体时间）=====
+    // 例：明天早上、后天下午、大后天后天
+    const dayPeriodRe = /(明天|后天|大后天)\s*(早上|早晨|上午|中午|下午|晚上|凌晨)?/;
+    const mDp = text.match(dayPeriodRe);
+    if (mDp && !text.match(/\d{1,2}[点:]/)) { // 没有具体时间才走这条规则
+      const dayType = mDp[1];
+      const period = mDp[2];
+      const dayOffset = dayType === '大后天' ? 3 : (dayType === '后天' ? 2 : 1);
+      // 时段默认时间映射
+      const periodHour = { '早上': 7, '早晨': 7, '上午': 9, '中午': 12, '下午': 15, '晚上': 19, '凌晨': 0 };
+      const d = new Date(now);
+      d.setDate(d.getDate() + dayOffset);
+      d.setHours(period ? periodHour[period] : 9, 0, 0, 0);
+      remindAt = d.getTime();
+      text = text.replace(dayPeriodRe, '').trim();
       return result(text, remindAt);
     }
 

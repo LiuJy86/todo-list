@@ -4,7 +4,7 @@
   <!-- 页面字符编码与视口设置，视口设置保证移动端也能正常显示 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>待办事项清单</title>
+  <title>ToDoList</title>
   <!-- 引入样式表，负责页面外观 -->
   <link rel="stylesheet" href="style.css?v=24">
 </head>
@@ -26,11 +26,13 @@
     <button class="pet-close" id="petClose" title="隐藏">×</button>
   </div>
 
-  <!-- 页面头部：标题 -->
+  <!-- 页面头部：标题 + emoji logo -->
   <header>
-    <h1>待办事项清单</h1>
+    <h1><span class="logo-emoji">✅</span> ToDoList</h1>
     <!-- 置顶按钮（仅桌面端显示） -->
     <button id="pinBtn" class="pin-btn" title="窗口置顶">📌</button>
+    <!-- 便签模式折叠按钮（仅便签模式显示） -->
+    <button id="stickyCollapseBtn" class="pin-btn" title="折叠列表" style="display:none;">▼</button>
   </header>
 
   <!-- 主体内容区 -->
