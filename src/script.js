@@ -746,7 +746,7 @@ load();
 // 再根据读取到的数据渲染列表（若有历史数据则会显示出来）
 render();
 
-// ---------- 9. 便签模式（Electron 通信） ----------
+// ---------- 9. 便签模式与置顶（Electron 通信） ----------
 
 // 监听 Electron 主进程发来的便签模式切换消息
 if (window.electronAPI && window.electronAPI.onStickyMode) {
@@ -759,6 +759,36 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
     }
   });
 }
+
+// 置顶按钮：点击切换窗口置顶状态
+(function () {
+  var pinBtn = document.getElementById('pinBtn');
+  if (!pinBtn) return;
+
+  // 只在 Electron 环境下显示按钮
+  if (window.electronAPI && window.electronAPI.toggleAlwaysOnTop) {
+    pinBtn.style.display = 'inline-block';
+
+    // 点击切换置顶
+    pinBtn.addEventListener('click', function () {
+      window.electronAPI.toggleAlwaysOnTop();
+    });
+
+    // 监听置顶状态变化，更新按钮样式
+    window.electronAPI.onAlwaysOnTop(function (isEnabled) {
+      if (isEnabled) {
+        pinBtn.classList.add('active');
+        pinBtn.title = '取消置顶';
+      } else {
+        pinBtn.classList.remove('active');
+        pinBtn.title = '窗口置顶';
+      }
+    });
+  } else {
+    // 浏览器环境下隐藏按钮
+    pinBtn.style.display = 'none';
+  }
+})();
 
 
 // ===== 9. 史迪奇桌宠模块 =====

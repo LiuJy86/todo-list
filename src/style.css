@@ -1753,8 +1753,8 @@ main {
   }
 }
 
-/* 响应式：超窄屏隐藏桌宠 */
-@media (max-width: 480px) {
+/* 响应式：超窄屏隐藏桌宠（窗口宽度 < 360px 时隐藏） */
+@media (max-width: 360px) {
   .stitch-pet {
     display: none;
   }
@@ -1892,6 +1892,37 @@ main {
 .sticky-mode .github-fab,
 .sticky-mode .target-count-input {
   display: none !important;
+}
+
+/* 置顶按钮 */
+header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pin-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.2s, transform 0.2s;
+  padding: 4px;
+  border-radius: 4px;
+}
+.pin-btn:hover {
+  opacity: 1;
+  background: rgba(0,0,0,0.05);
+}
+.pin-btn.active {
+  opacity: 1;
+  color: #e74c3c;
+  transform: translateY(-50%) rotate(-45deg);
 }
 
 /* 便签模式下：标题缩小、居中 */

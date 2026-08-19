@@ -204,6 +204,16 @@ app.on('before-quit', () => {
   }
 });
 
+// 处理窗口置顶切换
+ipcMain.on('toggle-always-on-top', function () {
+  if (!mainWindow) return;
+  // 切换置顶状态（取反）
+  const newState = !mainWindow.isAlwaysOnTop();
+  mainWindow.setAlwaysOnTop(newState);
+  // 通知页面状态已变化
+  mainWindow.webContents.send('always-on-top-changed', newState);
+});
+
 // 切换便签模式
 function toggleStickyMode(enable) {
   if (!mainWindow) return;

@@ -9,5 +9,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('sticky-mode', function (event, enabled) {
       callback(enabled);
     });
+  },
+  // 切换窗口置顶
+  toggleAlwaysOnTop: function () {
+    ipcRenderer.send('toggle-always-on-top');
+  },
+  // 监听置顶状态变化
+  onAlwaysOnTop: function (callback) {
+    ipcRenderer.on('always-on-top-changed', function (event, isEnabled) {
+      callback(isEnabled);
+    });
   }
 });
