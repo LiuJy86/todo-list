@@ -1317,7 +1317,8 @@ function wrappedAddTodo() {
     const parsed = window.reminderModule.parse(rawText);
     if (parsed.remindAt) {
       remindAt = parsed.remindAt;
-      todoInput.value = parsed.text;
+      // 清理文本：去掉"提醒我""提醒""叫我"等前缀，提炼纯事项内容
+      todoInput.value = window.reminderModule.cleanTodoText(parsed.text);
       // 同步到日期选择器显示
       if (window.datetimePickerModule) {
         window.datetimePickerModule.syncFromTimestamp(remindAt, null);
@@ -2061,21 +2062,50 @@ datetimePickerModule.bind();
 
   // ---------- 11.3 自然语言解析 ----------
 
+  // 中文数字 → 阿拉伯数字映射（用于解析"七点""半小时"等中文表达）
+  const CN_NUM = {
+    '零': 0, '半': 0.5, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4,
+    '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+    '十一': 11, '十二': 12, '十三': 13, '十四': 14, '十五': 15,
+    '十六': 16, '十七': 17, '十八': 18, '十九': 19, '二十': 20,
+    '三十': 30, '四十': 40, '五十': 50
+  };
+
+  // 把中文数字字符串转为整数（支持"七""十二""二十""三十"等）
+  function cnToNumber(str) {
+    if (/^\d+$/.test(str)) return parseInt(str, 10);       // 纯数字直接返回
+    if (CN_NUM[str] !== undefined) return CN_NUM[str];       // 查表
+    // 组合数字如"二十"=20、"两半"等暂不支持，返回 NaN
+    return NaN;
+  }
+
   // 解析文本中的提醒时间，并返回剥离时间词后的纯事项文本
-  // 支持规则：
-  //   "8:00"          → 今天 8:00（若今天已过则改用明天 8:00）
-  //   "15:30"         → 今天 15:30（已过则明天）
-  //   "明天8:00"       → 明天 8:00
-  //   "8月15日 8:00"   → 当年 8 月 15 日 8:00（已过则明年）
-  //   "8月15日"        → 当年 8 月 15 日 9:00（默认 9 点）
-  //   "明天"           → 明天 9:00（默认 9 点）
+  // 支持规则（按优先级从高到低）：
+  //   "8月15日 8:00"       → 当年 8 月 15 日 8:00（已过则明年）
+  //   "8月15日"            → 当年 8 月 15 日 9:00（默认 9 点）
+  //   "明天8:00"           → 明天 8:00
+  //   "明天"               → 明天 9:00（默认 9 点）
+  //   "半小时后提醒我喝水"  → 30 分钟后，文本"喝水"
+  //   "1小时后" / "两小时后" → 1/2 小时后
+  //   "20分钟后"           → 20 分钟后
+  //   "七点提醒我洗澡"      → 今天 7:00（已过则明天），文本"洗澡"
+  //   "八点半提醒我睡觉"    → 今天 8:30（已过则明天），文本"睡觉"
+  //   "九点一刻"           → 今天 9:15（已过则明天）
+  //   "8:00"               → 今天 8:00（已过则明天）
+  //   "15:30"              → 今天 15:30（已过则明天）
   // 失败：返回 { text: 原文, remindAt: null }（不阻断添加流程）
   function parseReminderFromText(rawText) {
     let text = rawText.trim();
     let remindAt = null;
     const now = new Date();
 
-    // 规则 1：含"月""日"的明确日期 + 可选时间
+    // ===== 预处理：提取"提醒我XXX"中的事项内容 =====
+    // 匹配"提醒我/提醒/叫我"后面的动作，用于最终提炼纯事项文本
+    const remindActionRe = /(?:提醒我|提醒|叫我)([一-龥a-zA-Z0-9]+)/;
+    const actionMatch = text.match(remindActionRe);
+    // 暂存动作文本，最后如果解析成功且结果文本为空，就用它
+
+    // ===== 规则 1：含"月""日"的明确日期 + 可选时间 =====
     // 例：8月15日 8:00  或  8月15日
     const dateRe = /(\d{1,2})月(\d{1,2})日(?:\s*(\d{1,2}):(\d{2}))?/;
     const m1 = text.match(dateRe);
@@ -2085,42 +2115,101 @@ datetimePickerModule.bind();
       const hour = m1[3] ? parseInt(m1[3], 10) : 9;   // 未给时间默认 9 点
       const min = m1[4] ? parseInt(m1[4], 10) : 0;
       const d = new Date(now.getFullYear(), month - 1, day, hour, min, 0);
-      // 若该日期已过则推到明年
-      if (d.getTime() <= now.getTime()) d.setFullYear(d.getFullYear() + 1);
+      if (d.getTime() <= now.getTime()) d.setFullYear(d.getFullYear() + 1); // 已过则明年
       remindAt = d.getTime();
       text = text.replace(dateRe, '').trim();
       return { text: text || rawText, remindAt: remindAt };
     }
 
-    // 规则 2："明天" + 时间
-    // 例：明天8:00  或  明天 15:30
-    const tomorrowRe = /明天\s*(\d{1,2}):(\d{2})/;
+    // ===== 规则 2："明天" + 时间 =====
+    // 例：明天8:00  或  明天 15:30  或  明天七点
+    const tomorrowRe = /明天\s*(?:(\d{1,2}):(\d{2})|([一二两三四五六七八九十]+)点(?:半|一刻)?(\d{1,2})?分?)/;
     const m2 = text.match(tomorrowRe);
     if (m2) {
       const d = new Date(now);
       d.setDate(d.getDate() + 1);
-      d.setHours(parseInt(m2[1], 10), parseInt(m2[2], 10), 0, 0);
+      if (m2[1]) {
+        // 数字时间：明天 8:00
+        d.setHours(parseInt(m2[1], 10), parseInt(m2[2], 10), 0, 0);
+      } else {
+        // 中文时间：明天七点、明天八点半
+        let hour = cnToNumber(m2[3]);
+        let min = 0;
+        if (m2[0].includes('半')) min = 30;
+        else if (m2[0].includes('一刻')) min = 15;
+        else if (m2[4]) min = parseInt(m2[4], 10);
+        d.setHours(hour, min, 0, 0);
+      }
       remindAt = d.getTime();
       text = text.replace(tomorrowRe, '').trim();
       return { text: text || rawText, remindAt: remindAt };
     }
 
-    // 规则 3：纯时间 "HH:MM"，默认今天（已过则明天）
+    // ===== 规则 3：相对时间（X分钟后/X小时后/X天后）=====
+    // 例：半小时后提醒我喝水、1小时后、两小时后、20分钟后、3天后
+    const relRe = /(\d+)?\s*(半|[一二两三四五六七八九十百]+)?\s*(分钟|分|小时|时|天|周|星期)后/;
+    const mRel = text.match(relRe);
+    if (mRel) {
+      let value = 0;
+      if (mRel[1]) {
+        // 数字 + 单位：如"20分钟""1小时""3天"
+        value = parseInt(mRel[1], 10);
+        if (mRel[2]) value += cnToNumber(mRel[2]) || 0; // 如"1个半小时"
+      } else if (mRel[2]) {
+        // 纯中文：如"半""一""两""二十"
+        value = cnToNumber(mRel[2]);
+      }
+      const unit = mRel[3];
+      const d = new Date(now);
+      if (unit === '分钟' || unit === '分') {
+        d.setMinutes(d.getMinutes() + value);
+      } else if (unit === '小时' || unit === '时') {
+        d.setHours(d.getHours() + value);
+      } else if (unit === '天') {
+        d.setDate(d.getDate() + value);
+      } else if (unit === '周' || unit === '星期') {
+        d.setDate(d.getDate() + value * 7);
+      }
+      remindAt = d.getTime();
+      text = text.replace(relRe, '').trim();
+      // 如果剥离后文本为空但有"提醒我XXX"的动作，用动作作为文本
+      if (!text && actionMatch) text = actionMatch[1];
+      return { text: text || rawText, remindAt: remindAt };
+    }
+
+    // ===== 规则 4：中文数字时间（七点、八点半、九点一刻、十点二十）=====
+    // 例：七点提醒我洗澡、八点半提醒我睡觉
+    const cnTimeRe = /([一二两三四五六七八九十]+)点(?:半|一刻|(\d{1,2})分)?/;
+    const mCn = text.match(cnTimeRe);
+    if (mCn) {
+      let hour = cnToNumber(mCn[1]);
+      let min = 0;
+      if (mCn[0].includes('半')) min = 30;
+      else if (mCn[0].includes('一刻')) min = 15;
+      else if (mCn[2]) min = parseInt(mCn[2], 10);
+      const d = new Date(now);
+      d.setHours(hour, min, 0, 0);
+      if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1); // 已过则明天
+      remindAt = d.getTime();
+      text = text.replace(cnTimeRe, '').trim();
+      if (!text && actionMatch) text = actionMatch[1];
+      return { text: text || rawText, remindAt: remindAt };
+    }
+
+    // ===== 规则 5：纯数字时间 "HH:MM"，默认今天（已过则明天）=====
     const timeRe = /(\d{1,2}):(\d{2})/;
     const m3 = text.match(timeRe);
     if (m3) {
       const d = new Date(now);
       d.setHours(parseInt(m3[1], 10), parseInt(m3[2], 10), 0, 0);
-      if (d.getTime() <= now.getTime()) {
-        // 今天这个点已过，推到明天
-        d.setDate(d.getDate() + 1);
-      }
+      if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1); // 已过则明天
       remindAt = d.getTime();
       text = text.replace(timeRe, '').trim();
+      if (!text && actionMatch) text = actionMatch[1];
       return { text: text || rawText, remindAt: remindAt };
     }
 
-    // 规则 4：单独"明天"（无具体时间），默认明天 9:00
+    // ===== 规则 6：单独"明天"（无具体时间），默认明天 9:00 =====
     if (/^明天/.test(text) || /\s明天$/.test(text) || /明天$/.test(text)) {
       const d = new Date(now);
       d.setDate(d.getDate() + 1);
@@ -2132,6 +2221,20 @@ datetimePickerModule.bind();
 
     // 解析失败：原文不动，无提醒
     return { text: rawText, remindAt: null };
+  }
+
+  // 清理文本：去掉"提醒我""提醒""叫我"等前缀和多余语气词，提炼纯事项内容
+  // 例："提醒我喝水" → "喝水"，"叫我起床" → "起床"，"提醒交作业" → "交作业"
+  //     "明天提醒我晨跑" → "晨跑"，"两小时后" → "两小时后"（保留，因为没有动作主体）
+  function cleanTodoText(text) {
+    let t = text.trim();
+    // 去掉"提醒我""叫我""提醒"前缀
+    t = t.replace(/^(提醒我|叫我|提醒)\s*/, '').trim();
+    // 去掉"明天""后天""今天"等时间前缀（这些是时间词，不是事项内容）
+    t = t.replace(/^(明天|后天|今天)\s*/, '').trim();
+    // 去掉末尾的语气词："吧""啊""呀""哦""呢"等
+    t = t.replace(/[吧啊呀哦呢哈]+$/, '').trim();
+    return t;
   }
 
 
@@ -2477,6 +2580,7 @@ datetimePickerModule.bind();
   // ---------- 11.8 暴露接口 ----------
   window.reminderModule = {
     parse: parseReminderFromText,
+    cleanTodoText: cleanTodoText,
     schedule: scheduleReminder,
     scheduleAll: scheduleAllReminders,
     cancel: cancelReminder,
