@@ -1025,7 +1025,8 @@ render();
 
     const point = getPointerPos(e);
     const newX = origX + (point.x - dragStartX);
-    const newY = origY + (point.y - dragStartY);
+    // 【修复】史迪奇使用 bottom 定位，Y 轴需要反转：鼠标上移 → bottom 增大（元素上移）
+    const newY = origY - (point.y - dragStartY);
 
     const clamped = clampPosition(newX, newY);
     pet.style.left = clamped.x + 'px';
