@@ -4,7 +4,7 @@
 // ---------- 1. 数据层 ----------
 
 // 数据源：所有待办事项都存在这个数组里
-// 每条事项结构（v2.4.0 扩展）：
+// 每条事项结构（v2.7.0 扩展）：
 //   { id: 唯一标识, text: 内容文本, done: 是否已完成,
 //     remindAt: 提醒时间戳（毫秒，无提醒为 null）,
 //     reminded: 是否已触发过本轮提醒（防重复响铃）,
@@ -15,6 +15,8 @@
 //     },
 //     completionCount: 0,               // 完成次数（循环专用）
 //     lastRemindAt: 上次实际提醒时间戳,    // 循环调度用
+//     targetCount: null,                // 目标执行次数（null=不计数）
+//     currentCount: 0,                  // 当前已执行次数
 //   }
 // 后续的「添加 / 标记完成 / 删除 / 持久化 / 提醒调度」都围绕这个数组进行
 let todos = [];
@@ -100,11 +102,13 @@ function render() {
   const done = todos.filter(function (t) { return t.done; });
 
   // 判断两类是否需要收纳
+  // 【v2.7.0 改动】已完成事项默认折叠（只要有 1 条及以上就显示收纳按钮）
   const hasPendingCollapsible = pending.length > VISIBLE_PENDING_LIMIT;
-  const hasDoneCollapsible = done.length > VISIBLE_COMPLETED_LIMIT;
+  const hasDoneCollapsible = done.length > 0; // 只要有已完成项就默认收纳
   const hasCollapsible = hasPendingCollapsible || hasDoneCollapsible;
 
-  // 计算可见项（展开时全部可见，收起时按阈值切片）
+  // 计算可见项
+  // 【v2.7.0 改动】已完成项默认完全折叠（收起时不显示任何已完成项）
   let visiblePending, visibleDone;
   if (!hasCollapsible) {
     // 无需收纳，全部显示
@@ -115,9 +119,9 @@ function render() {
     visiblePending = pending;
     visibleDone = done;
   } else {
-    // 收起状态：按阈值切片显示
+    // 收起状态：未完成项按阈值切片，已完成项全部隐藏（默认折叠）
     visiblePending = pending.slice(0, VISIBLE_PENDING_LIMIT);
-    visibleDone = done.slice(0, VISIBLE_COMPLETED_LIMIT);
+    visibleDone = []; // 已完成项默认不显示，点击展开才可见
   }
 
   // 整体可见项顺序：未完成可见 → （未完成收纳按钮）→ 已完成可见 → （已完成收纳按钮）
@@ -137,6 +141,18 @@ function render() {
     }
     // 更新完成状态（仅切换 class 和 checkbox，不重建 DOM）
     updateItemState(li, todo);
+  });
+
+  // 【v2.7.0 新增】移除不在可见列表中的 DOM 节点（如被收纳的已完成项）
+  const visibleIds = new Set(visibleItems.map(function (t) { return t.id; }));
+  Array.from(todoList.children).forEach(function (child) {
+    // 只处理待办项节点，跳过收纳按钮和收纳容器
+    if (child.classList && child.classList.contains('todo-item')) {
+      const itemId = parseInt(child.dataset.id, 10);
+      if (!visibleIds.has(itemId)) {
+        child.remove();
+      }
+    }
   });
 
   // 第二步：处理收纳区 UI（两类收纳按钮 + 一个收纳容器）
@@ -189,7 +205,8 @@ function render() {
         });
       }
       // 更新文案
-      const hiddenCount = done.length - VISIBLE_COMPLETED_LIMIT;
+      // 【v2.7.0 改动】已完成项默认全部隐藏，所以隐藏数 = 全部已完成项数
+      const hiddenCount = done.length;
       if (isExpanded) {
         collapseBtn.innerHTML = '<span>收起 ▲</span>';
         collapseBtn.classList.add('expanded');
@@ -226,15 +243,13 @@ function render() {
     // 根据展开/收起状态设置显示
     collapsedList.style.display = isExpanded ? 'flex' : 'none';
 
-    // 展开时：把所有被收纳的项移入容器
+    // 展开时：把被收纳的未完成项移入容器（已完成项已在主列表显示）
     if (isExpanded) {
       const collapsedItems = [];
       if (hasPendingCollapsible) {
         collapsedItems.push.apply(collapsedItems, pending.slice(VISIBLE_PENDING_LIMIT));
       }
-      if (hasDoneCollapsible) {
-        collapsedItems.push.apply(collapsedItems, done.slice(VISIBLE_COMPLETED_LIMIT));
-      }
+      // 【v2.7.0 改动】已完成项已全部在主列表显示，不再重复放入容器
       collapsedItems.forEach(function (todo) {
         let li = nodeCache.get(todo.id);
         if (!li) {
@@ -288,6 +303,73 @@ function createTodoElement(todo) {
   span.className = 'todo-text';
   span.textContent = todo.text;
 
+  // 【双击编辑】双击待办文字可原地编辑
+  span.addEventListener('dblclick', function (e) {
+    e.stopPropagation();
+    // 如果已经在编辑状态，不重复触发
+    if (span.classList.contains('editing')) return;
+    // 已完成的事项不允许编辑
+    if (todo.done) return;
+
+    span.classList.add('editing');
+    const originalText = todo.text;
+    // 创建输入框替代原文本
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'todo-edit-input';
+    input.value = originalText;
+    span.textContent = '';
+    span.appendChild(input);
+    input.focus();
+    input.select();
+
+    // 保存编辑
+    function saveEdit() {
+      const newText = input.value.trim();
+      span.classList.remove('editing');
+      if (newText && newText !== originalText) {
+        // 更新数据
+        todo.text = newText;
+        // 如果原文本有提醒时间，重新解析新文本
+        if (todo.remindAt && window.reminderModule) {
+          const parsed = window.reminderModule.parse(newText);
+          if (parsed.remindAt) {
+            todo.remindAt = parsed.remindAt;
+            todo.text = window.reminderModule.cleanTodoText(parsed.text);
+          }
+        }
+        save();
+        render();
+        // 史迪奇反馈
+        if (window.petMood) {
+          window.petMood.toast('已更新待办内容，加油！', 'info');
+        }
+      } else {
+        // 没改动或为空，恢复原文
+        render();
+      }
+    }
+    // 取消编辑
+    function cancelEdit() {
+      span.classList.remove('editing');
+      render();
+    }
+
+    // 按 Enter 保存，按 Esc 取消，失去焦点也保存
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveEdit();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelEdit();
+      }
+    });
+    input.addEventListener('blur', function () {
+      saveEdit();
+    });
+  });
+
   // 构造 Tooltip 内容
   const tooltipParts = [];
   if (todo.remindAt) {
@@ -308,8 +390,55 @@ function createTodoElement(todo) {
     li.classList.add('has-tooltip');
   }
 
-  // 若该事项设置了提醒时间，创建提醒徽章
-  if (todo.remindAt) {
+  // 【目标计数】如果设置了执行次数，创建计数器 UI
+  if (todo.targetCount && todo.targetCount > 0) {
+    li.appendChild(checkbox);
+    li.appendChild(span);
+    // 计数器容器
+    const counter = document.createElement('span');
+    counter.className = 'todo-counter';
+    // 进度文字：如 "3/8"
+    const counterText = document.createElement('span');
+    counterText.className = 'counter-text';
+    counterText.textContent = (todo.currentCount || 0) + '/' + todo.targetCount;
+    counter.appendChild(counterText);
+    // "+" 按钮，点击增加次数
+    const plusBtn = document.createElement('button');
+    plusBtn.className = 'counter-plus-btn';
+    plusBtn.textContent = '+';
+    plusBtn.title = '增加一次';
+    plusBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      // 增加计数
+      todo.currentCount = (todo.currentCount || 0) + 1;
+      counterText.textContent = todo.currentCount + '/' + todo.targetCount;
+      // 达到目标次数 → 自动完成
+      if (todo.currentCount >= todo.targetCount) {
+        todo.done = true;
+        todo.completionCount = (todo.completionCount || 0) + 1;
+        li.classList.add('completed');
+        if (window.petMood) {
+          window.petMood.happy();
+          window.petMood.toast('目标达成！' + todo.targetCount + ' 次全部完成！太厉害了！', 'success');
+        }
+      } else {
+        // 未完成，史迪奇鼓励
+        if (window.petMood) {
+          const encourageMsgs = [
+            '加油！还差 ' + (todo.targetCount - todo.currentCount) + ' 次！',
+            '已经完成 ' + todo.currentCount + ' 次了，继续！',
+            '坚持就是胜利！还剩 ' + (todo.targetCount - todo.currentCount) + ' 次！'
+          ];
+          window.petMood.toast(encourageMsgs[Math.floor(Math.random() * encourageMsgs.length)], 'info');
+        }
+      }
+      save();
+      render();
+    });
+    counter.appendChild(plusBtn);
+    li.appendChild(counter);
+  } else if (todo.remindAt) {
     const badge = document.createElement('span');
     badge.className = 'reminder-badge';
     li.appendChild(checkbox);
@@ -373,6 +502,12 @@ function updateItemState(li, todo) {
   const checkbox = li.querySelector('.todo-checkbox');
   if (checkbox) {
     checkbox.checked = todo.done;
+  }
+  // 【v2.7.0 新增】同步文本内容（修复双击编辑后不刷新的问题）
+  // 仅在非编辑状态下更新，避免覆盖用户正在输入的内容
+  const textSpan = li.querySelector('.todo-text');
+  if (textSpan && !textSpan.classList.contains('editing') && textSpan.textContent !== todo.text) {
+    textSpan.textContent = todo.text;
   }
   // 刷新提醒徽章的文案与颜色（按距离提醒时间变色）
   updateReminderBadge(li, todo);
@@ -447,12 +582,18 @@ function addTodo(remindAt, recurrence) {
     return;  // 直接返回，不执行后续添加逻辑
   }
 
-  // 3) 构造新事项对象，推入数组
+  // 3) 读取目标次数（如果有设置）
+  const targetCountInput = document.getElementById('targetCountInput');
+  const targetCount = targetCountInput ? parseInt(targetCountInput.value, 10) : 0;
+
+  // 4) 构造新事项对象，推入数组
   // id 用 Date.now()（当前毫秒时间戳）保证唯一
   // remindAt：提醒时间戳（毫秒），无提醒为 null
   // reminded：是否已触发过本轮提醒，初始 false
   // recurrence：循环设置，无循环为 null
   // completionCount：完成次数，初始 0
+  // targetCount：目标执行次数（0=不计数）
+  // currentCount：当前已执行次数，初始 0
   const newTodo = {
     id: Date.now(),
     text: text,
@@ -461,15 +602,18 @@ function addTodo(remindAt, recurrence) {
     reminded: false,
     recurrence: recurrence || null,
     completionCount: 0,
-    lastRemindAt: null
+    lastRemindAt: null,
+    targetCount: (targetCount > 1) ? targetCount : null,
+    currentCount: 0
   };
   todos.push(newTodo);
 
-  // 4) 数据已变，重新渲染列表
+  // 5) 数据已变，重新渲染列表
   render();
 
-  // 5) 清空输入框并重新聚焦，方便用户继续输入下一条
+  // 6) 清空输入框和目标次数，并重新聚焦
   todoInput.value = '';
+  if (targetCountInput) targetCountInput.value = '';
   todoInput.focus();
 
   // 6) 返回新增的事项对象，供调用方调度提醒
@@ -520,6 +664,13 @@ function toggleTodo(id) {
 
   // 非循环待办：保持原有逻辑
   todo.done = !todo.done;
+
+  // 记录完成时间（用于日报统计）
+  if (todo.done) {
+    todo.completedAt = Date.now();
+  } else {
+    todo.completedAt = null;
+  }
 
   if (window.reminderModule) {
     if (todo.done) {
@@ -911,17 +1062,27 @@ render();
 
   // ---------- 9.6 点击交互 ----------
 
+  // 史迪奇随机气泡文案池（中二 + 乐天派 + 暖心）
   const bubbleMessages = [
-    '嗨！有什么待办吗？',
-    '记得完成待办哦~',
-    '今天也要加油！',
-    '要不要休息一下？',
-    '工作快乐！',
-    '我是史迪奇！',
-    '一起加油吧~',
-    '别忘了喝水！',
-    '动一动吧~',
-    '你真棒！'
+    // ===== 中二风格 =====
+    '吾乃史迪奇，626 号实验体！你的待办就是本大人的使命！',
+    '哼，没有待办能逃过我的眼睛！',
+    '本大人今天也要守护你的待办清单！Ohana！',
+    '感受到我体内涌动的力量了吗？那是完成待办的意志！',
+    '吾之使命，乃助你征服所有待办！',
+    // ===== 乐天派 =====
+    '今天也是元气满满的一天！冲鸭！',
+    '嘿嘿，有我在，什么都不怕~',
+    '阳光正好，适合把待办一个个消灭！',
+    '今天的心情是彩虹色的！',
+    '笑一个吧，待办什么的分分钟搞定！',
+    // ===== 暖心 =====
+    '累了就休息一下，待办可以等一等哦~',
+    '你已经做得很棒了，不要给自己太大压力。',
+    '不管有多少待办，我都会陪着你。',
+    '记得喝水，记得吃饭，你最重要。',
+    '今天辛苦了，好好休息，明天继续加油。',
+    '不管发生什么，Ohana 都在你身边。'
   ];
 
   function onPetClick() {
@@ -1274,6 +1435,178 @@ render();
   // 启动 GIF 轮播（3-5 秒随机切换桌宠动图）
   startGifRotation();
 
+  // ===== 史迪奇交互文字系统 =====
+  // 页面打开 2 秒后，史迪奇主动说一句话
+  setTimeout(function () {
+    if (!isHidden && window.petMood) {
+      // 根据当前待办数量选择不同风格的欢迎语
+      const pendingCount = (window.todos || []).filter(function (t) { return !t.done; }).length;
+      let welcomeMsg;
+      if (pendingCount === 0) {
+        welcomeMsg = '今天还没有待办呢，要不要加几个？我准备好了！';
+      } else if (pendingCount < 3) {
+        welcomeMsg = '今天有 ' + pendingCount + ' 项待办，我们一起搞定它们！';
+      } else {
+        welcomeMsg = '哇，今天有 ' + pendingCount + ' 项待办！别担心，有本大人在！';
+      }
+      window.petMood.toast(welcomeMsg, 'info');
+    }
+  }, 2000);
+
+  // 空闲检测：用户 30 秒无操作，史迪奇主动搭话
+  let idleTimer = null;
+  function resetIdleTimer() {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () {
+      if (!isHidden && window.petMood) {
+        const idleMsgs = [
+          '怎么不理我了？是不是在偷偷休息？',
+          '待办在等你哦，别偷懒~',
+          '本大人有点无聊了，快来和我互动一下！',
+          '发呆也是一种休息，我懂的~',
+          '有什么我能帮你的吗？'
+        ];
+        window.petMood.toast(idleMsgs[Math.floor(Math.random() * idleMsgs.length)], 'info');
+      }
+    }, 30000); // 30 秒无操作触发
+  }
+  // 监听用户操作，重置空闲计时
+  ['click', 'keydown', 'mousemove', 'touchstart'].forEach(function (evt) {
+    document.addEventListener(evt, resetIdleTimer, { passive: true });
+  });
+  resetIdleTimer();
+
+  // 随机气泡：每 20-40 秒随机冒一个气泡
+  function scheduleRandomBubble() {
+    const delay = 20000 + Math.random() * 20000; // 20-40 秒随机
+    setTimeout(function () {
+      if (!isHidden && window.petMood) {
+        window.petMood.bubble();
+      }
+      scheduleRandomBubble(); // 递归调度下一次
+    }, delay);
+  }
+  // 页面打开 10 秒后开始随机气泡
+  setTimeout(scheduleRandomBubble, 10000);
+
+  // ===== 日报功能 =====
+  // 生成今日日报内容
+  function generateDailyReport() {
+    // 通过闭包访问全局 todos 数组（window.todos 可能未定义）
+    const todos = window.todos || window.getAllTodos ? window.getAllTodos() : [];
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const todayEnd = todayStart + 86400000;
+
+    // 筛选今日完成的事项（完成时间在今日范围内）
+    const completedToday = todos.filter(function (t) {
+      return t.done && t.completedAt && t.completedAt >= todayStart && t.completedAt < todayEnd;
+    });
+    // 未完成事项
+    const pendingCount = todos.filter(function (t) { return !t.done; }).length;
+    // 总事项数
+    const totalCount = todos.length;
+    // 完成率
+    const completionRate = totalCount > 0 ? Math.round((completedToday.length / totalCount) * 100) : 0;
+
+    // 构造日报文本
+    let report = '📊 今日日报\n\n';
+    report += '🗓️ ' + (today.getMonth() + 1) + '月' + today.getDate() + '日\n';
+    report += '━━━━━━━━━━━━━━\n';
+    report += '✅ 已完成：' + completedToday.length + ' 项\n';
+    report += '📝 待办中：' + pendingCount + ' 项\n';
+    report += '📈 完成率：' + completionRate + '%\n';
+    if (completedToday.length > 0) {
+      report += '\n🏆 今日成就：\n';
+      completedToday.forEach(function (t, i) {
+        report += '  ' + (i + 1) + '. ' + t.text + '\n';
+      });
+    }
+    report += '\n━━━━━━━━━━━━━━\n';
+    // 暖心结语
+    if (completionRate >= 80) {
+      report += '太厉害了！今天的你超棒！🌟';
+    } else if (completionRate >= 50) {
+      report += '不错哦，继续保持！💪';
+    } else if (completedToday.length > 0) {
+      report += '完成了 ' + completedToday.length + ' 项，明天继续加油！';
+    } else {
+      report += '今天还没有完成事项，明天是新的一天！';
+    }
+    return report;
+  }
+
+  // 显示日报弹窗
+  function showDailyReport() {
+    // 如果已有日报弹窗，不重复创建
+    if (document.getElementById('dailyReportModal')) return;
+
+    const report = generateDailyReport();
+    // 创建弹窗容器
+    const modal = document.createElement('div');
+    modal.id = 'dailyReportModal';
+    modal.className = 'daily-report-modal';
+    modal.innerHTML =
+      '<div class="daily-report-overlay"></div>' +
+      '<div class="daily-report-card">' +
+        '<div class="daily-report-header">' +
+          '<span class="daily-report-title">📊 今日日报</span>' +
+          '<button class="daily-report-close" id="dailyReportClose">×</button>' +
+        '</div>' +
+        '<pre class="daily-report-body">' + report + '</pre>' +
+        '<div class="daily-report-footer">' +
+          '<button class="daily-report-btn" id="dailyReportOk">知道了</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+
+    // 关闭弹窗
+    function closeReport() {
+      modal.remove();
+    }
+    document.getElementById('dailyReportClose').addEventListener('click', closeReport);
+    document.getElementById('dailyReportOk').addEventListener('click', closeReport);
+    modal.querySelector('.daily-report-overlay').addEventListener('click', closeReport);
+
+    // 史迪奇反馈
+    if (window.petMood) {
+      window.petMood.happy();
+    }
+  }
+
+  // 暴露全局接口
+  window.showDailyReport = showDailyReport;
+
+  // 检查是否到了日报时间（每晚 21:00）
+  let dailyReportShown = false;
+  function checkDailyReportTime() {
+    const now = new Date();
+    // 21:00 - 21:59 之间，且今日未显示过
+    if (now.getHours() === 21 && !dailyReportShown) {
+      dailyReportShown = true;
+      // 史迪奇弹出提醒
+      if (window.petMood) {
+        window.petMood.toast('日报生成啦！点击我查看今天的成果吧~', 'info');
+        // 点击史迪奇时显示报告
+        setTimeout(function () {
+          const originalOnPetClick = pet.onclick;
+          pet.onclick = function () {
+            showDailyReport();
+            pet.onclick = originalOnPetClick;
+          };
+        }, 100);
+      }
+    }
+    // 过了 25:00（实际是次日），重置标志
+    if (now.getHours() === 0) {
+      dailyReportShown = false;
+    }
+  }
+  // 每 60 秒检查一次时间
+  setInterval(checkDailyReportTime, 60000);
+  // 页面打开时也检查一次
+  setTimeout(checkDailyReportTime, 5000);
+
 })();
 
 
@@ -1344,10 +1677,12 @@ function wrappedAddTodo() {
     window.reminderModule.schedule(newTodo);
   }
 
-  // 清空日期选择器
+  // 清空日期选择器和目标次数
   if (window.datetimePickerModule) {
     window.datetimePickerModule.clearAll();
   }
+  const targetCountInput = document.getElementById('targetCountInput');
+  if (targetCountInput) targetCountInput.value = '';
 
   // 触发桌宠反馈
   if (window.petMood) {
@@ -1407,6 +1742,8 @@ addBtn.addEventListener('click', wrappedAddTodo);
 // 将包装函数暴露到 window，供 createTodoElement 中的事件监听器调用
 window.wrappedAddTodo = wrappedAddTodo;
 window.wrappedToggleTodo = wrappedToggleTodo;
+// 暴露 todos 访问器（供日报等功能使用）
+window.getAllTodos = function () { return todos; };
 window.wrappedDeleteTodo = wrappedDeleteTodo;
 
 // 回车键也需要走包装逻辑：先移除再添加
