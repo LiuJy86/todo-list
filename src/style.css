@@ -1877,3 +1877,50 @@ main {
   background: var(--accent-hover);
   transform: translateY(-1px);
 }
+
+
+/* ============================================================
+   便签模式样式
+   当 body 有 .sticky-mode class 时生效
+   ============================================================ */
+
+/* 便签模式下：隐藏输入区、桌宠、提醒条、指南按钮、GitHub 按钮 */
+.sticky-mode .input-area,
+.sticky-mode .stitch-pet,
+.sticky-mode .reminder-notice,
+.sticky-mode .guide-fab,
+.sticky-mode .github-fab,
+.sticky-mode .target-count-input {
+  display: none !important;
+}
+
+/* 便签模式下：标题缩小、居中 */
+.sticky-mode header {
+  padding: 8px 0;
+  margin-bottom: 4px;
+}
+.sticky-mode header h1 {
+  font-size: 16px;
+  text-align: center;
+  margin: 0;
+}
+
+/* 便签模式下：列表区域更紧凑 */
+.sticky-mode .list-area {
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+}
+
+/* 便签模式下：整体布局紧凑 */
+.sticky-mode main {
+  padding: 4px 0;
+}
+
+/* 便签模式下：待办项更紧凑 */
+.sticky-mode .todo-item {
+  padding: 6px 8px;
+  margin-bottom: 4px;
+}
+.sticky-mode .todo-text {
+  font-size: 14px;
+}

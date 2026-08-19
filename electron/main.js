@@ -7,6 +7,11 @@ let mainWindow = null;   // 主窗口
 let tray = null;          // 系统托盘
 let isQuitting = false;   // 是否真正退出（区分关闭到托盘和退出）
 
+// 便签模式状态
+let isStickyMode = false;           // 当前是否处于便签模式
+let stickyPosition = null;          // 记住便签位置 {x, y}
+let stickyMenu = null;              // 缓存托盘菜单引用
+
 // 应用图标：优先用 electron/icon.ico，其次 electron/build/icon.ico，最后回退到 src/img 下的 GIF
 function getIconPath() {
   const rootIco = path.join(__dirname, 'icon.ico');
@@ -32,6 +37,7 @@ function createWindow() {
     webPreferences: {
       contextIsolation: true,     // 上下文隔离（安全）
       nodeIntegration: false,     // 禁用 Node 集成（安全）
+      preload: path.join(__dirname, 'preload.js'),  // 预加载脚本
       spellcheck: false
     }
   });
@@ -84,7 +90,7 @@ function createTray() {
   tray.setToolTip('待办事项清单 · 点击显示/隐藏');
 
   // 托盘右键菜单
-  const contextMenu = Menu.buildFromTemplate([
+  stickyMenu = Menu.buildFromTemplate([
     {
       label: '显示主窗口',
       click: () => {
@@ -98,6 +104,15 @@ function createTray() {
       label: '隐藏到托盘',
       click: () => {
         if (mainWindow) mainWindow.hide();
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '🗒 便签模式',
+      type: 'checkbox',
+      checked: false,
+      click: (menuItem) => {
+        toggleStickyMode(menuItem.checked);
       }
     },
     { type: 'separator' },
@@ -128,7 +143,7 @@ function createTray() {
     }
   ]);
 
-  tray.setContextMenu(contextMenu);
+  tray.setContextMenu(stickyMenu);
 
   // 单击托盘：切换显示/隐藏
   tray.on('click', () => {
@@ -188,6 +203,51 @@ app.on('before-quit', () => {
     tray = null;
   }
 });
+
+// 切换便签模式
+function toggleStickyMode(enable) {
+  if (!mainWindow) return;
+  isStickyMode = enable;
+
+  if (enable) {
+    // 进入便签模式
+    const { screen } = require('electron');
+    const display = screen.getPrimaryDisplay();
+    const { width: screenW, height: screenH } = display.workArea;
+
+    let posX, posY;
+    if (stickyPosition) {
+      // 使用上次记住的位置
+      posX = stickyPosition.x;
+      posY = stickyPosition.y;
+    } else {
+      // 首次：右上角（留 10px 边距）
+      posX = screenW - 480 - 10;
+      posY = 10;
+    }
+
+    // 设置为不置顶、不抢焦点
+    mainWindow.setAlwaysOnTop(false);
+    mainWindow.setPosition(posX, posY);
+
+    // 通知页面进入便签模式
+    mainWindow.webContents.send('sticky-mode', true);
+
+    // 开始监听拖动，记住位置
+    mainWindow.on('move', saveStickyPosition);
+  } else {
+    // 退出便签模式
+    mainWindow.webContents.send('sticky-mode', false);
+    mainWindow.removeListener('move', saveStickyPosition);
+  }
+}
+
+// 记住便签拖动后的位置
+function saveStickyPosition() {
+  if (!mainWindow) return;
+  const [x, y] = mainWindow.getPosition();
+  stickyPosition = { x, y };
+}
 
 // 安全：拒绝创建新窗口，统一在当前窗口打开（防止 target=_blank 拉起外部浏览器外的窗口）
 app.on('web-contents-created', (event, contents) => {

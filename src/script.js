@@ -746,6 +746,20 @@ load();
 // 再根据读取到的数据渲染列表（若有历史数据则会显示出来）
 render();
 
+// ---------- 9. 便签模式（Electron 通信） ----------
+
+// 监听 Electron 主进程发来的便签模式切换消息
+if (window.electronAPI && window.electronAPI.onStickyMode) {
+  window.electronAPI.onStickyMode(function (enabled) {
+    // 给 body 加/便签模式 class，CSS 负责隐藏多余元素
+    if (enabled) {
+      document.body.classList.add('sticky-mode');
+    } else {
+      document.body.classList.remove('sticky-mode');
+    }
+  });
+}
+
 
 // ===== 9. 史迪奇桌宠模块 =====
 
