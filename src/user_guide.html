@@ -64,6 +64,55 @@
       border-radius: 4px;
     }
 
+    /* 理念区块 */
+    .guide-philosophy {
+      margin-bottom: 32px;
+      padding: 20px 24px;
+      background: linear-gradient(135deg, rgba(102,126,234,0.06) 0%, rgba(92,79,192,0.06) 100%);
+      border: 1px solid rgba(102,126,234,0.15);
+      border-radius: 12px;
+    }
+    .guide-philosophy p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.85;
+      margin: 0 0 12px;
+    }
+    .guide-philosophy p:last-of-type { margin-bottom: 0; }
+    .philosophy-quote {
+      font-size: 18px !important;
+      font-weight: 600;
+      color: var(--accent-color) !important;
+      text-align: center;
+      margin-bottom: 16px !important;
+      letter-spacing: 1px;
+    }
+    .philosophy-list {
+      list-style: none;
+      padding: 0;
+      margin: 16px 0 0 !important;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .philosophy-list li {
+      font-size: 13px;
+      color: var(--text-secondary);
+      padding-left: 16px;
+      position: relative;
+    }
+    .philosophy-list li::before {
+      content: "✦";
+      position: absolute;
+      left: 0;
+      color: var(--accent-color);
+      font-size: 10px;
+    }
+    .philosophy-list li strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
     .guide-section { margin-bottom: 32px; }
     .guide-section > h2 {
       font-size: 18px;
@@ -174,6 +223,18 @@
     <!-- 简介 -->
     <div class="guide-intro">
       这是一只「会说话」的史迪奇桌宠待办清单。除了基础的增删改查，还支持<strong>自然语言提醒</strong>、<strong>到点音效提示</strong>、<strong>紧迫度徽章</strong>、<strong>双组收纳</strong>等贴心功能。本指南帮你 3 分钟上手全部能力。
+    </div>
+
+    <!-- 理念 -->
+    <div class="guide-philosophy">
+      <p class="philosophy-quote">「工具应该是透明的。」</p>
+      <p>你打开它，记下几件小事，然后关掉它——就像在便签上划掉一行那样自然。没有账号，没有推送，没有永不停歇的红点。只有你和你的待办，安安静静地待在一起。</p>
+      <p>我们相信，好的工具不会提醒你它有多强大，而是在你需要的时候恰好出现，不需要的时候悄然隐去。正如史迪奇说的：「Ohana，就是家人。」而家人，从不喧宾夺主。</p>
+      <ul class="philosophy-list">
+        <li><strong>极简</strong> —— 功能是做减法的艺术，留下的每一个按钮都经过犹豫</li>
+        <li><strong>轻量</strong> —— 不依赖框架，不依赖服务器，甚至不依赖安装。双击，打开，这就是全部</li>
+        <li><strong>实用</strong> —— 不追求「什么都能做」，只追求「这件事做得足够好」</li>
+      </ul>
     </div>
 
     <!-- 目录 -->
