@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>操作指南 · 待办事项清单</title>
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=24">
   <style>
     /* 指南页专用样式：在共享主题基础上加强可读性 */
     body { background: linear-gradient(135deg, #c9a0dc 0%, #5fa8e6 100%); min-height: 100vh; }
@@ -272,9 +272,18 @@
       <ul>
         <li><code>8:00 吃饭</code> → 文本变「吃饭」，提醒设为今天 08:00</li>
         <li><code>明天8:00 跑步</code> → 文本变「跑步」，提醒设为明天 08:00</li>
+        <li><code>后天提醒我体检</code> → 文本变「体检」，提醒设为后天 09:00</li>
+        <li><code>大后天面试</code> → 文本变「面试」，提醒设为 3 天后 09:00</li>
+        <li><code>下周一交周报</code> → 文本变「交周报」，提醒设为下周一 09:00</li>
+        <li><code>周五晚上聚会</code> → 文本变「聚会」，提醒设为周五 19:00</li>
+        <li><code>早上8点跑步</code> → 文本变「跑步」，提醒设为明天 08:00</li>
+        <li><code>八点半睡觉</code> → 文本变「睡觉」，提醒设为明天 08:30</li>
+        <li><code>半小时后喝水</code> → 文本变「喝水」，提醒设为 30 分钟后</li>
+        <li><code>一会儿提醒我</code> → 文本变「提醒我」，提醒设为 5 分钟后</li>
+        <li><code>每30分钟喝水</code> → 文本变「喝水」，提醒设为 30 分钟后 + 自动循环</li>
         <li><code>8月15日 8:00 开会</code> → 文本变「开会」，提醒设为今年 8 月 15 日 08:00</li>
-        <li><code>8月15日 出差</code> → 仅日期不指定时分，默认 00:00</li>
       </ul>
+      <p>💬 <strong>智能清理：</strong>「提醒我」「提醒」「叫我」等前缀会自动剥离，时间词（明天、后天等）也会自动清理，末尾语气词（吧、啊、呀）同样会被移除。</p>
       <div class="tip-box">
         <strong>💡 小贴士：</strong>解析成功后，下方日期时间选择器会自动同步显示解析出的时间，方便你二次确认或微调。
       </div>

@@ -23,7 +23,7 @@
 ## 3. 快速开始（本地运行）
 
 ### 方式一：直接运行（最简单）
-直接双击 `index.html` 文件即可在浏览器中打开使用。
+直接双击 `src/index.html` 文件即可在浏览器中打开使用。
 
 > **注意**：部分浏览器在 `file://` 协议下会限制以下功能，因此 **强烈推荐使用方式二（本地 Web 服务器）**：
 > - `localStorage` 可能被禁用（数据无法保存）
@@ -65,12 +65,13 @@
 ### 4.1 通用 Web 服务器 (Nginx 示例)
 1. **将以下文件和目录**上传至服务器的 `/var/www/todolist` 目录（缺一不可）：
    ```
-   index.html        # 页面主文件
-   user_guide.html   # 【v2.3+】内置操作指南页（主页面标题旁有入口按钮跳转）
-   style.css         # 样式文件（含史迪奇 / 提醒 / 音效按钮 / 指南入口 / 响应式等所有样式）
-   script.js         # 交互脚本（含提醒 / 收纳 / 桌宠 / 存储迁移等）
-   提示音效.mp3       # MP3 提示音（务必一起上传！否则自动回退合成音兜底）
-   img/              # 史迪奇 GIF 动图（需保留内部 6 张 gif，_original 可选）
+   src/
+   ├── index.html       # 页面主文件
+   ├── user_guide.html  # 【v2.3+】内置操作指南页（主页面标题旁有入口按钮跳转）
+   ├── style.css        # 样式文件（含史迪奇 / 提醒 / 音效按钮 / 指南入口 / 响应式等所有样式）
+   ├── script.js        # 交互脚本（含提醒 / 收纳 / 桌宠 / 存储迁移等）
+   ├── 提示音效.mp3      # MP3 提示音（务必一起上传！否则自动回退合成音兜底）
+   └── img/             # 史迪奇 GIF 动图（需保留内部 6 张 gif）
    ```
    > `Task.md`、`CHANGELOG.md`、`deployment_guide.md`、`README.md`、`verify_*.py`、`screenshots/`、`.claude/`、`.trae/` 均为开发期文档/脚本/截图，**非运行必需**，可不上传。
    > **注意**：`user_guide.html` 虽然技术上不算"主流程必需"（缺了主应用也能跑），但主页面标题旁的「📖 操作指南」按钮会指向它，**缺文件会导致点击 404**，强烈建议一起上传。
@@ -170,22 +171,26 @@ playwright install chromium
 
 ```
 project-root/
-├── index.html               # 页面主文件（v2.5+：含滚轮选择器 Popover + 两列布局 + 现在按钮 + 操作指南/GitHub 入口按钮）
-├── user_guide.html          # 【v2.3+】内置操作指南页（v2.5 更新第 3 节：滚轮选择器交互说明）
-├── style.css                # 样式文件（v2.5+：滚轮选择器全套样式 + 紧凑化 + 统一年份标签 + 强遮罩）
-├── script.js                # 交互脚本（v2.5+：滚轮子模块 + 循环提醒调度 + toggleTodo 完成自动开启下一轮）
-├── 提示音效.mp3              # 【必需】自定义 MP3 提示音，缺失时自动回退合成音
-├── img/                     # 桌宠 GIF（6 张：史迪奇1.gif ~ 史迪奇6.gif）
-│   └── _original/           # 原稿备份（运行时不引用，可不传）
+├── src/
+│   ├── index.html           # 页面主文件（含滚轮选择器 Popover + 两列布局 + 现在按钮 + 操作指南/GitHub 入口按钮）
+│   ├── user_guide.html      # 【v2.3+】内置操作指南页（滚轮选择器交互说明）
+│   ├── style.css            # 样式文件（滚轮选择器全套样式 + 紧凑化 + 统一年份标签 + 强遮罩）
+│   ├── script.js            # 交互脚本（滚轮子模块 + 循环提醒调度 + 自然语言解析 + toggleTodo 完成自动开启下一轮）
+│   ├── 提示音效.mp3          # 【必需】自定义 MP3 提示音，缺失时自动回退合成音
+│   └── img/                 # 桌宠 GIF（6 张：史迪奇1.gif ~ 史迪奇6.gif）
+│
+├── electron/                # Electron 桌面端（运行非必需，打包桌面应用用）
+├── scripts/                 # 打包脚本（运行非必需）
+├── docs/                    # 项目文档（运行非必需）
 │
 ├── ——— 以下为开发资产，部署可省略 ———
 ├── screenshots/             # 测试截图
 ├── verify_playwright.py     # 核心功能自动化测试脚本
 ├── verify_optimization.py   # 收纳功能专项测试脚本
-├── deployment_guide.md      # 本文档
-├── README.md                # 项目说明
-├── CHANGELOG.md             # 更新日志
-├── Task.md                  # 任务拆解文档
+├── package.json             # npm + electron-builder 配置
+├── package-lock.json        # npm 依赖锁定
+├── .npmrc                   # npm 镜像配置
+├── .gitignore               # git 忽略规则
 ├── .claude/                 # IDE 配置与开发约束
 └── .trae/                   # IDE 草稿与文档
 ```

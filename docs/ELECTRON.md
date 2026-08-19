@@ -29,8 +29,8 @@ npm run dev
 npm run build
 ```
 生成物在 `dist/` 目录下：
-- `待办事项清单-Setup-2.5.0.exe`：NSIS 安装包（推荐分发）
-- `待办事项清单-2.5.0-portable.exe`：免安装便携版（双击即用）
+- `待办事项清单-Setup-2.6.0.exe`：NSIS 安装包（推荐分发）
+- `待办事项清单-2.6.0-portable.exe`：免安装便携版（双击即用）
 
 ## 应用特性
 
@@ -51,7 +51,7 @@ npm run build
 
 ## 图标准备
 
-打包前需要准备 `build/icon.ico` 图标文件，详见 [build/README.md](build/README.md)。
+打包前需要准备 `electron/build/icon.ico` 图标文件，详见 [electron/build/README.md](electron/build/README.md)。
 
 临时方案：无图标也能运行（`npm start` 不需要图标），但打包会有警告。
 
@@ -59,19 +59,20 @@ npm run build
 
 ```
 todo-list/
-├── main.js              # 【新增】Electron 主进程入口
-├── package.json         # 【新增】npm 配置 + electron-builder 配置
-├── .gitignore           # 【新增】忽略 node_modules / dist
-├── build/
-│   ├── README.md        # 【新增】图标生成说明
-│   └── icon.ico         # 【需准备】应用图标
-├── dist/                # 【自动生成】打包产物（已 gitignore）
-├── index.html           # 主页面（无需改动）
-├── script.js            # 交互逻辑（无需改动）
-├── style.css            # 样式（无需改动）
-├── user_guide.html      # 操作指南（无需改动）
-├── 提示音效.mp3
-└── img/                 # 桌宠 GIF
+├── electron/
+│   ├── main.js          # Electron 主进程入口
+│   ├── icon.ico         # 应用图标
+│   └── build/           # electron-builder 打包资源目录
+├── src/
+│   ├── index.html       # 主页面
+│   ├── script.js        # 交互逻辑
+│   ├── style.css        # 样式
+│   ├── user_guide.html  # 操作指南
+│   ├── 提示音效.mp3
+│   └── img/             # 桌宠 GIF
+├── scripts/             # 打包脚本
+├── docs/                # 文档
+└── package.json         # 项目配置
 ```
 
 ## 常用命令
@@ -104,10 +105,10 @@ npm install
 ```
 
 ### Q2: 打包失败提示找不到 icon.ico？
-临时注释 `package.json` 中 `build.win.icon` 字段，或按 [build/README.md](build/README.md) 生成图标。
+临时注释 `package.json` 中 `build.win.icon` 字段，或按 [electron/build/README.md](electron/build/README.md) 生成图标。
 
 ### Q3: 打包后窗口空白？
-检查 `package.json` 的 `build.files` 字段是否包含了 `index.html`、`script.js`、`style.css`。
+检查 `package.json` 的 `build.files` 字段是否包含了 `src/index.html`、`src/script.js`、`src/style.css`。
 
 ### Q4: 便携版和安装版的区别？
 - **安装版（NSIS）**：需要安装，创建开始菜单/桌面快捷方式，数据存于 `%APPDATA%`
