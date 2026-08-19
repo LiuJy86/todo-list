@@ -37,36 +37,67 @@
 
 ```
 todo-list/
-├── index.html              # 页面结构（含操作指南入口按钮）
-├── user_guide.html         # 【v2.3+】内置操作指南页面（9 章节 + 目录 + 返回按钮）
-├── script.js               # 交互逻辑（含提醒模块 IIFE、收纳、桌宠、toast 气泡等）
-├── style.css               # 样式（含史迪奇、提醒徽章、玻璃拟态、收纳区、音效按钮、指南入口、响应式等）
-├── 提示音效.mp3             # 【v2.2+】到点提醒使用的 MP3 提示音（若缺失会自动回退合成音）
-├── img/                    # 史迪奇桌宠 GIF 动图（6 张，参与轮播）
-│   └── _original/          # 原始动图备份（运行时不引用）
-├── screenshots/            # 功能演示 / 测试截图（非运行必需）
-├── Task.md                 # 任务说明
-├── CHANGELOG.md            # 更新日志（含 v2.3 本次优化详细记录）
-├── deployment_guide.md     # 部署指南
-└── verify_*.py             # 自动化校验脚本（Playwright）
+├── src/                        # 【源码】运行必需的核心文件
+│   ├── index.html              #   页面结构（含操作指南入口按钮）
+│   ├── user_guide.html         #   内置操作指南页面（9 章节 + 目录 + 返回按钮）
+│   ├── script.js               #   交互逻辑（含提醒、收纳、桌宠、toast 等）
+│   ├── style.css               #   样式（史迪奇、提醒徽章、玻璃拟态、响应式等）
+│   ├── 提示音效.mp3             #   到点提醒的 MP3 提示音（缺失则自动回退合成音）
+│   └── img/                    #   史迪奇桌宠 GIF 动图（6 张，参与轮播）
+├── electron/                   # 【桌面端】Electron 打包相关
+│   ├── main.js                 #   Electron 主进程入口
+│   ├── icon.ico                #   应用图标
+│   └── build/                  #   electron-builder 打包资源目录
+├── scripts/                    # 【工具】打包/构建脚本（PowerShell）
+│   ├── build-portable.ps1      #   便携版打包脚本
+│   ├── build_icon.ps1          #   图标生成脚本
+│   └── gen_ico.ps1             #   ICO 格式转换脚本
+├── docs/                       # 【文档】项目说明文档
+│   ├── README.md               #   项目说明（本文件）
+│   ├── CHANGELOG.md            #   更新日志
+│   ├── ELECTRON.md             #   Electron 打包指南
+│   ├── deployment_guide.md     #   部署指南
+│   └── Task.md                 #   任务说明
+├── screenshots/                # 功能演示 / 测试截图（非运行必需）
+├── verify_playwright.py        # Playwright 自动化测试脚本
+├── verify_optimization.py      # 优化验证脚本
+├── package.json                # npm + electron-builder 配置
+├── package-lock.json           # npm 依赖锁定
+├── .npmrc                      # npm 镜像配置（国内源）
+└── .gitignore                  # git 忽略规则
 ```
 
 ## 运行方式
 
-无需安装、无需后端，直接用浏览器打开即可：
+本项目支持 **浏览器** 和 **桌面端** 两种运行方式：
 
-1. 双击 `index.html`，或
-2. 在终端进入项目目录执行：
+### 方式一：浏览器（无需安装）
+
+直接双击 `src/index.html` 即可在浏览器中打开使用。
+
+> **推荐**：使用本地服务器运行，避免 `file://` 协议下的 localStorage / MP3 预加载限制：
+> ```bash
+> # 进入项目目录后执行
+> python -m http.server 8010
+> # 然后访问 http://localhost:8010/src/
+> ```
+
+### 方式二：桌面端（Electron）
+
+需要先安装依赖，然后启动：
 
 ```bash
-# 方式一：直接打开
-start index.html          # Windows
-open index.html           # macOS
-xdg-open index.html       # Linux
+# 安装依赖（首次运行前执行一次）
+npm install
 
-# 方式二：起一个本地服务器（**强烈推荐**，避免 file:// 协议下的 localStorage / MP3 预加载 限制）
-python -m http.server 8010
-# 然后访问 http://localhost:8010
+# 启动桌面应用
+npm start
+```
+
+打包为可执行文件：
+```bash
+npm run build              # 打包为 NSIS 安装包 + 便携版
+npm run build:portable     # 只打包便携版
 ```
 
 > **⚠️ 提醒功能注意**：纯前端应用无后台进程，**浏览器完全关闭后 setTimeout / AudioContext 全部停止，无法触发提醒**。请将页面保持打开（最小化或放后台标签页都可以）。页面顶部橙色提示条会一直显示此提醒。
@@ -87,4 +118,4 @@ python -m http.server 8010
 
 ## 更新日志
 
-详见 [CHANGELOG.md](CHANGELOG.md)。
+详见 [CHANGELOG.md](docs/CHANGELOG.md)。

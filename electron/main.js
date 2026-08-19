@@ -7,16 +7,15 @@ let mainWindow = null;   // 主窗口
 let tray = null;          // 系统托盘
 let isQuitting = false;   // 是否真正退出（区分关闭到托盘和退出）
 
-// 应用图标：优先使用 build/icon.ico，回退到 GIF 首帧（Electron 支持 GIF 作为窗口图标）
+// 应用图标：优先用 electron/icon.ico，其次 electron/build/icon.ico，最后回退到 src/img 下的 GIF
 function getIconPath() {
-  const icoPath = path.join(__dirname, 'build', 'icon.ico');
-  const gifPath = path.join(__dirname, 'img', '史迪奇1.gif');
-  try {
-    // 优先用 .ico（打包后必须）
-    return icoPath;
-  } catch (_) {
-    return gifPath;
-  }
+  const rootIco = path.join(__dirname, 'icon.ico');
+  const buildIco = path.join(__dirname, 'build', 'icon.ico');
+  const gifPath = path.join(__dirname, '..', 'src', 'img', '史迪奇1.gif');
+  const fs = require('fs');
+  if (fs.existsSync(rootIco)) return rootIco;
+  if (fs.existsSync(buildIco)) return buildIco;
+  return gifPath;
 }
 
 // 创建主窗口
@@ -37,8 +36,8 @@ function createWindow() {
     }
   });
 
-  // 加载本地页面
-  mainWindow.loadFile('index.html');
+  // 加载本地页面（index.html 位于 src/ 目录）
+  mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
 
   // 开发模式打开 DevTools
   if (process.argv.includes('--dev')) {
@@ -115,6 +114,7 @@ function createTray() {
           mainWindow.show();
           mainWindow.focus();
           mainWindow.webContents.executeJavaScript("window.location.href = 'user_guide.html';");
+          // 注意：user_guide.html 与 index.html 同属 src/ 目录，相对路径仍可正常工作
         }
       }
     },

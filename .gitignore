@@ -1,9 +1,14 @@
+# 构建缓存
+.cache/
+
 # 依赖
 node_modules/
 
 # 构建产物
 dist/
-build/(icon.ico)
+
+# Electron 打包资源（build/ 已移入 electron/build/）
+electron/build/icon.ico
 
 # 日志
 *.log
@@ -14,10 +19,11 @@ yarn-error.log*
 # 编辑器/系统
 .vscode/
 .idea/
+.trae/
+.claude/
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Electron 相关缓存
+# Electron 相关
 out/
-.cache/
