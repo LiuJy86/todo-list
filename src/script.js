@@ -1319,6 +1319,10 @@ function wrappedAddTodo() {
       remindAt = parsed.remindAt;
       // 清理文本：去掉"提醒我""提醒""叫我"等前缀，提炼纯事项内容
       todoInput.value = window.reminderModule.cleanTodoText(parsed.text);
+      // 如果解析结果带循环设置（"每X"模式），自动启用循环
+      if (parsed.recurrence && parsed.recurrence.enabled) {
+        recurrence = parsed.recurrence;
+      }
       // 同步到日期选择器显示
       if (window.datetimePickerModule) {
         window.datetimePickerModule.syncFromTimestamp(remindAt, null);
@@ -2082,28 +2086,39 @@ datetimePickerModule.bind();
   // 解析文本中的提醒时间，并返回剥离时间词后的纯事项文本
   // 支持规则（按优先级从高到低）：
   //   "8月15日 8:00"       → 当年 8 月 15 日 8:00（已过则明年）
-  //   "8月15日"            → 当年 8 月 15 日 9:00（默认 9 点）
   //   "明天8:00"           → 明天 8:00
-  //   "明天"               → 明天 9:00（默认 9 点）
+  //   "后天早上体检"        → 后天 8:00
+  //   "大后天提醒我面试"    → 3 天后 9:00
+  //   "下周一提醒我交周报"  → 下周一 9:00
+  //   "周五晚上聚会"        → 周五 19:00
+  //   "每30分钟提醒我喝水"  → 30 分钟后 + 自动开启循环
+  //   "每天8点起床"        → 今天 8:00 + 自动开启循环
   //   "半小时后提醒我喝水"  → 30 分钟后，文本"喝水"
-  //   "1小时后" / "两小时后" → 1/2 小时后
-  //   "20分钟后"           → 20 分钟后
+  //   "1小时后"/"两小时后"  → 1/2 小时后
   //   "七点提醒我洗澡"      → 今天 7:00（已过则明天），文本"洗澡"
   //   "八点半提醒我睡觉"    → 今天 8:30（已过则明天），文本"睡觉"
-  //   "九点一刻"           → 今天 9:15（已过则明天）
+  //   "早上8点跑步"        → 今天 8:00（已过则明天）
+  //   "晚上9点关灯"        → 今天 21:00
+  //   "一会儿提醒我"        → 5 分钟后
   //   "8:00"               → 今天 8:00（已过则明天）
-  //   "15:30"              → 今天 15:30（已过则明天）
-  // 失败：返回 { text: 原文, remindAt: null }（不阻断添加流程）
+  // 失败：返回 { text: 原文, remindAt: null, recurrence: null }
   function parseReminderFromText(rawText) {
     let text = rawText.trim();
     let remindAt = null;
+    let recurrence = null;   // 循环设置（每X 模式时自动填充）
     const now = new Date();
 
     // ===== 预处理：提取"提醒我XXX"中的事项内容 =====
-    // 匹配"提醒我/提醒/叫我"后面的动作，用于最终提炼纯事项文本
     const remindActionRe = /(?:提醒我|提醒|叫我)([一-龥a-zA-Z0-9]+)/;
     const actionMatch = text.match(remindActionRe);
-    // 暂存动作文本，最后如果解析成功且结果文本为空，就用它
+
+    // ===== 辅助函数：构造返回结果并清理文本 =====
+    function result(finalText, ts) {
+      let t = finalText.trim();
+      // 如果剥离后为空但有"提醒我XXX"的动作，用动作作为文本
+      if (!t && actionMatch) t = actionMatch[1];
+      return { text: t || rawText, remindAt: ts, recurrence: recurrence };
+    }
 
     // ===== 规则 1：含"月""日"的明确日期 + 可选时间 =====
     // 例：8月15日 8:00  或  8月15日
@@ -2118,66 +2133,184 @@ datetimePickerModule.bind();
       if (d.getTime() <= now.getTime()) d.setFullYear(d.getFullYear() + 1); // 已过则明年
       remindAt = d.getTime();
       text = text.replace(dateRe, '').trim();
-      return { text: text || rawText, remindAt: remindAt };
+      return result(text, remindAt);
     }
 
-    // ===== 规则 2："明天" + 时间 =====
-    // 例：明天8:00  或  明天 15:30  或  明天七点
-    const tomorrowRe = /明天\s*(?:(\d{1,2}):(\d{2})|([一二两三四五六七八九十]+)点(?:半|一刻)?(\d{1,2})?分?)/;
-    const m2 = text.match(tomorrowRe);
+    // ===== 规则 2："明天/后天/大后天" + 可选时间 =====
+    // 例：明天8:00、后天早上体检、大后天提醒我面试、明天七点
+    const futureDayRe = /(大后天|后天|明天)\s*(?:(\d{1,2}):(\d{2})|([一二两三四五六七八九十]+)点(?:半|一刻)?(\d{1,2})?分?|早上|早晨|上午|中午|下午|晚上|凌晨)?/;
+    const m2 = text.match(futureDayRe);
     if (m2) {
+      const dayType = m2[1];
       const d = new Date(now);
-      d.setDate(d.getDate() + 1);
-      if (m2[1]) {
+      // 计算天数偏移
+      const dayOffset = dayType === '大后天' ? 3 : (dayType === '后天' ? 2 : 1);
+      d.setDate(d.getDate() + dayOffset);
+      // 解析时间
+      if (m2[2]) {
         // 数字时间：明天 8:00
-        d.setHours(parseInt(m2[1], 10), parseInt(m2[2], 10), 0, 0);
-      } else {
+        d.setHours(parseInt(m2[2], 10), parseInt(m2[3], 10), 0, 0);
+      } else if (m2[4]) {
         // 中文时间：明天七点、明天八点半
-        let hour = cnToNumber(m2[3]);
+        let hour = cnToNumber(m2[4]);
         let min = 0;
         if (m2[0].includes('半')) min = 30;
         else if (m2[0].includes('一刻')) min = 15;
-        else if (m2[4]) min = parseInt(m2[4], 10);
+        else if (m2[5]) min = parseInt(m2[5], 10);
         d.setHours(hour, min, 0, 0);
+      } else if (m2[6]) {
+        // 时段词：早上/中午/晚上等
+        const periodMap = { '早上': 7, '早晨': 7, '上午': 9, '中午': 12, '下午': 15, '晚上': 19, '凌晨': 0 };
+        d.setHours(periodMap[m2[6]] || 9, 0, 0, 0);
+      } else {
+        // 无具体时间，默认 9:00
+        d.setHours(9, 0, 0, 0);
       }
       remindAt = d.getTime();
-      text = text.replace(tomorrowRe, '').trim();
-      return { text: text || rawText, remindAt: remindAt };
+      text = text.replace(futureDayRe, '').trim();
+      return result(text, remindAt);
     }
 
-    // ===== 规则 3：相对时间（X分钟后/X小时后/X天后）=====
-    // 例：半小时后提醒我喝水、1小时后、两小时后、20分钟后、3天后
-    const relRe = /(\d+)?\s*(半|[一二两三四五六七八九十百]+)?\s*(分钟|分|小时|时|天|周|星期)后/;
-    const mRel = text.match(relRe);
-    if (mRel) {
-      let value = 0;
-      if (mRel[1]) {
-        // 数字 + 单位：如"20分钟""1小时""3天"
-        value = parseInt(mRel[1], 10);
-        if (mRel[2]) value += cnToNumber(mRel[2]) || 0; // 如"1个半小时"
-      } else if (mRel[2]) {
-        // 纯中文：如"半""一""两""二十"
-        value = cnToNumber(mRel[2]);
+    // ===== 规则 3：星期/周（周一、下周一、周五晚上）=====
+    // 例：下周一提醒我交周报、周五晚上聚会、周三开会
+    const weekRe = /(上+|下+)?周?(周一|周二|周三|周四|周五|周六|周日|周天|星期天)\s*(?:(\d{1,2}):(\d{2})|([一二两三四五六七八九十]+)点(?:半|一刻)?(\d{1,2})?分?|(早上|早晨|上午|中午|下午|晚上|凌晨))?/;
+    const mWeek = text.match(weekRe);
+    if (mWeek) {
+      const prefix = mWeek[1] || '';
+      const dayName = mWeek[2];
+      const dayMap = { '周一': 1, '周二': 2, '周三': 3, '周四': 4, '周五': 5, '周六': 6, '周日': 0, '周天': 0, '星期天': 0 };
+      const targetDay = dayMap[dayName];
+      const d = new Date(now);
+      // 计算到目标星期的天数差
+      let diff = targetDay - now.getDay();
+      if (diff <= 0) diff += 7; // 今天已过或就是今天，取下周
+      // 如果有"上"前缀且 diff <= 7，则再往前推一周；有"下"前缀则往后推
+      if (prefix.includes('上') && diff <= 7) diff += 7;
+      if (prefix.includes('下') && diff <= 7) diff += 7;
+      d.setDate(d.getDate() + diff);
+      // 解析时间
+      if (mWeek[3]) {
+        d.setHours(parseInt(mWeek[3], 10), parseInt(mWeek[4], 10), 0, 0);
+      } else if (mWeek[5]) {
+        let hour = cnToNumber(mWeek[5]);
+        let min = 0;
+        if (mWeek[0].includes('半')) min = 30;
+        else if (mWeek[0].includes('一刻')) min = 15;
+        else if (mWeek[6]) min = parseInt(mWeek[6], 10);
+        d.setHours(hour, min, 0, 0);
+      } else if (mWeek[7]) {
+        const periodMap = { '早上': 7, '早晨': 7, '上午': 9, '中午': 12, '下午': 15, '晚上': 19, '凌晨': 0 };
+        d.setHours(periodMap[mWeek[7]] || 9, 0, 0, 0);
+      } else {
+        d.setHours(9, 0, 0, 0); // 默认 9:00
       }
-      const unit = mRel[3];
+      remindAt = d.getTime();
+      text = text.replace(weekRe, '').trim();
+      return result(text, remindAt);
+    }
+
+    // ===== 规则 4："每X"循环提醒（每30分钟、每天8点、每周一）=====
+    // 例：每30分钟提醒我喝水、每天8点起床、每周一开会
+    const everyRe = /每(\d+)?\s*(半)?\s*(分钟|分|小时|时|天|周|星期|周[一二三四五六日]|周一|周二|周三|周四|周五|周六|周日)\s*(?:(\d{1,2}):(\d{2})|([一二两三四五六七八九十]+)点(?:半|一刻)?(\d{1,2})?分?|早上|早晨|上午|中午|下午|晚上|凌晨)?/;
+    const mEvery = text.match(everyRe);
+    if (mEvery) {
+      let value = mEvery[1] ? parseInt(mEvery[1], 10) : 1;
+      if (mEvery[2]) value += 0.5; // "半"
+      const unit = mEvery[3];
+      // 计算首次提醒时间
       const d = new Date(now);
       if (unit === '分钟' || unit === '分') {
         d.setMinutes(d.getMinutes() + value);
       } else if (unit === '小时' || unit === '时') {
         d.setHours(d.getHours() + value);
       } else if (unit === '天') {
-        d.setDate(d.getDate() + value);
+        // 每天：如果给了具体时间就用该时间，否则 1 天后
+        if (mEvery[4]) {
+          d.setHours(parseInt(mEvery[4], 10), parseInt(mEvery[5], 10), 0, 0);
+          if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1);
+        } else if (mEvery[6]) {
+          let hour = cnToNumber(mEvery[6]);
+          let min = 0;
+          if (mEvery[0].includes('半')) min = 30;
+          d.setHours(hour, min, 0, 0);
+          if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1);
+        } else {
+          d.setDate(d.getDate() + 1);
+        }
       } else if (unit === '周' || unit === '星期') {
-        d.setDate(d.getDate() + value * 7);
+        d.setDate(d.getDate() + 7); // 1 周后
+      } else if (/周[一二三四五六日]/.test(unit) || ['周一','周二','周三','周四','周五','周六','周日'].includes(unit)) {
+        // 每周X：计算到目标星期的天数
+        const dayMap = { '周一': 1, '周二': 2, '周三': 3, '周四': 4, '周五': 5, '周六': 6, '周日': 0 };
+        const dayShort = unit.replace('周', '周'); // 统一
+        const targetDay = dayMap[unit] || dayMap['周' + unit.slice(-1)];
+        let diff = targetDay - now.getDay();
+        if (diff <= 0) diff += 7;
+        d.setDate(d.getDate() + diff);
+        d.setHours(9, 0, 0, 0);
       }
       remindAt = d.getTime();
-      text = text.replace(relRe, '').trim();
-      // 如果剥离后文本为空但有"提醒我XXX"的动作，用动作作为文本
+      text = text.replace(everyRe, '').trim();
+      // 自动设置循环
+      recurrence = { enabled: true, intervalMs: getIntervalMsForUnit(unit, value) };
       if (!text && actionMatch) text = actionMatch[1];
-      return { text: text || rawText, remindAt: remindAt };
+      return result(text, remindAt);
     }
 
-    // ===== 规则 4：中文数字时间（七点、八点半、九点一刻、十点二十）=====
+    // ===== 规则 5：相对时间（X分钟后/X小时后/X天后）=====
+    // 例：半小时后提醒我喝水、1小时后、两小时后、20分钟后、3天后
+    const relRe = /(\d+)?\s*(半|[一二两三四五六七八九十百]+)?\s*(分钟|分|小时|时|天|周|星期)后/;
+    const mRel = text.match(relRe);
+    if (mRel) {
+      let value = 0;
+      if (mRel[1]) {
+        value = parseInt(mRel[1], 10);
+        if (mRel[2]) value += cnToNumber(mRel[2]) || 0;
+      } else if (mRel[2]) {
+        value = cnToNumber(mRel[2]);
+      }
+      const unit = mRel[3];
+      const d = new Date(now);
+      if (unit === '分钟' || unit === '分') d.setMinutes(d.getMinutes() + value);
+      else if (unit === '小时' || unit === '时') d.setHours(d.getHours() + value);
+      else if (unit === '天') d.setDate(d.getDate() + value);
+      else if (unit === '周' || unit === '星期') d.setDate(d.getDate() + value * 7);
+      remindAt = d.getTime();
+      text = text.replace(relRe, '').trim();
+      if (!text && actionMatch) text = actionMatch[1];
+      return result(text, remindAt);
+    }
+
+    // ===== 规则 6：时段 + 时间（早上8点、中午12点、晚上9点、早上八点）=====
+    // 例：早上8点跑步、中午12点吃饭、晚上9点关灯、早上八点晨跑
+    const periodTimeRe = /(早上|早晨|上午|中午|下午|晚上|凌晨)\s*(?:(\d{1,2}):(\d{2})|(\d{1,2})点|([一二两三四五六七八九十]+)点(?:半|一刻)?(\d{1,2})?分?)/;
+    const mPt = text.match(periodTimeRe);
+    if (mPt) {
+      let hour, min;
+      if (mPt[2]) {
+        // 数字时间：早上 8:00
+        hour = parseInt(mPt[2], 10); min = parseInt(mPt[3], 10);
+      } else if (mPt[4]) {
+        // 数字+点：早上8点
+        hour = parseInt(mPt[4], 10); min = 0;
+      } else {
+        // 中文数字：早上八点、早上八点半
+        hour = cnToNumber(mPt[5]); min = 0;
+        if (mPt[0].includes('半')) min = 30;
+        else if (mPt[0].includes('一刻')) min = 15;
+        else if (mPt[6]) min = parseInt(mPt[6], 10);
+      }
+      // 以具体时间为准
+      const d = new Date(now);
+      d.setHours(hour, min, 0, 0);
+      if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1); // 已过则明天
+      remindAt = d.getTime();
+      text = text.replace(periodTimeRe, '').trim();
+      if (!text && actionMatch) text = actionMatch[1];
+      return result(text, remindAt);
+    }
+
+    // ===== 规则 7：中文数字时间（七点、八点半、九点一刻、十点二十）=====
     // 例：七点提醒我洗澡、八点半提醒我睡觉
     const cnTimeRe = /([一二两三四五六七八九十]+)点(?:半|一刻|(\d{1,2})分)?/;
     const mCn = text.match(cnTimeRe);
@@ -2193,10 +2326,10 @@ datetimePickerModule.bind();
       remindAt = d.getTime();
       text = text.replace(cnTimeRe, '').trim();
       if (!text && actionMatch) text = actionMatch[1];
-      return { text: text || rawText, remindAt: remindAt };
+      return result(text, remindAt);
     }
 
-    // ===== 规则 5：纯数字时间 "HH:MM"，默认今天（已过则明天）=====
+    // ===== 规则 8：纯数字时间 "HH:MM"，默认今天（已过则明天）=====
     const timeRe = /(\d{1,2}):(\d{2})/;
     const m3 = text.match(timeRe);
     if (m3) {
@@ -2206,21 +2339,43 @@ datetimePickerModule.bind();
       remindAt = d.getTime();
       text = text.replace(timeRe, '').trim();
       if (!text && actionMatch) text = actionMatch[1];
-      return { text: text || rawText, remindAt: remindAt };
+      return result(text, remindAt);
     }
 
-    // ===== 规则 6：单独"明天"（无具体时间），默认明天 9:00 =====
+    // ===== 规则 9："一会儿/等会/等一下"（模糊稍后，默认 5 分钟后）=====
+    if (/^(一会儿|等会|等一下|稍后|待会|过会儿)/.test(text)) {
+      const d = new Date(now);
+      d.setMinutes(d.getMinutes() + 5); // 默认 5 分钟后
+      remindAt = d.getTime();
+      text = text.replace(/^(一会儿|等会|等一下|稍后|待会|过会儿)\s*/, '').trim();
+      if (!text && actionMatch) text = actionMatch[1];
+      return result(text, remindAt);
+    }
+
+    // ===== 规则 10：单独"明天"（无具体时间），默认明天 9:00 =====
     if (/^明天/.test(text) || /\s明天$/.test(text) || /明天$/.test(text)) {
       const d = new Date(now);
       d.setDate(d.getDate() + 1);
       d.setHours(9, 0, 0, 0);
       remindAt = d.getTime();
       text = text.replace(/明天/, '').trim();
-      return { text: text || rawText, remindAt: remindAt };
+      return result(text, remindAt);
     }
 
     // 解析失败：原文不动，无提醒
-    return { text: rawText, remindAt: null };
+    return { text: rawText, remindAt: null, recurrence: null };
+  }
+
+  // 辅助：根据"每X"的单位计算循环间隔毫秒数
+  function getIntervalMsForUnit(unit, value) {
+    if (unit === '分钟' || unit === '分') return value * 60 * 1000;
+    if (unit === '小时' || unit === '时') return value * 60 * 60 * 1000;
+    if (unit === '天') return value * 24 * 60 * 60 * 1000;
+    if (unit === '周' || unit === '星期') return 7 * 24 * 60 * 60 * 1000;
+    if (/周[一二三四五六日]/.test(unit) || ['周一','周二','周三','周四','周五','周六','周日'].includes(unit)) {
+      return 7 * 24 * 60 * 60 * 1000;
+    }
+    return value * 60 * 1000; // 默认分钟
   }
 
   // 清理文本：去掉"提醒我""提醒""叫我"等前缀和多余语气词，提炼纯事项内容
@@ -2590,6 +2745,7 @@ datetimePickerModule.bind();
     unlockAudio: unlockAudio,
     stopCycle: stopCycleReminder,
     getIntervalMs: getIntervalMs,
+    getIntervalMsForUnit: getIntervalMsForUnit,
     hasAudioCtx: function () { return !!audioCtx && audioCtx.state === 'running'; },
     isMp3Ready: function () { return mp3Ready; },
     getMp3Src: function () { return REMINDER_MP3_SRC; },
