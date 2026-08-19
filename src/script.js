@@ -2075,16 +2075,45 @@ datetimePickerModule.bind();
     '三十': 30, '四十': 40, '五十': 50
   };
 
-  // 把中文数字字符串转为整数（支持"七""十二""二十""三十"等）
+  // 把中文数字字符串转为整数（支持"七""十二""二十""三十""二十一""三十一"等）
   function cnToNumber(str) {
     if (/^\d+$/.test(str)) return parseInt(str, 10);       // 纯数字直接返回
     if (CN_NUM[str] !== undefined) return CN_NUM[str];       // 查表
-    // 组合数字如"二十"=20、"两半"等暂不支持，返回 NaN
+    // 组合数字：[X十][Y] 模式，如"二十一"=21、"三十一"=31、"十九"=19
+    const comboRe = /^([一二两三四五六七八九])十([一二两三四五六七八九])?$/;
+    const m = str.match(comboRe);
+    if (m) {
+      const tens = CN_NUM[m[1]];
+      const ones = m[2] ? CN_NUM[m[2]] : 0;
+      if (tens !== undefined && (m[2] === undefined || ones !== undefined)) {
+        return tens * 10 + ones;
+      }
+    }
     return NaN;
+  }
+
+  // 预处理：中文月份/日期 → 阿拉伯数字
+  // 例："八月十五号提醒我开会" → "8月15日提醒我开会"
+  //     "十二月三十一日" → "12月31日"
+  function convertChineseDate(text) {
+    // 中文月份：X月（一月~十二月），如"八月"→"8月"、"十二月"→"12月"
+    const cnMonthRe = /([一二两三四五六七八九十]+)月/g;
+    text = text.replace(cnMonthRe, function (match, cnMonth) {
+      const num = cnToNumber(cnMonth);
+      return isNaN(num) ? match : (num + '月');
+    });
+    // 中文日期：X号/X日（一号~三十一号），如"十五号"→"15日"、"三十一日"→"31日"
+    const cnDayRe = /([一二两三四五六七八九十]+)(号|日)/g;
+    text = text.replace(cnDayRe, function (match, cnDay, suffix) {
+      const num = cnToNumber(cnDay);
+      return isNaN(num) ? match : (num + '日'); // 统一转为"日"，方便后续规则匹配
+    });
+    return text;
   }
 
   // 解析文本中的提醒时间，并返回剥离时间词后的纯事项文本
   // 支持规则（按优先级从高到低）：
+  //   "八月十五号提醒我开会" → 当年 8 月 15 日 9:00（已过则明年），文本"开会"
   //   "8月15日 8:00"       → 当年 8 月 15 日 8:00（已过则明年）
   //   "明天8:00"           → 明天 8:00
   //   "后天早上体检"        → 后天 8:00
@@ -2103,7 +2132,8 @@ datetimePickerModule.bind();
   //   "8:00"               → 今天 8:00（已过则明天）
   // 失败：返回 { text: 原文, remindAt: null, recurrence: null }
   function parseReminderFromText(rawText) {
-    let text = rawText.trim();
+    // 预处理：先把中文月份/日期转为阿拉伯数字（如"八月十五号"→"8月15日"）
+    let text = convertChineseDate(rawText.trim());
     let remindAt = null;
     let recurrence = null;   // 循环设置（每X 模式时自动填充）
     const now = new Date();
