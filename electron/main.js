@@ -220,16 +220,18 @@ ipcMain.on('toggle-always-on-top', function () {
   mainWindow.webContents.send('always-on-top-changed', newState);
 });
 
-// 处理窗口大小调整（用于便签模式折叠/展开）
+// 处理窗口大小调整（用于便签模式折叠/展开/自适应）
 ipcMain.on('resize-window', function (_, width, height, resizable) {
   if (!mainWindow) return;
-  // 折叠时取消最小高度限制，允许缩到标题栏高度
-  if (height < 100) {
+  // 便签模式下动态调整最小高度限制，允许窗口随内容缩小
+  if (height <= 80) {
+    // 折叠状态：只显示标题栏，允许缩到最小
     mainWindow.setMinimumSize(200, 50);
   } else {
-    mainWindow.setMinimumSize(360, 520);
+    // 展开状态：自适应内容，最小高度设为标题栏高度（允许很小）
+    mainWindow.setMinimumSize(200, 80);
   }
-  mainWindow.setSize(width, height);
+  mainWindow.setSize(width, height, true); // true = 动画效果，更平滑
   // 设置窗口是否可拖拽调整大小（折叠时固定大小）
   mainWindow.setResizable(resizable !== false);
 });
@@ -265,11 +267,12 @@ function toggleStickyMode(enable) {
     mainWindow.destroy();
 
     // 创建 toolbar 类型窗口（不受 Windows+D 影响）
+    // minHeight 设小，允许便签模式根据内容自适应高度
     mainWindow = new BrowserWindow({
       width: 480,
       height: 760,
-      minWidth: 360,
-      minHeight: 520,
+      minWidth: 200,
+      minHeight: 80,
       x: posX,
       y: posY,
       title: 'ToDoList',

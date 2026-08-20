@@ -29,10 +29,12 @@
   <!-- 页面头部：标题 + emoji logo -->
   <header>
     <h1><span class="logo-emoji">✅</span> ToDoList</h1>
-    <!-- 置顶按钮（仅桌面端显示） -->
-    <button id="pinBtn" class="pin-btn" title="窗口置顶">📌</button>
-    <!-- 便签模式折叠按钮（仅便签模式显示） -->
-    <button id="stickyCollapseBtn" class="pin-btn" title="折叠列表" style="display:none;">▼</button>
+    <!-- 头部按钮组：置顶 / 便签折叠 / 便签添加 -->
+    <div class="header-btns">
+      <button id="pinBtn" class="pin-btn" title="窗口置顶">📌</button>
+      <button id="stickyCollapseBtn" class="pin-btn" title="折叠列表" style="display:none;">▼</button>
+      <button id="stickyAddToggleBtn" class="pin-btn" title="添加事项" style="display:none;">＋</button>
+    </div>
   </header>
 
   <!-- 主体内容区 -->
@@ -137,6 +139,12 @@
                     <option value="week">周</option>
                   </select>
                 </div>
+                <!-- 循环次数：设置提醒几次后自动停止（留空=无限循环） -->
+                <div class="dp-cycle-count-row" id="dpCycleCountRow">
+                  <span class="dp-cycle-count-label">次数</span>
+                  <input type="number" id="dpCycleCount" min="1" max="999" placeholder="∞" class="dp-cycle-count-input">
+                  <span class="dp-cycle-count-unit">次后停止</span>
+                </div>
               </div>
             </div>
             <!-- 操作按钮 -->
@@ -147,16 +155,6 @@
           </div>
         </div>
       </div>
-      <!-- 目标次数输入框（可选）：设置待办要执行的次数 -->
-      <input
-        type="number"
-        id="targetCountInput"
-        placeholder="次数"
-        min="2"
-        max="99"
-        title="设置目标执行次数（如：喝水 8 次）"
-        class="target-count-input"
-      />
       <!-- 添加按钮，id 用于 JS 监听点击事件 -->
       <button id="addBtn">添加</button>
     </section>
@@ -166,6 +164,11 @@
       <span class="reminder-notice-text">提示：浏览器完全关闭后无法触发提醒，请保持本页面打开</span>
       <button type="button" class="sound-test-btn" id="soundTestBtn" title='点击播放"叮咚"提示音'>🔊 测试音效</button>
     </div>
+
+    <!-- 便签模式展开的输入区（默认隐藏，点击标题栏「+」后显示） -->
+    <section class="sticky-input-area" id="stickyInputArea" style="display:none;">
+      <input type="text" id="stickyInput" placeholder="输入事项，按回车添加..." autocomplete="off">
+    </section>
 
     <!-- 列表区：所有待办事项会显示在这里 -->
     <section class="list-area">

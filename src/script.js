@@ -12,11 +12,11 @@
 //       enabled: true/false,
 //       interval: 30,                   // 间隔数值
 //       unit: 'minute'|'hour'|'day'|'week',
+//       targetCount: null,              // 目标次数（null=无限循环）
 //     },
 //     completionCount: 0,               // 完成次数（循环专用）
 //     lastRemindAt: 上次实际提醒时间戳,    // 循环调度用
-//     targetCount: null,                // 目标执行次数（null=不计数）
-//     currentCount: 0,                  // 当前已执行次数
+//     targetCount: null,                // 目标执行次数（从 recurrence 同步）
 //   }
 // 后续的「添加 / 标记完成 / 删除 / 持久化 / 提醒调度」都围绕这个数组进行
 let todos = [];
@@ -27,9 +27,7 @@ const STORAGE_KEY = 'todos';
 
 // 收纳状态：已完成项超过此数量则自动收纳
 const VISIBLE_COMPLETED_LIMIT = 3;
-// 未完成项超过此数量也自动收纳（待办是主要关注内容，阈值略高）
-const VISIBLE_PENDING_LIMIT = 5;
-// 两类收纳共用同一个展开/收起状态
+// 展开/收起状态（只用于已完成收纳）
 let isExpanded = false;
 
 
@@ -103,41 +101,36 @@ const nodeCache = new Map();
 
 function render() {
   // 分离未完成和已完成
-  const pending = todos.filter(function (t) { return !t.done; });
+  // 未完成项倒序：最新添加的显示在最上面
+  const pending = todos.filter(function (t) { return !t.done; }).reverse();
   const done = todos.filter(function (t) { return t.done; });
 
-  // 判断两类是否需要收纳
-  // 【v2.7.0 改动】已完成事项默认折叠（只要有 1 条及以上就显示收纳按钮）
-  const hasPendingCollapsible = pending.length > VISIBLE_PENDING_LIMIT;
-  const hasDoneCollapsible = done.length > 0; // 只要有已完成项就默认收纳
-  const hasCollapsible = hasPendingCollapsible || hasDoneCollapsible;
+  // 收纳判断：只保留已完成收纳，未完成项永不收纳
+  const hasDoneCollapsible = done.length > 0; // 只要有已完成项就显示收纳按钮
+  var isStickyMode = document.body.classList.contains('sticky-mode');
 
-  // 计算可见项
-  // 【v2.7.0 改动】已完成项默认完全折叠（收起时不显示任何已完成项）
-  let visiblePending, visibleDone;
-  if (!hasCollapsible) {
-    // 无需收纳，全部显示
-    visiblePending = pending;
-    visibleDone = done;
-  } else if (isExpanded) {
-    // 展开状态：所有项可见，收纳容器隐藏
-    visiblePending = pending;
-    visibleDone = done;
-  } else {
-    // 收起状态：未完成项按阈值切片，已完成项全部隐藏（默认折叠）
-    visiblePending = pending.slice(0, VISIBLE_PENDING_LIMIT);
-    visibleDone = []; // 已完成项默认不显示，点击展开才可见
-  }
+  // 计算可见项：未完成项全部显示，已完成项按展开/收起决定
+  // 未完成项倒序：最新添加的显示在最上面
+  let visiblePending = pending;
+  let visibleDone = (hasDoneCollapsible && !isExpanded) ? [] : done;
 
-  // 整体可见项顺序：未完成可见 → （未完成收纳按钮）→ 已完成可见 → （已完成收纳按钮）
+  // 整体可见项顺序：未完成（最新在上）→ 已完成（底部）
   const visibleItems = visiblePending.concat(visibleDone);
 
+  // 顺序可能变化（未完成倒序），清空缓存让节点重建
+  nodeCache.clear();
+
   // 第一步：处理可见项的 DOM 节点（移动/创建/更新）
+  const rebuiltIds = new Set(); // 记录本次新建的节点 ID
   visibleItems.forEach(function (todo, index) {
     let li = nodeCache.get(todo.id);
     if (!li) {
+      // 缓存中没有 → 创建新节点，并移除 DOM 中可能残留的同 ID 旧节点
+      const oldNode = todoList.querySelector('.todo-item[data-id="' + todo.id + '"]');
+      if (oldNode) oldNode.remove();
       li = createTodoElement(todo);
       nodeCache.set(todo.id, li);
+      rebuiltIds.add(todo.id);
     }
     // 确保节点在正确位置（用 insertBefore 移动节点，浏览器不会闪动）
     const refNode = todoList.children[index];
@@ -160,114 +153,57 @@ function render() {
     }
   });
 
-  // 第二步：处理收纳区 UI（两类收纳按钮 + 一个收纳容器）
-  let pendingCollapseBtn = document.getElementById('pendingCollapseBtn');
-  let collapseBtn = document.getElementById('collapseBtn');        // 已完成收纳按钮
+  // 第二步：处理收纳区 UI（只保留已完成收纳按钮）
+  let collapseBtn = document.getElementById('collapseBtn');
   let collapsedList = document.getElementById('collapsedList');
 
-  if (hasCollapsible) {
-    // ---------- 2.1 未完成收纳按钮 ----------
-    if (hasPendingCollapsible) {
-      if (!pendingCollapseBtn) {
-        pendingCollapseBtn = document.createElement('li');
-        pendingCollapseBtn.id = 'pendingCollapseBtn';
-        pendingCollapseBtn.className = 'collapse-btn collapse-btn-pending';
-        pendingCollapseBtn.addEventListener('click', function () {
-          isExpanded = !isExpanded;
-          render();
-        });
-      }
-      // 更新文案
-      const hiddenPending = pending.length - VISIBLE_PENDING_LIMIT;
-      if (isExpanded) {
-        pendingCollapseBtn.innerHTML = '<span>收起 ▲</span>';
-        pendingCollapseBtn.classList.add('expanded');
-      } else {
-        pendingCollapseBtn.innerHTML = '<span>还有 <strong>' + hiddenPending + '</strong> 项待办</span><span class="arrow">▼</span>';
-        pendingCollapseBtn.classList.remove('expanded');
-      }
-      // 按钮位置：紧接在未完成可见项之后
-      const pendingBtnPos = visiblePending.length;
-      const pendingBtnRef = todoList.children[pendingBtnPos];
-      if (pendingBtnRef !== pendingCollapseBtn) {
-        todoList.insertBefore(pendingCollapseBtn, pendingBtnRef || null);
-      }
-    } else if (pendingCollapseBtn) {
-      // 不需要时移除
-      pendingCollapseBtn.remove();
-      pendingCollapseBtn = null;
+  // 移除可能残留的未完成收纳按钮（兼容旧版本）
+  var pendingCollapseBtn = document.getElementById('pendingCollapseBtn');
+  if (pendingCollapseBtn) {
+    pendingCollapseBtn.remove();
+    pendingCollapseBtn = null;
+  }
+
+  // 收纳区 UI：只保留已完成收纳按钮
+  if (hasDoneCollapsible) {
+    if (!collapseBtn) {
+      collapseBtn = document.createElement('li');
+      collapseBtn.id = 'collapseBtn';
+      collapseBtn.className = 'collapse-btn';
+      collapseBtn.addEventListener('click', function () {
+        isExpanded = !isExpanded;
+        render();
+      });
+    }
+    // 更新文案
+    const hiddenCount = done.length;
+    if (isExpanded) {
+      collapseBtn.innerHTML = '<span>收起 ▲</span>';
+      collapseBtn.classList.add('expanded');
+    } else {
+      collapseBtn.innerHTML = '<span>还有 <strong id="collapseCount">' + hiddenCount + '</strong> 项已完成待办</span><span class="arrow">▼</span>';
+      collapseBtn.classList.remove('expanded');
+    }
+    // 按钮位置：紧接在已完成可见项之后
+    const offset = visiblePending.length + visibleDone.length;
+    const btnRef = todoList.children[offset];
+    if (btnRef !== collapseBtn) {
+      todoList.insertBefore(collapseBtn, btnRef || null);
     }
 
-    // ---------- 2.2 已完成收纳按钮 ----------
-    if (hasDoneCollapsible) {
-      if (!collapseBtn) {
-        collapseBtn = document.createElement('li');
-        collapseBtn.id = 'collapseBtn';
-        collapseBtn.className = 'collapse-btn';
-        collapseBtn.addEventListener('click', function () {
-          isExpanded = !isExpanded;
-          render();
-        });
-      }
-      // 更新文案
-      // 【v2.7.0 改动】已完成项默认全部隐藏，所以隐藏数 = 全部已完成项数
-      const hiddenCount = done.length;
-      if (isExpanded) {
-        collapseBtn.innerHTML = '<span>收起 ▲</span>';
-        collapseBtn.classList.add('expanded');
-      } else {
-        collapseBtn.innerHTML = '<span>还有 <strong id="collapseCount">' + hiddenCount + '</strong> 项已完成待办</span><span class="arrow">▼</span>';
-        collapseBtn.classList.remove('expanded');
-      }
-      // 按钮位置：紧接在已完成可见项之后（需考虑未完成按钮占位）
-      // 计算偏移：未完成可见项 + （未完成按钮 0 或 1）+ 已完成可见项
-      const offset = visiblePending.length + (hasPendingCollapsible ? 1 : 0) + visibleDone.length;
-      const btnRef = todoList.children[offset];
-      if (btnRef !== collapseBtn) {
-        todoList.insertBefore(collapseBtn, btnRef || null);
-      }
-    } else if (collapseBtn) {
-      collapseBtn.remove();
-      collapseBtn = null;
-    }
-
-    // ---------- 2.3 收纳容器（展开时显示所有被收纳项）----------
+    // 收纳容器（展开时显示所有被收纳的已完成项）
     if (!collapsedList) {
       collapsedList = document.createElement('ul');
       collapsedList.id = 'collapsedList';
       collapsedList.className = 'collapsed-list';
     }
-    // 容器位置：放在最后一个收纳按钮之后
-    const lastBtn = collapseBtn || pendingCollapseBtn;
-    if (lastBtn) {
-      const listRef = lastBtn.nextSibling;
-      if (listRef !== collapsedList) {
-        todoList.insertBefore(collapsedList, listRef);
-      }
+    const listRef = collapseBtn.nextSibling;
+    if (listRef !== collapsedList) {
+      todoList.insertBefore(collapsedList, listRef);
     }
-    // 根据展开/收起状态设置显示
     collapsedList.style.display = isExpanded ? 'flex' : 'none';
-
-    // 展开时：把被收纳的未完成项移入容器（已完成项已在主列表显示）
-    if (isExpanded) {
-      const collapsedItems = [];
-      if (hasPendingCollapsible) {
-        collapsedItems.push.apply(collapsedItems, pending.slice(VISIBLE_PENDING_LIMIT));
-      }
-      // 【v2.7.0 改动】已完成项已全部在主列表显示，不再重复放入容器
-      collapsedItems.forEach(function (todo) {
-        let li = nodeCache.get(todo.id);
-        if (!li) {
-          li = createTodoElement(todo);
-          nodeCache.set(todo.id, li);
-        }
-        collapsedList.appendChild(li);
-        updateItemState(li, todo);
-      });
-    }
   } else {
-    // 不需要收纳，移除所有收纳 UI
-    if (pendingCollapseBtn) pendingCollapseBtn.remove();
+    // 没有已完成项，移除收纳 UI
     if (collapseBtn) collapseBtn.remove();
     if (collapsedList) collapsedList.remove();
   }
@@ -283,6 +219,43 @@ function render() {
 
   // 保存数据
   save();
+
+  // 便签模式：每次渲染后根据内容自适应窗口高度
+  adjustStickyWindowHeight();
+}
+
+// 便签模式窗口高度自适应：有多少待办，窗口就有多大
+function adjustStickyWindowHeight() {
+  // 只在便签模式且未折叠时调整
+  if (!document.body.classList.contains('sticky-mode')) return;
+  if (stickyCollapsed) return;
+  if (!window.electronAPI || !window.electronAPI.resizeWindow) return;
+
+  // 双重 requestAnimationFrame：等浏览器完成样式计算和布局后再测量
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      // 测量 todoList 容器的 offsetHeight（包含所有子元素、padding）
+      const todoList = document.getElementById('todoList');
+      const listHeight = todoList ? todoList.offsetHeight : 0;
+
+      // header 高度（标题栏）
+      const header = document.querySelector('header');
+      const headerHeight = header ? header.offsetHeight : 40;
+
+      // 计算总高度：header + 列表 + 40px 留白（确保内容完整显示）
+      const EXTRA_PADDING = 40;
+      const contentHeight = headerHeight + listHeight + EXTRA_PADDING;
+
+      // 计算目标高度，设置上下限
+      const MIN_HEIGHT = 80;      // 最小高度：只显示标题栏
+      const MAX_HEIGHT = 600;     // 最大高度：防止窗口过高，超出部分滚动
+      const targetHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, contentHeight));
+
+      // 宽度固定为进入便签模式时的宽度，不随内容变化
+      const fixedWidth = window.stickyModeWidth || 480;
+      window.electronAPI.resizeWindow(fixedWidth, targetHeight);
+    });
+  });
 }
 
 
@@ -385,85 +358,54 @@ function createTodoElement(todo) {
   }
   if (todo.recurrence && todo.recurrence.enabled) {
     const unitMap = { minute: '分钟', hour: '小时', day: '天', week: '周' };
-    tooltipParts.push('🔄 循环：每 ' + todo.recurrence.interval + ' ' + unitMap[todo.recurrence.unit]);
-  }
-  if (todo.completionCount > 0) {
-    tooltipParts.push('✅ 已完成 ' + todo.completionCount + ' 次');
+    let cycleText = '🔄 循环：每 ' + todo.recurrence.interval + ' ' + unitMap[todo.recurrence.unit];
+    // 有目标次数时，在循环信息后追加次数进度
+    if (todo.targetCount && todo.targetCount > 0) {
+      cycleText += '（' + (todo.completionCount || 0) + '/' + todo.targetCount + ' 次）';
+    }
+    tooltipParts.push(cycleText);
   }
   if (tooltipParts.length > 0) {
     li.setAttribute('data-tooltip', tooltipParts.join(' | '));
     li.classList.add('has-tooltip');
   }
 
-  // 【目标计数】如果设置了执行次数，创建计数器 UI
-  if (todo.targetCount && todo.targetCount > 0) {
-    li.appendChild(checkbox);
-    li.appendChild(span);
-    // 计数器容器
-    const counter = document.createElement('span');
-    counter.className = 'todo-counter';
-    // 进度文字：如 "3/8"
-    const counterText = document.createElement('span');
-    counterText.className = 'counter-text';
-    counterText.textContent = (todo.currentCount || 0) + '/' + todo.targetCount;
-    counter.appendChild(counterText);
-    // "+" 按钮，点击增加次数
-    const plusBtn = document.createElement('button');
-    plusBtn.className = 'counter-plus-btn';
-    plusBtn.textContent = '+';
-    plusBtn.title = '增加一次';
-    plusBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      e.preventDefault();
-      // 增加计数
-      todo.currentCount = (todo.currentCount || 0) + 1;
-      counterText.textContent = todo.currentCount + '/' + todo.targetCount;
-      // 达到目标次数 → 自动完成
-      if (todo.currentCount >= todo.targetCount) {
-        todo.done = true;
-        todo.completionCount = (todo.completionCount || 0) + 1;
-        li.classList.add('completed');
-        if (window.petMood) {
-          window.petMood.happy();
-          window.petMood.toast('目标达成！' + todo.targetCount + ' 次全部完成！太厉害了！', 'success');
-        }
-      } else {
-        // 未完成，史迪奇鼓励
-        if (window.petMood) {
-          const encourageMsgs = [
-            '加油！还差 ' + (todo.targetCount - todo.currentCount) + ' 次！',
-            '已经完成 ' + todo.currentCount + ' 次了，继续！',
-            '坚持就是胜利！还剩 ' + (todo.targetCount - todo.currentCount) + ' 次！'
-          ];
-          window.petMood.toast(encourageMsgs[Math.floor(Math.random() * encourageMsgs.length)], 'info');
-        }
-      }
-      save();
-      render();
-    });
-    counter.appendChild(plusBtn);
-    li.appendChild(counter);
-  } else if (todo.remindAt) {
-    const badge = document.createElement('span');
-    badge.className = 'reminder-badge';
-    li.appendChild(checkbox);
-    li.appendChild(span);
-    li.appendChild(badge);
+  // 【次数已集成到循环提醒】非循环事项不再显示独立计数器
+  // 判断是否为循环事项（需要在添加 badge 前决定按钮区域）
+  const isCycle = todo.recurrence && todo.recurrence.enabled;
 
-    // 循环徽章装饰
-    if (todo.recurrence && todo.recurrence.enabled) {
-      badge.classList.add('reminder-badge-cycle');
-      // 完成次数小徽章
-      if (todo.completionCount > 0) {
-        const countBadge = document.createElement('span');
-        countBadge.className = 'completion-count';
-        countBadge.textContent = '×' + todo.completionCount;
-        li.appendChild(countBadge);
+  if (todo.remindAt || isCycle) {
+    li.appendChild(checkbox);
+    li.appendChild(span);
+
+    // 提醒徽章（仅有 remindAt 时显示）
+    if (todo.remindAt) {
+      const badge = document.createElement('span');
+      badge.className = 'reminder-badge';
+      li.appendChild(badge);
+
+      // 循环徽章装饰
+      if (isCycle) {
+        badge.classList.add('reminder-badge-cycle');
       }
     }
 
-    // 停止循环按钮
-    if (todo.recurrence && todo.recurrence.enabled) {
+    // 循环完成次数小徽章（有目标次数时显示 "×2/8"，无目标时显示 "×2"）
+    if (isCycle && todo.completionCount > 0) {
+      const countBadge = document.createElement('span');
+      countBadge.className = 'completion-count';
+      if (todo.targetCount && todo.targetCount > 0) {
+        // 有目标次数：显示 "已完成/总次数"
+        countBadge.textContent = '×' + todo.completionCount + '/' + todo.targetCount;
+      } else {
+        // 无目标次数：只显示完成数
+        countBadge.textContent = '×' + todo.completionCount;
+      }
+      li.appendChild(countBadge);
+    }
+
+    // 停止循环按钮（所有循环事项都显示，不依赖 remindAt）
+    if (isCycle) {
       const stopBtn = document.createElement('button');
       stopBtn.className = 'stop-cycle-btn';
       stopBtn.textContent = '⏹';
@@ -604,18 +546,14 @@ function addTodo(remindAt, recurrence) {
     return;  // 直接返回，不执行后续添加逻辑
   }
 
-  // 3) 读取目标次数（如果有设置）
-  const targetCountInput = document.getElementById('targetCountInput');
-  const targetCount = targetCountInput ? parseInt(targetCountInput.value, 10) : 0;
-
-  // 4) 构造新事项对象，推入数组
+  // 3) 构造新事项对象，推入数组
   // id 用 Date.now()（当前毫秒时间戳）保证唯一
   // remindAt：提醒时间戳（毫秒），无提醒为 null
   // reminded：是否已触发过本轮提醒，初始 false
-  // recurrence：循环设置，无循环为 null
+  // recurrence：循环设置，无循环为 null（内含 targetCount：目标次数）
   // completionCount：完成次数，初始 0
-  // targetCount：目标执行次数（0=不计数）
-  // currentCount：当前已执行次数，初始 0
+  // targetCount：从循环设置中取（循环专用，非循环事项为 null）
+  // currentCount：当前已执行次数，初始 0（非循环事项保持 0）
   const newTodo = {
     id: Date.now(),
     text: text,
@@ -625,17 +563,16 @@ function addTodo(remindAt, recurrence) {
     recurrence: recurrence || null,
     completionCount: 0,
     lastRemindAt: null,
-    targetCount: (targetCount > 1) ? targetCount : null,
+    targetCount: (recurrence && recurrence.targetCount) ? recurrence.targetCount : null,
     currentCount: 0
   };
   todos.push(newTodo);
 
-  // 5) 数据已变，重新渲染列表
+  // 4) 数据已变，重新渲染列表
   render();
 
-  // 6) 清空输入框和目标次数，并重新聚焦
+  // 5) 清空输入框，并重新聚焦
   todoInput.value = '';
-  if (targetCountInput) targetCountInput.value = '';
   todoInput.focus();
 
   // 6) 返回新增的事项对象，供调用方调度提醒
@@ -661,7 +598,26 @@ function toggleTodo(id) {
     // 1) 记录完成次数
     todo.completionCount = (todo.completionCount || 0) + 1;
 
-    // 2) 推进到下一个周期
+    // 2) 检查是否达到目标次数 → 达到则停止循环并完成
+    const targetCount = todo.targetCount || (todo.recurrence && todo.recurrence.targetCount);
+    if (targetCount && todo.completionCount >= targetCount) {
+      // 达到目标次数：停止循环，标记完成
+      if (window.reminderModule) {
+        window.reminderModule.cancel(todo.id);
+      }
+      todo.done = true;
+      todo.completedAt = Date.now();
+      todo.recurrence = null; // 关闭循环
+      if (window.petMood) {
+        window.petMood.happy();
+        window.petMood.toast('🎉 已完成 ' + targetCount + ' 次！循环提醒结束，太棒了！', 'success');
+      }
+      save();
+      render();
+      return;
+    }
+
+    // 3) 推进到下一个周期
     if (window.reminderModule) {
       const intervalMs = window.reminderModule.getIntervalMs(todo.recurrence);
       if (intervalMs) {
@@ -671,10 +627,10 @@ function toggleTodo(id) {
       }
     }
 
-    // 3) 保持未完成态
+    // 4) 保持未完成态
     todo.done = false;
 
-    // 4) 调度下一轮
+    // 5) 调度下一轮
     if (window.reminderModule && todo.remindAt) {
       window.reminderModule.schedule(todo);
     }
@@ -779,22 +735,38 @@ if (window.electronAPI) {
 if (window.electronAPI && window.electronAPI.onStickyMode) {
   window.electronAPI.onStickyMode(function (enabled) {
     // 给 body 加/便签模式 class，CSS 负责隐藏多余元素
+    var addToggleBtn = document.getElementById('stickyAddToggleBtn');
+    var stickyInputArea = document.getElementById('stickyInputArea');
     if (enabled) {
       document.body.classList.add('sticky-mode');
-      // 便签模式：显示折叠按钮
+      document.documentElement.classList.add('sticky-mode');
+      // 记录进入便签模式时的宽度，后续自适应时保持宽度不变
+      window.stickyModeWidth = window.innerWidth;
+      // 便签模式：显示折叠按钮和「+」按钮
       var collapseBtn = document.getElementById('stickyCollapseBtn');
       if (collapseBtn) collapseBtn.style.display = 'inline-block';
+      if (addToggleBtn) addToggleBtn.style.display = 'inline-block';
+      // 重新渲染：清理未完成收纳按钮、刷新列表
+      render();
     } else {
       document.body.classList.remove('sticky-mode');
-      // 退出便签模式：隐藏折叠按钮并重置状态
+      document.documentElement.classList.remove('sticky-mode');
+      // 退出便签模式：隐藏折叠按钮、「+」按钮和输入区，重置状态
       var collapseBtn = document.getElementById('stickyCollapseBtn');
       if (collapseBtn) {
         collapseBtn.style.display = 'none';
         collapseBtn.textContent = '▼';
         collapseBtn.title = '折叠列表';
       }
+      if (addToggleBtn) {
+        addToggleBtn.style.display = 'none';
+        addToggleBtn.classList.remove('active');
+      }
+      if (stickyInputArea) stickyInputArea.style.display = 'none';
       stickyCollapsed = false;
       document.body.classList.remove('sticky-collapsed');
+      // 重新渲染：恢复普通模式的收纳按钮
+      render();
     }
   });
 }
@@ -815,13 +787,103 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
       collapseBtn.textContent = '▲';
       collapseBtn.title = '展开窗口';
     } else {
-      // 展开：恢复到折叠前的宽度
+      // 展开：根据内容自适应高度（不再固定 760px）
       document.body.classList.remove('sticky-collapsed');
+      // 先恢复宽度，高度会在 render 后的 adjustStickyWindowHeight 里自适应
       if (window.electronAPI && window.electronAPI.resizeWindow) {
-        window.electronAPI.resizeWindow(stickyWidthBeforeCollapse, 760);
+        window.electronAPI.resizeWindow(stickyWidthBeforeCollapse, 80);
       }
       collapseBtn.textContent = '▼';
       collapseBtn.title = '折叠窗口';
+      // 等 DOM 更新后，根据内容调整高度
+      setTimeout(adjustStickyWindowHeight, 50);
+    }
+  });
+})();
+
+// 便签模式「+」按钮：点击展开输入区，输入文字后回车添加
+(function () {
+  var addToggleBtn = document.getElementById('stickyAddToggleBtn');
+  var inputArea = document.getElementById('stickyInputArea');
+  var stickyInput = document.getElementById('stickyInput');
+  if (!addToggleBtn || !inputArea || !stickyInput) return;
+
+  // 双击回车检测：记录上次按回车的时间
+  var lastEnterTime = 0;
+  var DOUBLE_ENTER_INTERVAL = 400; // 400 毫秒内连按两次回车视为「双击」
+
+  // 收起输入区
+  function collapseInput() {
+    inputArea.style.display = 'none';
+    addToggleBtn.classList.remove('active');
+    stickyInput.value = '';
+    lastEnterTime = 0;
+  }
+
+  // 执行添加：读取输入 → 推入数组 → 渲染 → 清空
+  function doAdd() {
+    var text = stickyInput.value.trim();
+    if (text === '') {
+      // 空输入：闪红提示
+      stickyInput.style.borderColor = '#e74c3c';
+      setTimeout(function () {
+        stickyInput.style.borderColor = '';
+      }, 300);
+      return;
+    }
+    // 推入新事项（无提醒、无循环，纯文字）
+    todos.push({
+      id: Date.now(),
+      text: text,
+      done: false,
+      remindAt: null,
+      reminded: false,
+      recurrence: null,
+      completionCount: 0,
+      lastRemindAt: null,
+      targetCount: null,
+      currentCount: 0
+    });
+    // 重新渲染（render 内部会自动 save + 调整便签窗口高度）
+    render();
+    // 清空输入框并保持聚焦
+    stickyInput.value = '';
+    stickyInput.focus();
+  }
+
+  // 点击标题栏「+」按钮：展开/收起输入区
+  addToggleBtn.addEventListener('click', function () {
+    if (inputArea.style.display === 'none') {
+      // 展开
+      inputArea.style.display = 'block';
+      addToggleBtn.classList.add('active'); // 高亮按钮
+      stickyInput.focus();
+    } else {
+      // 收起
+      inputArea.style.display = 'none';
+      addToggleBtn.classList.remove('active');
+      stickyInput.value = '';
+    }
+  });
+
+  // 按回车键：单击添加，双击（400ms 内）收起输入区
+  stickyInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      var now = Date.now();
+      var isDoubleEnter = (now - lastEnterTime) < DOUBLE_ENTER_INTERVAL;
+      lastEnterTime = now;
+
+      if (isDoubleEnter) {
+        // 双击回车：收起输入区
+        collapseInput();
+      } else {
+        // 单击回车：添加事项
+        doAdd();
+      }
+    }
+    // 按 Escape 收起输入区
+    if (e.key === 'Escape') {
+      collapseInput();
     }
   });
 })();
@@ -1046,6 +1108,8 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
       currentY = targetY;
       pet.classList.remove('walking');
       pet.style.transition = '';
+      // 行走结束后检测边缘
+      updatePetEdgeClass();
     }, duration * 1000);
   }
 
@@ -1184,6 +1248,8 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
     pet.style.bottom = clamped.y + 'px';
     currentX = clamped.x;
     currentY = clamped.y;
+    // 拖拽过程中实时检测边缘
+    updatePetEdgeClass();
   }
 
   function onDragEnd(e) {
@@ -1206,7 +1272,21 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
       }
     }
 
+    // 拖拽结束检测边缘，调整气泡位置
+    updatePetEdgeClass();
     startRandomMovement();
+  }
+
+  // ---------- 9.5.1 边缘检测：动态调整气泡位置 ----------
+  // 当史迪仔靠近屏幕左/右边缘时，添加对应 CSS 类，让气泡靠边对齐不被遮挡
+  function updatePetEdgeClass() {
+    const EDGE_THRESHOLD = 120; // 距离边缘多少像素算"靠近"
+    pet.classList.remove('near-left', 'near-right');
+    if (currentX <= EDGE_THRESHOLD) {
+      pet.classList.add('near-left');
+    } else if (currentX + PET_WIDTH >= window.innerWidth - EDGE_THRESHOLD) {
+      pet.classList.add('near-right');
+    }
   }
 
   pet.addEventListener('mousedown', onDragStart);
@@ -1702,9 +1782,9 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
   });
   resetIdleTimer();
 
-  // 随机气泡：每 20-40 秒随机冒一个气泡
+  // 随机气泡：每 15-30 秒随机冒一个气泡
   function scheduleRandomBubble() {
-    const delay = 20000 + Math.random() * 20000; // 20-40 秒随机
+    const delay = 15000 + Math.random() * 15000; // 15-30 秒随机
     setTimeout(function () {
       if (!isHidden && window.petMood) {
         window.petMood.bubble();
@@ -1712,8 +1792,64 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
       scheduleRandomBubble(); // 递归调度下一次
     }, delay);
   }
-  // 页面打开 10 秒后开始随机气泡
-  setTimeout(scheduleRandomBubble, 10000);
+
+  // 首次进入页面时，史迪仔先说两句问候，然后启动随机互动
+  setTimeout(function () {
+    // 先更新边缘状态，确保气泡位置正确
+    updatePetEdgeClass();
+    const msg = '嘿！你听说过「景逸大人」这个名字吗？';
+    petBubble.textContent = msg;
+    petBubble.classList.add('show');
+
+    // 动态调整气泡位置，防止超出屏幕
+    adjustBubblePosition();
+
+    if (bubbleTimer) clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(function () {
+      petBubble.classList.remove('show');
+
+      // 0.5 秒后显示第二句
+      setTimeout(function () {
+        const msg2 = '传说啊，他是世界上顶好顶好的人~ ✨';
+        petBubble.textContent = msg2;
+        petBubble.classList.add('show');
+
+        // 再次调整位置
+        adjustBubblePosition();
+
+        bubbleTimer = setTimeout(function () {
+          petBubble.classList.remove('show');
+
+          // ★ 问候说完后，启动随机互动气泡
+          // 等 8-15 秒后开始第一个随机气泡，然后持续循环
+          const firstRandomDelay = 8000 + Math.random() * 7000;
+          setTimeout(scheduleRandomBubble, firstRandomDelay);
+        }, 4000);
+      }, 500);
+    }, 4000);
+  }, 2000); // 页面加载 2 秒后显示第一句问候
+
+  // 动态调整气泡位置，确保不超出屏幕边缘
+  function adjustBubblePosition() {
+    const bubbleRect = petBubble.getBoundingClientRect();
+    const petRect = pet.getBoundingClientRect();
+    const windowWidth = window.innerWidth;
+
+    // 检查气泡是否超出右边缘
+    if (bubbleRect.right > windowWidth) {
+      const overflow = bubbleRect.right - windowWidth;
+      // 将气泡向左移动，使其右边缘在屏幕内 10px
+      petBubble.style.left = 'auto';
+      petBubble.style.right = '10px';
+      petBubble.style.transform = 'none';
+    }
+    // 检查气泡是否超出左边缘
+    else if (bubbleRect.left < 0) {
+      petBubble.style.left = '10px';
+      petBubble.style.right = 'auto';
+      petBubble.style.transform = 'none';
+    }
+  }
 
   // ===== 日报功能 =====
   // 生成今日日报内容
@@ -1911,12 +2047,10 @@ function wrappedAddTodo() {
     window.reminderModule.schedule(newTodo);
   }
 
-  // 清空日期选择器和目标次数
+  // 清空日期选择器（含循环次数）
   if (window.datetimePickerModule) {
     window.datetimePickerModule.clearAll();
   }
-  const targetCountInput = document.getElementById('targetCountInput');
-  if (targetCountInput) targetCountInput.value = '';
 
   // 触发桌宠反馈
   if (window.petMood) {
@@ -1943,7 +2077,12 @@ function wrappedToggleTodo(id) {
     if (wasCycle && !todo.done && todo.completionCount > oldCount) {
       // 循环待办完成一次 → 庆祝 + 下一轮倒计时
       window.petMood.happy();
-      window.petMood.toast('完成第 ' + todo.completionCount + ' 次！下一轮提醒已安排', 'success');
+      // 有目标次数时显示进度，无目标时只显示完成次数
+      if (todo.targetCount && todo.targetCount > 0) {
+        window.petMood.toast('完成 ' + todo.completionCount + '/' + todo.targetCount + ' 次！继续加油！', 'success');
+      } else {
+        window.petMood.toast('完成第 ' + todo.completionCount + ' 次！下一轮提醒已安排', 'success');
+      }
     } else if (todo && todo.done) {
       window.petMood.happy();
       const msg = COMPLETE_TODO_TOASTS[Math.floor(Math.random() * COMPLETE_TODO_TOASTS.length)];
@@ -2021,6 +2160,7 @@ const datetimePickerModule = (function () {
   const customCycle = document.getElementById('dpCustomCycle');
   const cycleValueInput = document.getElementById('dpCycleValue');
   const cycleUnitSelect = document.getElementById('dpCycleUnit');
+  const cycleCountInput = document.getElementById('dpCycleCount'); // 循环次数输入框
   const clearBtn = document.getElementById('dpClearBtn');
   const confirmBtn = document.getElementById('dpConfirmBtn');
 
@@ -2314,7 +2454,12 @@ const datetimePickerModule = (function () {
   function formatRecurrenceShort(r) {
     if (!r || !r.enabled) return '';
     const unitMap = { minute: '分钟', hour: '小时', day: '天', week: '周' };
-    return '每' + r.interval + unitMap[r.unit];
+    let text = '每' + r.interval + unitMap[r.unit];
+    // 有目标次数时追加显示（如 "每30分钟 ×8次"）
+    if (r.targetCount && r.targetCount > 0) {
+      text += ' ×' + r.targetCount + '次';
+    }
+    return text;
   }
 
   function formatRecurrenceLong(r) {
@@ -2408,10 +2553,10 @@ const datetimePickerModule = (function () {
   function selectCyclePreset(preset) {
     let r = null;
     switch (preset) {
-      case '30m': r = { enabled: true, interval: 30, unit: 'minute' }; break;
-      case '1h': r = { enabled: true, interval: 1, unit: 'hour' }; break;
-      case '1d': r = { enabled: true, interval: 1, unit: 'day' }; break;
-      case '1w': r = { enabled: true, interval: 1, unit: 'week' }; break;
+      case '30m': r = { enabled: true, interval: 30, unit: 'minute', targetCount: parseInt(cycleCountInput.value) || null }; break;
+      case '1h': r = { enabled: true, interval: 1, unit: 'hour', targetCount: parseInt(cycleCountInput.value) || null }; break;
+      case '1d': r = { enabled: true, interval: 1, unit: 'day', targetCount: parseInt(cycleCountInput.value) || null }; break;
+      case '1w': r = { enabled: true, interval: 1, unit: 'week', targetCount: parseInt(cycleCountInput.value) || null }; break;
       case 'custom':
         customCycle.style.display = 'flex';
         cycleValueInput.value = cycleValueInput.value || '30';
@@ -2419,7 +2564,8 @@ const datetimePickerModule = (function () {
         r = {
           enabled: true,
           interval: parseInt(cycleValueInput.value) || 30,
-          unit: cycleUnitSelect.value
+          unit: cycleUnitSelect.value,
+          targetCount: parseInt(cycleCountInput.value) || null
         };
         break;
       default: return;
@@ -2450,6 +2596,7 @@ const datetimePickerModule = (function () {
     cycleToggle.checked = false;
     cycleOptions.style.display = 'none';
     customCycle.style.display = 'none';
+    cycleCountInput.value = ''; // 清空循环次数
     hourSelect.value = '08';
     minuteSelect.value = '00';
     // 重置滚轮到今天
@@ -2565,6 +2712,12 @@ const datetimePickerModule = (function () {
         updateDisplay();
       }
     });
+    // 循环次数变化时更新到 recurrence 对象
+    cycleCountInput.addEventListener('input', function () {
+      if (currentRecurrence && currentRecurrence.enabled) {
+        currentRecurrence.targetCount = parseInt(cycleCountInput.value) || null;
+      }
+    });
 
     // 清除按钮
     clearBtn.addEventListener('click', function () {
@@ -2637,20 +2790,122 @@ datetimePickerModule.bind();
 
   // ---------- 11.3 自然语言解析 ----------
 
+  // ===== 农历数据表（1900-2100年）=====
+  // 每个条目用 20 位二进制编码一年的农历信息：
+  //   位 0-3：闰月月份（0=无闰月，1-12=闰几月）
+  //   位 4-15：12个月，每位表示该月天数（1=30天，0=29天）
+  //   位 16：闰月天数（1=30天，0=29天）
+  const lunarInfo = [
+    0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
+    0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255, 0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977,
+    0x04970, 0x0a4b0, 0x0b4b5, 0x06a50, 0x06d40, 0x1ab54, 0x02b60, 0x09570, 0x052f2, 0x04970,
+    0x06566, 0x0d4a0, 0x0ea50, 0x06e95, 0x05ad0, 0x02b60, 0x186e3, 0x092e0, 0x1c8d7, 0x0c950,
+    0x0d4a0, 0x1d8a6, 0x0b550, 0x056a0, 0x1a5b4, 0x025d0, 0x092d0, 0x0d2b2, 0x0a950, 0x0b557,
+    0x06ca0, 0x0b550, 0x15355, 0x04da0, 0x0a5d0, 0x14573, 0x052d0, 0x0a9a8, 0x0e950, 0x06aa0,
+    0x0aea6, 0x0ab50, 0x04b60, 0x0aae4, 0x0a570, 0x05260, 0x0f263, 0x0d950, 0x05b57, 0x056a0,
+    0x096d0, 0x04dd5, 0x04ad0, 0x0a4d0, 0x0d4d4, 0x0d250, 0x0d558, 0x0b540, 0x0b5a0, 0x195a6,
+    0x095b0, 0x049b0, 0x0a974, 0x0a4b0, 0x0b27a, 0x06a50, 0x06d40, 0x0af46, 0x0ab60, 0x09570,
+    0x04af5, 0x04970, 0x064b0, 0x074a3, 0x0ea50, 0x06b58, 0x05ac0, 0x0ab60, 0x096d5, 0x092e0,
+    0x0c960, 0x0d954, 0x0d4a0, 0x0da50, 0x07552, 0x056a0, 0x0abb7, 0x025d0, 0x092d0, 0x0cab5,
+    0x0a950, 0x0b4a0, 0x0baa4, 0x0ad50, 0x055d9, 0x04ba0, 0x0a5b0, 0x15176, 0x052b0, 0x0a930,
+    0x07954, 0x06aa0, 0x0ad50, 0x05b52, 0x04b60, 0x0a6e6, 0x0a4e0, 0x0d260, 0x0ea65, 0x0d530,
+    0x05aa0, 0x076a3, 0x096d0, 0x04afb, 0x04ad0, 0x0a4d0, 0x1d0b6, 0x0d250, 0x0d520, 0x0dd45,
+    0x0b5a0, 0x056d0, 0x055b2, 0x049b0, 0x0a577, 0x0a4b0, 0x0aa50, 0x1b255, 0x06d20, 0x0ada0,
+    0x14b63, 0x09370, 0x049f8, 0x04970, 0x064b0, 0x168a6, 0x0ea50, 0x06b20, 0x1a6c4, 0x0aae0,
+    0x0a2e0, 0x0d2e3, 0x0c960, 0x0d557, 0x0d4a0, 0x0da50, 0x05d55, 0x056a0, 0x0a6d0, 0x055d4,
+    0x052d0, 0x0a9b8, 0x0a950, 0x0b4a0, 0x0b6a6, 0x0ad50, 0x055a0, 0x0aba4, 0x0a5b0, 0x052b0,
+    0x0b273, 0x06930, 0x07337, 0x06aa0, 0x0ad50, 0x14b55, 0x04b60, 0x0a570, 0x054e4, 0x0d160,
+    0x0e968, 0x0d520, 0x0daa0, 0x16aa6, 0x056d0, 0x04ae0, 0x0a9d4, 0x0a2d0, 0x0d150, 0x0f252,
+    0x0d520
+  ];
+
+  // 农历 1900 年正月初一对应的阳历日期：1900-01-31
+  const LUNAR_BASE_DATE = new Date(1900, 0, 31);
+
+  // 获取某农历年的闰月月份（0=无闰月）
+  function getLunarLeapMonth(year) {
+    return lunarInfo[year - 1900] & 0xf;
+  }
+
+  // 获取某农历年闰月的天数（0=无闰月）
+  function getLunarLeapDays(year) {
+    const leapMonth = getLunarLeapMonth(year);
+    if (leapMonth === 0) return 0;
+    return (lunarInfo[year - 1900] & 0x10000) ? 30 : 29;
+  }
+
+  // 获取某农历年某月的天数（1-12月）
+  // 编码规则：bit 4 = 1月, bit 5 = 2月, ..., bit 15 = 12月（1=30天, 0=29天）
+  function getLunarMonthDays(year, month) {
+    const mask = 1 << (4 + month - 1); // month 1 → bit 4, month 12 → bit 15
+    return (lunarInfo[year - 1900] & mask) ? 30 : 29;
+  }
+
+  // 获取某农历年的总天数
+  function getLunarYearDays(year) {
+    let sum = 348; // 12个月 × 29天（基础）
+    // 统计 bits 4-15 中有多少位为 1（即有多少个月是 30 天）
+    for (let bit = 4; bit <= 15; bit++) {
+      sum += (lunarInfo[year - 1900] & (1 << bit)) ? 1 : 0;
+    }
+    return sum + getLunarLeapDays(year);
+  }
+
+  // 农历转阳历（返回 { year, month, day }）
+  function lunarToSolar(lunarYear, lunarMonth, lunarDay, isLeapMonth) {
+    // 计算从 1900-01-31 到目标农历日期的天数偏移
+    let offset = 0;
+    // 累加整年
+    for (let y = 1900; y < lunarYear; y++) {
+      offset += getLunarYearDays(y);
+    }
+    // 累加当年月份
+    const leapMonth = getLunarLeapMonth(lunarYear);
+    for (let m = 1; m < lunarMonth; m++) {
+      offset += getLunarMonthDays(lunarYear, m);
+    }
+    // 如果目标月在闰月之后，需要加上闰月天数
+    if (leapMonth > 0 && lunarMonth > leapMonth) {
+      offset += getLunarLeapDays(lunarYear);
+    }
+    // 如果是闰月，需要加上前面所有月份 + 闰月之前的天数
+    if (isLeapMonth) {
+      offset += getLunarMonthDays(lunarYear, lunarMonth); // 先加本月（非闰月）
+      offset += getLunarLeapDays(lunarYear); // 再加闰月
+    }
+    // 加上当月的天数偏移
+    offset += lunarDay - 1;
+    // 计算阳历日期
+    const solarDate = new Date(LUNAR_BASE_DATE.getTime() + offset * 24 * 60 * 60 * 1000);
+    return {
+      year: solarDate.getFullYear(),
+      month: solarDate.getMonth() + 1,
+      day: solarDate.getDate()
+    };
+  }
+
   // 中文数字 → 阿拉伯数字映射（用于解析"七点""半小时"等中文表达）
   const CN_NUM = {
     '零': 0, '半': 0.5, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4,
     '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
     '十一': 11, '十二': 12, '十三': 13, '十四': 14, '十五': 15,
-    '十六': 16, '十七': 17, '十八': 18, '十九': 19, '二十': 20,
-    '三十': 30, '四十': 40, '五十': 50, '六十': 60, '七十': 70,
+    '十六': 16, '十七': 17, '十八': 18, '十九': 19, '二十': 20, '廿': 20,
+    '三十': 30, '卅': 30, '四十': 40, '五十': 50, '六十': 60, '七十': 70,
     '八十': 80, '九十': 90, '百': 100
   };
 
-  // 把中文数字字符串转为整数（支持"七""十二""二十""二十一""三十一""一百"等）
+  // 把中文数字字符串转为整数（支持"七""十二""二十""廿九""三十一""一百"等）
   function cnToNumber(str) {
     if (/^\d+$/.test(str)) return parseInt(str, 10);       // 纯数字直接返回
     if (CN_NUM[str] !== undefined) return CN_NUM[str];       // 查表
+    // 组合数字：廿/卅 + [一~九]，如"廿九"=29、"卅一"=31
+    const nianRe = /^([廿卅])([一二两三四五六七八九])?$/;
+    const mNian = str.match(nianRe);
+    if (mNian) {
+      const base = CN_NUM[mNian[1]]; // 廿=20, 卅=30
+      const ones = mNian[2] ? CN_NUM[mNian[2]] : 0;
+      return base + ones;
+    }
     // 组合数字：[X十][Y] 模式，如"二十一"=21、"三十一"=31、"九十九"=99
     const comboRe = /^([一二两三四五六七八九])十([一二两三四五六七八九])?$/;
     const m = str.match(comboRe);
@@ -2674,20 +2929,28 @@ datetimePickerModule.bind();
   }
 
   // 预处理：中文月份/日期 → 阿拉伯数字
-  // 例："八月十五号提醒我开会" → "8月15日提醒我开会"
-  //     "十二月三十一日" → "12月31日"
+  // 例："八月十五号提醒我开会" → "8月15提醒我开会"
+  //     "十二月三十一日" → "12月31"
+  //     "8/15提醒我吃饭" → "8月15提醒我吃饭"
   function convertChineseDate(text) {
+    // 斜杠日期：8/15、12/31 → 8月15、12月31
+    text = text.replace(/(\d{1,2})\/(\d{1,2})/g, '$1月$2');
     // 中文月份：X月（一月~十二月），如"八月"→"8月"、"十二月"→"12月"
     const cnMonthRe = /([一二两三四五六七八九十]+)月/g;
     text = text.replace(cnMonthRe, function (match, cnMonth) {
       const num = cnToNumber(cnMonth);
       return isNaN(num) ? match : (num + '月');
     });
-    // 中文日期：X号/X日（一号~三十一号），如"十五号"→"15日"、"三十一日"→"31日"
-    const cnDayRe = /([一二两三四五六七八九十]+)(号|日)/g;
+    // 中文日期：X号/X日（一号~三十一号），如"十五号"→"15"、"三十一日"→"31"
+    // 注意：前面不能是"周"（避免把"周五"中的"五"误转）
+    //       后面不能跟"点"（避免把"七点"中的"七"误转）
+    //       后面不能跟"刻"（避免把"一刻"中的"一"误转）
+    const cnDayRe = /(?<!周)([一二两三四五六七八九十]+)(?![点刻])(号|日)?/g;
     text = text.replace(cnDayRe, function (match, cnDay, suffix) {
+      // 只转换合理的日期数字（1-31），避免误转换其他中文数字
       const num = cnToNumber(cnDay);
-      return isNaN(num) ? match : (num + '日'); // 统一转为"日"，方便后续规则匹配
+      if (isNaN(num) || num < 1 || num > 31) return match;
+      return num + '';
     });
     return text;
   }
@@ -2721,6 +2984,7 @@ datetimePickerModule.bind();
   // 失败：返回 { text: 原文, remindAt: null, recurrence: null }
   function parseReminderFromText(rawText) {
     // 预处理：先把中文月份/日期转为阿拉伯数字（如"八月十五号"→"8月15日"）
+    // 但农历日期需要保留中文数字用于转换，所以先标记农历前缀
     let text = convertChineseDate(rawText.trim());
     let remindAt = null;
     let recurrence = null;   // 循环设置（每X 模式时自动填充）
@@ -2735,65 +2999,207 @@ datetimePickerModule.bind();
       let t = finalText.trim();
       // 清理残留的"提醒我/提醒/叫我"前缀，提取真正的动作
       t = t.replace(/^(提醒我|提醒|叫我)\s*/, '').trim();
+      // 清理末尾可能残留的"提醒我/提醒/叫我"
+      t = t.replace(/\s*(提醒我|提醒|叫我)$/, '').trim();
       // 如果剥离后为空但有"提醒我XXX"的动作，用动作作为文本
       if (!t && actionMatch) t = actionMatch[1];
       return { text: t || rawText, remindAt: ts, recurrence: recurrence };
     }
 
-    // ===== 规则 1：含"月""日"的明确日期 + 可选时间 =====
-    // 例：8月15日 8:00  或  8月15日
-    const dateRe = /(\d{1,2})月(\d{1,2})日(?:\s*(\d{1,2}):(\d{2}))?/;
+    // ===== 辅助函数：从文本开头解析时段词+时间 =====
+    // 支持："早上8点"、"下午3：30"、"晚上"（纯时段）、"8：30"（纯时间）
+    // 返回 { hour, min, matchedLength, period }
+    function parsePeriodAndTime(str) {
+      const periodMap = { '早上': 7, '早晨': 7, '上午': 9, '中午': 12, '下午': 15, '晚上': 19, '凌晨': 0 };
+      const periodOffset = { '早上': 0, '早晨': 0, '上午': 0, '中午': 12, '下午': 12, '晚上': 12, '凌晨': 0 };
+      let hour = 9, min = 0, length = 0, period = '';
+      // 先匹配时段词
+      const mPeriod = str.match(/^(早上|早晨|上午|中午|下午|晚上|凌晨)\s*/);
+      if (mPeriod) {
+        period = mPeriod[1];
+        hour = periodMap[period] || 9;
+        length = mPeriod[0].length;
+      }
+      // 再匹配具体时间（覆盖时段默认值）
+      // 支持格式：
+      //   数字+冒号：8:30、8：30、15:45
+      //   数字+点系列：8点、8点半、8点整、8点30分、8点30
+      //   中文+点系列：八点、八点半、八点整、九点一刻、八点二十分、八点二十
+      const remaining = str.slice(length);
+      let mTime = null;
+
+      // 尝试匹配：数字+冒号 (8:30, 8：30)
+      mTime = remaining.match(/^(\d{1,2})[：:](\d{2})/);
+      if (mTime) {
+        hour = parseInt(mTime[1], 10);
+        min = parseInt(mTime[2], 10) || 0;
+      } else {
+        // 尝试匹配：数字+点系列 (8点, 8点半, 8点整, 8点30分, 8点30)
+        // 注意：长的后缀放前面（点半、点整、点一刻），避免"点"先匹配导致"点半"被截断
+        mTime = remaining.match(/^(\d{1,2})(点半|点整|点一刻|点(\d{1,2})分?|点)/);
+        if (mTime) {
+          hour = parseInt(mTime[1], 10);
+          const suffix = mTime[2];
+          if (suffix === '点半') min = 30;
+          else if (suffix === '点整') min = 0;
+          else if (suffix === '点一刻') min = 15;
+          else if (suffix.startsWith('点')) min = parseInt(mTime[3] || '0', 10);  // mTime[3]是分钟数字
+          else min = 0;
+        } else {
+          // 尝试匹配：中文+点系列 (八点, 八点半, 八点整, 九点一刻, 八点二十分, 八点二十, 八点30分)
+          // 同样：长的后缀放前面
+          mTime = remaining.match(/^([一二两三四五六七八九十]+)(点半|点整|点一刻|点([一二两三四五六七八九十]+)分?|点(\d{1,2})分?|点)/);
+          if (mTime) {
+            hour = cnToNumber(mTime[1]);
+            const suffix = mTime[2];
+            if (suffix === '点半') min = 30;
+            else if (suffix === '点整') min = 0;
+            else if (suffix === '点一刻') min = 15;
+            else if (suffix.startsWith('点')) {
+              // 中文分钟或数字分钟 (mTime[3]是中文分钟, mTime[4]是数字分钟)
+              if (mTime[3]) min = cnToNumber(mTime[3]) || 0;
+              else if (mTime[4]) min = parseInt(mTime[4], 10);
+              else min = 0;
+            }
+            else min = 0;
+          }
+        }
+      }
+
+      if (mTime) {
+        // 有时段词且时间为 12 小时制（<12），加偏移转 24 小时制
+        if (period && hour < 12 && periodOffset[period] > 0) hour += periodOffset[period];
+        length += mTime[0].length;
+      }
+      return { hour, min, matchedLength: length, period };
+    }
+
+      // ===== 规则 0.5：农历日期（农历X月Y日 → 转换为阳历）=====
+    // 例：农历八月十五提醒我赏月、农历正月初一拜年、农历腊月三十除夕
+    // 注意：农历日期前面有"农历"或"阴历"前缀
+    // 支持"正月"=1月、"腊月"=12月、"闰X月"、"初一"~"初十"
+    // 因为 convertChineseDate 会把中文数字转成阿拉伯数字，所以这里用原始文本匹配
+    const rawTextTrimmed = rawText.trim();
+    const lunarRe = /(农历|阴历)\s*(闰)?(正|腊|[一二两三四五六七八九十廿]+)月(初[一二三四五六七八九十]|[一二两三四五六七八九十廿]+)(?:号|日)?/;
+    const mLunar = rawTextTrimmed.match(lunarRe);
+    if (mLunar) {
+      const isLeap = !!mLunar[2]; // 是否闰月
+      // 处理特殊月份名称："正月"=1月，"腊月"=12月
+      let lunarMonthStr = mLunar[3];
+      let lunarMonth;
+      if (lunarMonthStr === '正') lunarMonth = 1;
+      else if (lunarMonthStr === '腊') lunarMonth = 12;
+      else lunarMonth = cnToNumber(lunarMonthStr);
+      // 处理日期："初X"格式（初一~初十）
+      let lunarDayStr = mLunar[4];
+      let lunarDay;
+      if (lunarDayStr.startsWith('初')) {
+        // "初"后面的数字：初一=1, 初二=2, ..., 初十=10
+        const dayNum = cnToNumber(lunarDayStr.slice(1));
+        lunarDay = isNaN(dayNum) ? NaN : dayNum;
+      } else {
+        lunarDay = cnToNumber(lunarDayStr);
+      }
+      if (!isNaN(lunarMonth) && !isNaN(lunarDay) && lunarMonth >= 1 && lunarMonth <= 12 && lunarDay >= 1 && lunarDay <= 30) {
+        // 尝试用当前年份转换，如果已过则用下一年
+        const currentYear = now.getFullYear();
+        let solar = lunarToSolar(currentYear, lunarMonth, lunarDay, isLeap);
+        let d = new Date(solar.year, solar.month - 1, solar.day, 9, 0, 0);
+        // 解析农历日期后面的时段词+时间（从原始文本截取）
+        const afterLunar = rawTextTrimmed.slice(mLunar[0].length);
+        const pt = parsePeriodAndTime(afterLunar);
+        d.setHours(pt.hour, pt.min, 0, 0);
+        if (d.getTime() <= now.getTime()) {
+          // 今年已过，尝试明年
+          solar = lunarToSolar(currentYear + 1, lunarMonth, lunarDay, isLeap);
+          d = new Date(solar.year, solar.month - 1, solar.day, pt.hour, pt.min, 0);
+        }
+        remindAt = d.getTime();
+        // 从原始文本中截取农历日期之后的部分
+        const afterLunarRaw = rawTextTrimmed.slice(mLunar[0].length);
+        text = afterLunarRaw.slice(pt.matchedLength).trim();
+        return result(text, remindAt);
+      }
+    }
+
+    // ===== 规则 1：明确日期（X月Y日/号，"日/号"可选） + 可选时段/时间 =====
+    // 例：8月15日 8:00、8月15、8月15日八点、八月十五上午、8月15号下午3点
+    const dateRe = /(\d{1,2})月(\d{1,2})[日号]?\s*/;
     const m1 = text.match(dateRe);
     if (m1) {
       const month = parseInt(m1[1], 10);
       const day = parseInt(m1[2], 10);
-      const hour = m1[3] ? parseInt(m1[3], 10) : 9;   // 未给时间默认 9 点
-      const min = m1[4] ? parseInt(m1[4], 10) : 0;
-      const d = new Date(now.getFullYear(), month - 1, day, hour, min, 0);
+      // 日期后面可能跟时段词+时间，用辅助函数解析
+      const pt = parsePeriodAndTime(text.slice(m1[0].length));
+      const d = new Date(now.getFullYear(), month - 1, day, pt.hour, pt.min, 0);
       if (d.getTime() <= now.getTime()) d.setFullYear(d.getFullYear() + 1); // 已过则明年
       remindAt = d.getTime();
-      text = text.replace(dateRe, '').trim();
+      text = text.slice(m1[0].length + pt.matchedLength).trim();
       return result(text, remindAt);
     }
 
-    // ===== 规则 2："明天/后天/大后天" + 可选时间 =====
-    // 例：明天8:00、后天早上体检、大后天提醒我面试、明天七点
-    const futureDayRe = /(大后天|后天|明天)\s*(?:(\d{1,2}):(\d{2})|([一二两三四五六七八九十]+)点(?:半|一刻)?(\d{1,2})?分?|早上|早晨|上午|中午|下午|晚上|凌晨)?/;
+    // ===== 规则 1.5：纯日期（仅"日"部分，无月份）+ 可选时段/时间 =====
+    // 例：十五号、15号、15日、十五号下午 → 当月该日（已过则下月）
+    // 排除：后面跟"：/:"/"点"（时间）或"分钟/小时/天"（相对时间）的数字
+    const dayOnlyRe = /^(\d{1,2})号?日?\s*/;
+    const mDayOnly = text.match(dayOnlyRe);
+    if (mDayOnly && !text.includes('月') && !/^\d{1,2}[：:]/.test(text) && !/^\d{1,2}点/.test(text) && !/^\d{1,2}\s*(分钟|分|小时|时|天|周|星期)/.test(text)) {
+      const day = parseInt(mDayOnly[1], 10);
+      if (day >= 1 && day <= 31) {
+        const pt = parsePeriodAndTime(text.slice(mDayOnly[0].length));
+        const d = new Date(now.getFullYear(), now.getMonth(), day, pt.hour, pt.min, 0);
+        if (d.getTime() <= now.getTime()) d.setMonth(d.getMonth() + 1); // 已过则下月
+        remindAt = d.getTime();
+        text = text.slice(mDayOnly[0].length + pt.matchedLength).trim();
+        return result(text, remindAt);
+      }
+    }
+
+    // ===== 规则 1.6：今晚 + 可选时段/时间 =====
+    // 例：今晚提醒我吃饭、今晚8：30（→20:30）、今晚八点
+    const tonightRe = /今晚\s*/;
+    const mTonight = text.match(tonightRe);
+    if (mTonight) {
+      const pt = parsePeriodAndTime(text.slice(mTonight[0].length));
+      let hour, min;
+      if (pt.matchedLength > 0) {
+        // 有具体时间：如果 hour < 12，加 12 转 24 小时制（今晚默认晚上）
+        hour = pt.hour < 12 ? pt.hour + 12 : pt.hour;
+        min = pt.min;
+      } else {
+        // 没匹配到任何时段/时间，默认 19:00
+        hour = 19;
+        min = 0;
+      }
+      const d = new Date(now);
+      d.setHours(hour, min, 0, 0);
+      if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1); // 已过则明天
+      remindAt = d.getTime();
+      text = text.slice(mTonight[0].length + pt.matchedLength).trim();
+      return result(text, remindAt);
+    }
+
+    // ===== 规则 2："明天/后天/大后天" + 可选时段/时间 =====
+    // 例：明天8:00、明天早上8点、后天早上体检、大后天提醒我面试、明天七点
+    const futureDayRe = /(大后天|后天|明天)\s*/;
     const m2 = text.match(futureDayRe);
     if (m2) {
       const dayType = m2[1];
       const d = new Date(now);
-      // 计算天数偏移
       const dayOffset = dayType === '大后天' ? 3 : (dayType === '后天' ? 2 : 1);
       d.setDate(d.getDate() + dayOffset);
-      // 解析时间
-      if (m2[2]) {
-        // 数字时间：明天 8:00
-        d.setHours(parseInt(m2[2], 10), parseInt(m2[3], 10), 0, 0);
-      } else if (m2[4]) {
-        // 中文时间：明天七点、明天八点半
-        let hour = cnToNumber(m2[4]);
-        let min = 0;
-        if (m2[0].includes('半')) min = 30;
-        else if (m2[0].includes('一刻')) min = 15;
-        else if (m2[5]) min = parseInt(m2[5], 10);
-        d.setHours(hour, min, 0, 0);
-      } else if (m2[6]) {
-        // 时段词：早上/中午/晚上等
-        const periodMap = { '早上': 7, '早晨': 7, '上午': 9, '中午': 12, '下午': 15, '晚上': 19, '凌晨': 0 };
-        d.setHours(periodMap[m2[6]] || 9, 0, 0, 0);
-      } else {
-        // 无具体时间，默认 9:00
-        d.setHours(9, 0, 0, 0);
-      }
+      // 用辅助函数解析时段+时间
+      const pt = parsePeriodAndTime(text.slice(m2[0].length));
+      d.setHours(pt.hour, pt.min, 0, 0);
       remindAt = d.getTime();
-      text = text.replace(futureDayRe, '').trim();
+      text = text.slice(m2[0].length + pt.matchedLength).trim();
       return result(text, remindAt);
     }
 
-    // ===== 规则 3：星期/周（周一、下周一、周五晚上）=====
-    // 例：下周一提醒我交周报、周五晚上聚会、周三开会
-    const weekRe = /(上+|下+)?周?(周一|周二|周三|周四|周五|周六|周日|周天|星期天)\s*(?:(\d{1,2}):(\d{2})|([一二两三四五六七八九十]+)点(?:半|一刻)?(\d{1,2})?分?|(早上|早晨|上午|中午|下午|晚上|凌晨))?/;
+    // ===== 规则 3：星期/周（本/上/下 + 周X）+ 可选时段/时间 =====
+    // 例：下周一提醒我交周报、周五晚上聚会、本周五交作业、周三早上开会
+    // "本"=本周（默认），"上"=上周，"下"=下周
+    const weekRe = /(本+|上+|下+)?周?(周一|周二|周三|周四|周五|周六|周日|周天|星期天)\s*/;
     const mWeek = text.match(weekRe);
     if (mWeek) {
       const prefix = mWeek[1] || '';
@@ -2808,24 +3214,11 @@ datetimePickerModule.bind();
       if (prefix.includes('上') && diff <= 7) diff += 7;
       if (prefix.includes('下') && diff <= 7) diff += 7;
       d.setDate(d.getDate() + diff);
-      // 解析时间
-      if (mWeek[3]) {
-        d.setHours(parseInt(mWeek[3], 10), parseInt(mWeek[4], 10), 0, 0);
-      } else if (mWeek[5]) {
-        let hour = cnToNumber(mWeek[5]);
-        let min = 0;
-        if (mWeek[0].includes('半')) min = 30;
-        else if (mWeek[0].includes('一刻')) min = 15;
-        else if (mWeek[6]) min = parseInt(mWeek[6], 10);
-        d.setHours(hour, min, 0, 0);
-      } else if (mWeek[7]) {
-        const periodMap = { '早上': 7, '早晨': 7, '上午': 9, '中午': 12, '下午': 15, '晚上': 19, '凌晨': 0 };
-        d.setHours(periodMap[mWeek[7]] || 9, 0, 0, 0);
-      } else {
-        d.setHours(9, 0, 0, 0); // 默认 9:00
-      }
+      // 用辅助函数解析时段+时间
+      const pt = parsePeriodAndTime(text.slice(mWeek[0].length));
+      d.setHours(pt.hour, pt.min, 0, 0);
       remindAt = d.getTime();
-      text = text.replace(weekRe, '').trim();
+      text = text.slice(mWeek[0].length + pt.matchedLength).trim();
       return result(text, remindAt);
     }
 
@@ -2903,31 +3296,20 @@ datetimePickerModule.bind();
 
     // ===== 规则 6：时段 + 时间（早上8点、中午12点、晚上9点、早上八点）=====
     // 例：早上8点跑步、中午12点吃饭、晚上9点关灯、早上八点晨跑
-    // 新增：今天晚上八点半、今天下午三点
-    const periodTimeRe = /(今天|明天)?\s*(早上|早晨|上午|中午|下午|晚上|凌晨)\s*(?:(\d{1,2}):(\d{2})|(\d{1,2})点|([一二两三四五六七八九十]+)点(?:半|一刻)?(\d{1,2})?分?)/;
+    // 支持：今天/明天 + 时段 + 各种时间格式（8点半、8点30分、八点整、九点一刻等）
+    const periodTimeRe = /(今天|明天)?\s*(早上|早晨|上午|中午|下午|晚上|凌晨)\s*/;
     const mPt = text.match(periodTimeRe);
     if (mPt) {
       const dayPrefix = mPt[1];  // "今天"或"明天"（可选）
-      const period = mPt[2];     // 时段词
-      let hour, min;
-      if (mPt[3]) {
-        // 数字时间：早上 8:00
-        hour = parseInt(mPt[3], 10); min = parseInt(mPt[4], 10);
-      } else if (mPt[5]) {
-        // 数字+点：早上8点
-        hour = parseInt(mPt[5], 10); min = 0;
-      } else {
-        // 中文数字：早上八点、早上八点半
-        hour = cnToNumber(mPt[6]); min = 0;
-        if (mPt[0].includes('半')) min = 30;
-        else if (mPt[0].includes('一刻')) min = 15;
-        else if (mPt[7]) min = parseInt(mPt[7], 10);
-      }
+      const periodWord = mPt[2]; // 时段词（早上、下午等）
+      // 用辅助函数解析时段后的各种时间格式
+      const pt = parsePeriodAndTime(text.slice(mPt[0].length));
+      let hour = pt.hour;
+      const min = pt.min;
       // 根据时段词对小时进行偏移（12 小时制 → 24 小时制）
-      const periodOffset = { '早上': 0, '早晨': 0, '上午': 0, '中午': 12, '下午': 12, '晚上': 12, '凌晨': 0 };
-      if (hour < 12) {
-        const offset = periodOffset[period];
-        if (offset !== undefined && offset > 0) hour += offset;
+      const periodOffsetMap = { '早上': 0, '早晨': 0, '上午': 0, '中午': 12, '下午': 12, '晚上': 12, '凌晨': 0 };
+      if (hour < 12 && periodOffsetMap[periodWord] > 0) {
+        hour += periodOffsetMap[periodWord];
       }
       const d = new Date(now);
       // 处理"今天/明天"前缀
@@ -2941,37 +3323,100 @@ datetimePickerModule.bind();
         else if (!dayPrefix) d.setDate(d.getDate() + 1);
       }
       remindAt = d.getTime();
-      text = text.replace(periodTimeRe, '').trim();
+      text = text.slice(mPt[0].length + pt.matchedLength).trim();
       if (!text && actionMatch) text = actionMatch[1];
       return result(text, remindAt);
     }
 
-    // ===== 规则 7：中文数字时间（七点、八点半、九点一刻、十点二十）=====
-    // 例：七点提醒我洗澡、八点半提醒我睡觉
-    const cnTimeRe = /([一二两三四五六七八九十]+)点(?:半|一刻|(\d{1,2})分)?/;
-    const mCn = text.match(cnTimeRe);
-    if (mCn) {
-      let hour = cnToNumber(mCn[1]);
-      let min = 0;
-      if (mCn[0].includes('半')) min = 30;
-      else if (mCn[0].includes('一刻')) min = 15;
-      else if (mCn[2]) min = parseInt(mCn[2], 10);
+    // ===== 规则 6.5：纯时段词（无具体时间，单独使用）=====
+    // 例：上午提醒我吃饭、下午提醒我开会、晚上提醒我跑步、下午3点
+    // 默认时间：早上/早晨/上午=9:00、中午=12:00、下午=15:00、晚上=19:00、凌晨=0:00
+    const periodOnlyRe = /^(早上|早晨|上午|中午|下午|晚上|凌晨)\s*/;
+    const mPeriodOnly = text.match(periodOnlyRe);
+    if (mPeriodOnly && !/\d{1,2}月/.test(text)) {
+      // 用辅助函数解析时段+时间
+      const pt = parsePeriodAndTime(text.slice(mPeriodOnly[0].length));
+      // 如果辅助函数没匹配到任何内容，使用时段默认值
+      const hour = pt.matchedLength > 0 ? pt.hour : { '早上': 7, '早晨': 7, '上午': 9, '中午': 12, '下午': 15, '晚上': 19, '凌晨': 0 }[mPeriodOnly[1]] || 9;
+      const min = pt.matchedLength > 0 ? pt.min : 0;
       const d = new Date(now);
       d.setHours(hour, min, 0, 0);
       if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1); // 已过则明天
       remindAt = d.getTime();
-      text = text.replace(cnTimeRe, '').trim();
+      text = text.slice(mPeriodOnly[0].length + pt.matchedLength).trim();
+      return result(text, remindAt);
+    }
+
+    // ===== 智能时间推断：纯时间（无时段词，无日期）=====
+    // 支持各种格式：
+    //   中文数字：七点、八点半、九点一刻、八点二十分、八点二十
+    //   阿拉伯数字：8点半、8点30分、8点30、9点整、9点一刻、8:30
+    // 例：七点提醒我洗澡、八点半提醒我睡觉、8点30分提醒我吃饭
+    //
+    // 智能推断逻辑（上午说的优先上午，下午说的优先下午）：
+    //   1. 如果原始时间还没到 → 今天
+    //   2. 如果原始时间已过，加 12 小时（上午→下午）还没到 → 今天
+    //   3. 如果加 12 小时也过了 → 明天
+    // 例：下午 14:00 说"八点半" → 20:30（今天）；晚上 21:00 说"八点半" → 明天 8:30
+    function smartTimeResolve(hour, min) {
+      const d = new Date(now);
+      d.setHours(hour, min, 0, 0);
+      if (d.getTime() > now.getTime()) {
+        // 1) 原始时间还没到 → 直接用
+        return d;
+      }
+      // 2) 原始时间已过，尝试加 12 小时（上午→下午/晚上）
+      const d2 = new Date(now);
+      d2.setHours(hour + 12, min, 0, 0);
+      if (d2.getTime() > now.getTime() && hour + 12 < 24) {
+        return d2;
+      }
+      // 3) 加 12 小时也过了或超出 24 → 明天
+      d.setDate(d.getDate() + 1);
+      return d;
+    }
+
+    // ===== 规则 7：纯时间（中文格式）=====
+    const cnTimeRe = /^(\d{1,2}|[一二两三四五六七八九十]+)(点半|点整|点一刻|点(\d{1,2}|[一二两三四五六七八九十]+)分?|点)/;
+    const mCn = text.match(cnTimeRe);
+    if (mCn) {
+      let hour, min = 0;
+      const hourStr = mCn[1];
+      const suffix = mCn[2];
+      // 解析小时（中文或数字）
+      if (/^\d+$/.test(hourStr)) {
+        hour = parseInt(hourStr, 10);
+      } else {
+        hour = cnToNumber(hourStr);
+      }
+      // 解析分钟
+      if (suffix === '点半') min = 30;
+      else if (suffix === '点整') min = 0;
+      else if (suffix === '点一刻') min = 15;
+      else if (suffix.startsWith('点')) {
+        // 中文分钟或数字分钟 (mCn[3]是分钟部分)
+        if (mCn[3]) {
+          if (/^\d+$/.test(mCn[3])) {
+            min = parseInt(mCn[3], 10);
+          } else {
+            min = cnToNumber(mCn[3]) || 0;
+          }
+        }
+      }
+      const d = smartTimeResolve(hour, min);
+      remindAt = d.getTime();
+      text = text.slice(mCn[0].length).trim();
       if (!text && actionMatch) text = actionMatch[1];
       return result(text, remindAt);
     }
 
-    // ===== 规则 8：纯数字时间 "HH:MM"，默认今天（已过则明天）=====
-    const timeRe = /(\d{1,2}):(\d{2})/;
+    // ===== 规则 8：纯数字时间 "HH:MM" 或 "HH：MM"（全角冒号）=====
+    const timeRe = /(\d{1,2})[：:](\d{2})/;
     const m3 = text.match(timeRe);
     if (m3) {
-      const d = new Date(now);
-      d.setHours(parseInt(m3[1], 10), parseInt(m3[2], 10), 0, 0);
-      if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1); // 已过则明天
+      const hour = parseInt(m3[1], 10);
+      const min = parseInt(m3[2], 10);
+      const d = smartTimeResolve(hour, min);
       remindAt = d.getTime();
       text = text.replace(timeRe, '').trim();
       if (!text && actionMatch) text = actionMatch[1];
@@ -3356,7 +3801,10 @@ datetimePickerModule.bind();
     todo.recurrence = null;
     todo.completionCount = 0;
     todo.lastRemindAt = null;
+    todo.targetCount = null;
     cancelReminder(id);
+    // 清除缓存节点，强制重建 DOM（否则停止按钮不会消失）
+    nodeCache.delete(id);
     save();
     render();
   }

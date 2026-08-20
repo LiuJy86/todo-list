@@ -57,6 +57,18 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* 隐藏外层滚动条，只保留列表区域内部滚动 */
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* 隐藏 body 的滚动条（Chrome / Edge / Safari） */
+body::-webkit-scrollbar {
+  display: none;
+}
+/* 隐藏 body 的滚动条（Firefox） */
+html {
+  scrollbar-width: none;
 }
 
 /* ===== 页面头部 ===== */
@@ -175,6 +187,10 @@ main {
   max-width: 520px;
   margin: 0 auto;
   padding: 0 var(--spacing-md) var(--spacing-xl);
+  /* body 不滚动，由 main 撑开、list-area 内部滚动 */
+  height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
 }
 
 /* ===== 输入区 ===== */
@@ -689,6 +705,49 @@ main {
   border-color: var(--accent-color);
 }
 
+/* 循环次数输入（提醒几次后停止） */
+.dp-cycle-count-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: rgba(102, 126, 234, 0.06);
+  border-radius: 6px;
+}
+
+.dp-cycle-count-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.dp-cycle-count-input {
+  width: 48px;
+  padding: 3px 6px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  outline: none;
+  text-align: center;
+  background: #fff;
+}
+
+.dp-cycle-count-input:focus {
+  border-color: var(--accent-color);
+}
+
+.dp-cycle-count-input::placeholder {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.dp-cycle-count-unit {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* 操作按钮 — 右列底部 */
 .dp-actions {
   display: flex;
@@ -894,28 +953,8 @@ main {
   display: inline;
 }
 
-/* ===== 目标次数输入框 ===== */
-.target-count-input {
-  width: 60px;
-  padding: 8px 6px;
-  font-size: 13px;
-  text-align: center;
-  border: 2px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font-family: inherit;
-  outline: none;
-  transition: all var(--transition-fast);
-}
-.target-count-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
-}
-.target-count-input::placeholder {
-  color: var(--text-muted);
-  font-size: 11px;
-}
+/* ===== 循环次数输入框（已集成到循环提醒区） ===== */
+/* 旧独立输入框已移除，样式迁移至 .dp-cycle-count-input */
 
 /* ===== 双击编辑：原地输入框 ===== */
 .todo-edit-input {
@@ -935,47 +974,7 @@ main {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
 }
 
-/* ===== 目标计数器：显示执行进度 ===== */
-.todo-counter {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  margin-right: var(--spacing-sm);
-  flex-shrink: 0;
-}
-.counter-text {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent);
-  background: rgba(102, 126, 234, 0.1);
-  padding: 2px 8px;
-  border-radius: 10px;
-  border: 1px solid rgba(102, 126, 234, 0.25);
-}
-.counter-plus-btn {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--transition-fast);
-  line-height: 1;
-}
-.counter-plus-btn:hover {
-  background: var(--accent-hover);
-  transform: scale(1.15);
-}
-.counter-plus-btn:active {
-  transform: scale(0.95);
-}
+/* ===== 计数器样式已移除（次数功能已集成到循环提醒中） ===== */
 
 /* ===== 提醒徽章：紧贴事项文本右侧，按紧迫度变色 ===== */
 .reminder-badge {
@@ -1674,25 +1673,31 @@ body.electron .reminder-notice {
   }
 }
 
-/* 对话气泡 */
+/* 对话气泡 — 轻量不突兀 */
 .pet-bubble {
   position: absolute;
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%) scale(0);
-  margin-bottom: 12px;
-  padding: 8px 14px;
-  background: #fff;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  margin-bottom: 8px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   white-space: nowrap;
+  text-align: center;
   opacity: 0;
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.2s ease-out;
   pointer-events: none;
-  border: 1.5px solid rgba(102, 126, 234, 0.3);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  /* 气泡宽度自适应内容，不被截断 */
+  width: max-content;
+  max-width: none;
+  /* 层级高于桌宠本体，确保不被遮挡 */
+  z-index: 100;
 }
 
 .pet-bubble::after {
@@ -1708,6 +1713,32 @@ body.electron .reminder-notice {
 .pet-bubble.show {
   opacity: 1;
   transform: translateX(-50%) scale(1);
+}
+
+/* 史迪仔在左边缘时：气泡靠左对齐，避免超出视口 */
+.stitch-pet.near-left .pet-bubble {
+  left: 0;
+  transform: scale(0);
+}
+.stitch-pet.near-left .pet-bubble.show {
+  transform: scale(1);
+}
+.stitch-pet.near-left .pet-bubble::after {
+  left: 24px;
+}
+
+/* 史迪仔在右边缘时：气泡靠右对齐，避免超出视口 */
+.stitch-pet.near-right .pet-bubble {
+  left: auto;
+  right: 10px;
+  transform: scale(0);
+}
+.stitch-pet.near-right .pet-bubble.show {
+  transform: translateX(0) scale(1);
+}
+.stitch-pet.near-right .pet-bubble::after {
+  left: auto;
+  right: 24px;
 }
 
 /* 关闭按钮 */
@@ -1931,35 +1962,46 @@ body.electron .reminder-notice {
 .sticky-mode .stitch-pet,
 .sticky-mode .reminder-notice,
 .sticky-mode .guide-fab,
-.sticky-mode .github-fab,
-.sticky-mode .target-count-input {
+.sticky-mode .github-fab {
   display: none !important;
 }
 
-/* 置顶按钮 */
+/* 头部布局：标题居中，按钮组居右 */
 header {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.pin-btn {
+/* 头部按钮组：flex 横向排列，间距均匀 */
+.header-btns {
   position: absolute;
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.pin-btn {
   background: none;
   border: none;
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
-  opacity: 0.4;
-  transition: opacity 0.2s, transform 0.2s;
-  padding: 4px;
-  border-radius: 4px;
+  opacity: 0.45;
+  transition: opacity 0.2s, transform 0.2s, background 0.2s;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
 }
-/* 便签模式折叠按钮：在置顶按钮左边，不重叠 */
-#stickyCollapseBtn {
-  right: 50px;
+/* 「+」按钮激活态：蓝色高亮表示输入区已展开 */
+.pin-btn.active {
+  opacity: 1;
+  background: rgba(74, 144, 217, 0.15);
+  color: #4a90d9;
 }
 
 /* 便签模式折叠后：只显示标题栏，隐藏其他所有内容 */
@@ -1976,24 +2018,31 @@ header {
   padding: 8px 0;
   margin: 0;
 }
-/* 折叠时取消 body 最小高度限制 */
-.sticky-mode.sticky-collapsed {
+/* 便签模式：取消 body 的 min-height: 100vh 限制，让窗口可以随内容缩小 */
+.sticky-mode {
   min-height: auto !important;
+}
+
+/* 便签模式：隐藏外层滚动条，只保留列表区域内部滚动 */
+html.sticky-mode,
+body.sticky-mode {
+  overflow: hidden;
 }
 .pin-btn:hover {
   opacity: 1;
-  background: rgba(0,0,0,0.05);
+  background: rgba(0,0,0,0.06);
 }
-.pin-btn.active {
+/* 置顶按钮激活态：红色 + 旋转 */
+#pinBtn.active {
   opacity: 1;
   color: #e74c3c;
-  transform: translateY(-50%) rotate(-45deg);
+  transform: rotate(-45deg);
 }
 
-/* 便签模式下：标题缩小、居中 */
+/* 便签模式下：标题缩小、居中，四周留白 */
 .sticky-mode header {
-  padding: 8px 0;
-  margin-bottom: 4px;
+  padding: 10px 12px 6px;
+  margin-bottom: 0;
 }
 .sticky-mode header h1 {
   font-size: 16px;
@@ -2001,15 +2050,86 @@ header {
   margin: 0;
 }
 
-/* 便签模式下：列表区域更紧凑 */
+/* 列表区：内部滚动（普通模式下 main 高度固定，list-area 撑满剩余空间） */
+.list-area {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0; /* flex 子项需要这个才能正确滚动 */
+}
+
+/* 便签模式：覆盖普通模式的固定高度，恢复自适应 */
+.sticky-mode main {
+  height: auto;
+  display: block;
+}
 .sticky-mode .list-area {
-  max-height: calc(100vh - 60px);
+  overflow-y: visible;
+  max-height: none;
+  flex: none;
+  min-height: auto;
+}
+/* 便签模式内容溢出时：列表区域滚动 */
+.sticky-mode.is-overflow .list-area {
+  max-height: 500px;
   overflow-y: auto;
 }
 
-/* 便签模式下：整体布局紧凑 */
+/* 美化滚动条——平时淡隐，悬停时细条显示（通用，普通模式 + 便签模式共用） */
+.list-area::-webkit-scrollbar {
+  width: 4px;
+}
+.list-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+.list-area::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 2px;
+}
+.list-area:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* 便签模式下：四周留白，透气舒适 */
 .sticky-mode main {
-  padding: 4px 0;
+  padding: 12px 12px 24px 12px;
+}
+
+/* ======================== 便签模式按钮显示规则 ======================== */
+
+/* 便签模式下显示折叠和「+」按钮（通过父级 .header-bts 的 flex 自动横排） */
+.sticky-mode #stickyCollapseBtn,
+.sticky-mode #stickyAddToggleBtn {
+  display: inline-flex !important;
+}
+
+/* ======================== 便签模式展开的输入区 ======================== */
+
+/* 默认隐藏（JS 控制展开） */
+.sticky-input-area {
+  display: none;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(74,144,217,0.04), transparent);
+  border-bottom: 1px solid rgba(74, 144, 217, 0.12);
+}
+
+/* 输入框样式：清爽、圆润 */
+#stickyInput {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid rgba(74, 144, 217, 0.25);
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  background: #fff;
+}
+#stickyInput:focus {
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.12);
+}
+#stickyInput::placeholder {
+  color: #aab4c0;
 }
 
 /* 便签模式下：待办项更紧凑 */
@@ -2019,5 +2139,12 @@ header {
 }
 .sticky-mode .todo-text {
   font-size: 14px;
+}
+
+/* 便签模式下：收纳按钮更紧凑 */
+.sticky-mode .collapse-btn {
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
 }
 
