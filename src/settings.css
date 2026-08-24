@@ -9,18 +9,7 @@
   box-sizing: border-box;
 }
 
-/* ============================================
-   隐藏滚动条（保留滚动功能）
-   Electron/Chromium 的滚动条在 <html> 元素上
-   ============================================ */
-html {
-  scrollbar-width: none;         /* Firefox */
-  -ms-overflow-style: none;      /* IE/Edge */
-}
-
-html::-webkit-scrollbar {
-  display: none;                 /* Chrome/Safari/Edge */
-}
+/* 滚动条隐藏已全局定义在 style.css，无需重复 */
 
 body.settings-body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;

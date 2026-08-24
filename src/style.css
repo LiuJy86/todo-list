@@ -75,19 +75,24 @@ body {
   height: 100vh;
 }
 
-/* 隐藏 body 的滚动条（Chrome / Edge / Safari） */
-body::-webkit-scrollbar {
-  display: none;
-}
-/* 隐藏 body 的滚动条（Firefox） */
+/* ============================================
+   全局隐藏滚动条（所有页面统一）
+   body 和 html 双管齐下，覆盖所有场景
+   ============================================ */
 html {
-  scrollbar-width: none;
+  scrollbar-width: none;         /* Firefox */
+  -ms-overflow-style: none;      /* IE/Edge */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;                 /* Chrome/Safari/Edge */
 }
 
 /* ===== 页面头部 — Apple 胶囊徽章风格 ===== */
 header {
   text-align: center;
-  padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg);
+  padding: 20px var(--spacing-md) 18px;
   background: var(--bg-secondary);
   border-bottom: 0.5px solid var(--card-border);
   /* 隐藏原生标题栏后，header 作为可拖拽区域移动窗口 */
@@ -102,19 +107,19 @@ header h1 {
   font-size: 14px;
   font-weight: 600;
   color: var(--accent-color);
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
   background: rgba(0, 122, 255, 0.08);
   border-radius: 16px;
-  padding: 6px 14px;
+  padding: 7px 16px;
 }
 
-/* 副标题 — Apple 风格淡色说明文字 */
+/* 副标题 — Apple 风格淡色说明文字，与标题保持呼吸感 */
 .header-subtitle {
-  margin: 4px 0 0;
+  margin: 8px 0 0;
   font-size: 11px;
   font-weight: 400;
   color: var(--text-tertiary, #8E8E93);
-  letter-spacing: 0.2px;
+  letter-spacing: 0.3px;
 }
 /* 便签模式：隐藏副标题，保持紧凑 */
 .sticky-mode .header-subtitle {
