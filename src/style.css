@@ -84,28 +84,31 @@ html {
   scrollbar-width: none;
 }
 
-/* ===== 页面头部 — Apple 风格 ===== */
+/* ===== 页面头部 — Apple 胶囊徽章风格 ===== */
 header {
   text-align: center;
-  padding: var(--spacing-2xl) var(--spacing-md) var(--spacing-lg);
+  padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg);
   background: var(--bg-secondary);
   border-bottom: 0.5px solid var(--card-border);
 }
 
 header h1 {
-  font-size: 28px;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.5px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-color);
+  letter-spacing: -0.3px;
+  background: rgba(0, 122, 255, 0.08);
+  border-radius: 16px;
+  padding: 6px 14px;
 }
 
 /* emoji logo 保持原色 */
 .logo-emoji {
-  font-size: 24px;
+  font-size: 16px;
 }
 
 /* 操作指南悬浮入口（右下角 FAB） */
@@ -2192,9 +2195,11 @@ body.sticky-mode {
   border-bottom: 0.5px solid var(--card-border);
 }
 .sticky-mode header h1 {
-  font-size: 16px;
+  font-size: 13px;
   text-align: center;
   margin: 0;
+  padding: 5px 12px;
+  border-radius: 12px;
 }
 /* 【v2.14.0】便签模式：标题栏按钮区域不可拖拽（避免拖拽时误触按钮） */
 .sticky-mode .header-btns {
