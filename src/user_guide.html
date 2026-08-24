@@ -150,7 +150,7 @@
         <li><a href="#s3">3. 列表与收纳</a></li>
         <li><a href="#s4">4. 史迪奇桌宠</a></li>
         <li><a href="#s5">5. 网页版</a></li>
-        <li><a href="#s6">6. 桌面端</a></li>
+        <li><a href="#s6">6. 桌面端</a>（快捷键 / 设置 / 便签模式）</li>
         <li><a href="#s7">7. 常见问题</a></li>
       </ul>
     </div>
@@ -163,7 +163,7 @@
         <li><strong>完成事项：</strong>点击事项左侧的复选框，完成后自动沉到底部</li>
         <li><strong>取消完成：</strong>再点一次复选框，事项回到顶部</li>
         <li><strong>修改事项：</strong>双击事项文字进入编辑，按回车保存，按 Esc 取消</li>
-        <li><strong>删除事项：</strong>鼠标悬停事项，点击右侧删除按钮</li>
+        <li><strong>删除事项：</strong>鼠标悬停事项，点击右侧删除按钮直接删除（无确认）</li>
       </ul>
     </section>
 
@@ -231,11 +231,29 @@
     <!-- 6. 桌面端 -->
     <section class="guide-section" id="s6">
       <h2>6. 桌面端（Electron）</h2>
+
+      <p><strong>移动窗口：</strong>桌面端采用无边框设计，拖动标题区域即可移动窗口。</p>
+
+      <p><strong>全局快捷键：</strong></p>
       <ul>
-        <li><strong>便签模式：</strong>右键托盘图标勾选，窗口变成桌面便签</li>
+        <li><code>Alt+F</code>：快速显示/隐藏主窗口（默认，可自定义）</li>
+        <li><code>Alt+G</code>：切换便签模式（默认，可自定义）</li>
+      </ul>
+      <div class="tip">💡 可在「设置 → 快捷键」中自定义为其他组合键</div>
+
+      <p><strong>设置中心：</strong>右键托盘图标 → 「⚙️ 设置」进入，支持：</p>
+      <ul>
+        <li>开机自启动（开机后自动启动应用）</li>
+        <li>快捷键自定义（修改全局快捷键，立即生效并持久化）</li>
+        <li>检查更新（通过 GitHub 检查新版本）</li>
+      </ul>
+
+      <p><strong>便签模式：</strong>右键托盘图标勾选，窗口变成桌面便签（toolbar 类型，Windows+D 无法最小化）</p>
+      <ul>
         <li><strong>添加事项：</strong>标题栏「＋」按钮展开输入区，双击回车或按 Esc 收起</li>
-        <li><strong>折叠窗口：</strong>标题栏「▼」按钮</li>
+        <li><strong>折叠窗口：</strong>标题栏「▼」按钮，折叠后只显示标题栏</li>
         <li><strong>窗口置顶：</strong>标题栏 📌 按钮</li>
+        <li><strong>滚动列表：</strong>待办项较多时，在列表区域滚动查看更多</li>
       </ul>
     </section>
 
