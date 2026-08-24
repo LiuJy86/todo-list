@@ -431,6 +431,11 @@ ipcMain.on('open-external', function (_, url) {
   shell.openExternal(url);
 });
 
+// 获取应用版本号（从 package.json 读取）
+ipcMain.handle('get-app-version', function () {
+  return app.getVersion();
+});
+
 // 处理窗口置顶切换
 ipcMain.on('toggle-always-on-top', function () {
   if (!mainWindow) return;
@@ -479,6 +484,9 @@ function toggleStickyMode(enable) {
   if (isStickyMode === enable) return;
   isStickyMode = enable;
 
+  // 保存旧窗口引用（稍后销毁）
+  const oldWindow = mainWindow;
+
   if (enable) {
     // 进入便签模式：用 toolbar 类型重建窗口（Windows+D 无法最小化）
     const { screen } = require('electron');
@@ -495,14 +503,7 @@ function toggleStickyMode(enable) {
       posY = 10;
     }
 
-    // 保存旧窗口的 URL，重建后恢复
-    const oldUrl = mainWindow.webContents.getURL();
-
-    // 销毁旧窗口
-    mainWindow.destroy();
-
-    // 创建 toolbar 类型窗口（不受 Windows+D 影响）
-    // minHeight 设小，允许便签模式根据内容自适应高度
+    // 先创建新窗口（不显示），避免空档期闪烁
     mainWindow = new BrowserWindow({
       width: 480,
       height: 760,
@@ -510,6 +511,7 @@ function toggleStickyMode(enable) {
       minHeight: 80,
       x: posX,
       y: posY,
+      show: false,  // 初始不显示，等加载完成后再淡入
       title: 'ToDoList',
       icon: getIconPath(),
       autoHideMenuBar: true,
@@ -526,7 +528,7 @@ function toggleStickyMode(enable) {
     // 重新加载页面
     mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
 
-    // 页面加载完成后淡入显示并通知进入便签模式
+    // 页面加载完成后：淡入新窗口 + 销毁旧窗口（无缝衔接）
     mainWindow.webContents.on('did-finish-load', () => {
       mainWindow.webContents.send('sticky-mode', true);
       // 淡入动画：从透明到不透明
@@ -534,10 +536,14 @@ function toggleStickyMode(enable) {
       mainWindow.show();
       let opacity = 0;
       const fadeIn = setInterval(() => {
-        opacity += 0.15;
+        opacity += 0.2;
         if (opacity >= 1) {
           mainWindow.setOpacity(1);
           clearInterval(fadeIn);
+          // 淡入完成后销毁旧窗口
+          if (oldWindow && !oldWindow.isDestroyed()) {
+            oldWindow.destroy();
+          }
         } else {
           mainWindow.setOpacity(opacity);
         }
@@ -561,16 +567,12 @@ function toggleStickyMode(enable) {
 
   } else {
     // 退出便签模式：恢复普通窗口
-    const oldUrl = mainWindow.webContents.getURL();
     const [posX, posY] = mainWindow.getPosition();
 
     // 保存当前位置
     stickyPosition = { x: posX, y: posY };
 
-    // 销毁 toolbar 窗口
-    mainWindow.destroy();
-
-    // 创建普通窗口
+    // 先创建新窗口（不显示），避免空档期闪烁
     mainWindow = new BrowserWindow({
       width: 480,
       height: 760,
@@ -578,6 +580,7 @@ function toggleStickyMode(enable) {
       minHeight: 520,
       x: posX,
       y: posY,
+      show: false,  // 初始不显示，等加载完成后再淡入
       title: 'ToDoList',
       icon: getIconPath(),
       autoHideMenuBar: true,
@@ -593,7 +596,7 @@ function toggleStickyMode(enable) {
     // 重新加载页面
     mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
 
-    // 页面加载完成后淡入显示并通知退出便签模式
+    // 页面加载完成后：淡入新窗口 + 销毁旧窗口（无缝衔接）
     mainWindow.webContents.on('did-finish-load', () => {
       mainWindow.webContents.send('sticky-mode', false);
       // 淡入动画
@@ -601,10 +604,14 @@ function toggleStickyMode(enable) {
       mainWindow.show();
       let opacity = 0;
       const fadeIn = setInterval(() => {
-        opacity += 0.15;
+        opacity += 0.2;
         if (opacity >= 1) {
           mainWindow.setOpacity(1);
           clearInterval(fadeIn);
+          // 淡入完成后销毁旧窗口
+          if (oldWindow && !oldWindow.isDestroyed()) {
+            oldWindow.destroy();
+          }
         } else {
           mainWindow.setOpacity(opacity);
         }

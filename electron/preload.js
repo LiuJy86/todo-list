@@ -53,5 +53,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 打开外部链接（通过系统默认浏览器）
   openExternal: function (url) {
     ipcRenderer.send('open-external', url);
+  },
+
+  // 获取当前应用版本号（从 package.json 读取）
+  getVersion: function () {
+    return ipcRenderer.invoke('get-app-version');
   }
 });

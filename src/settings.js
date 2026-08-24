@@ -205,13 +205,23 @@ document.addEventListener('click', function (e) {
 // 检查更新（v2.18.0）
 // 方案：请求 GitHub API 获取最新版本，与当前版本比对
 // ============================================
-const CURRENT_VERSION = '2.17.0';  // 当前应用版本
+// 版本号从 package.json 动态读取（通过 Electron IPC），不再硬编码
+let CURRENT_VERSION = '0.0.0';  // 占位，实际值在 initUpdateSection 中异步获取
 const GITHUB_API_URL = 'https://api.github.com/repos/LiuJy86/todo-list/releases/latest';
 const GITHUB_RELEASES_URL = 'https://github.com/LiuJy86/todo-list/releases/latest';
 
-function initUpdateSection() {
+async function initUpdateSection() {
   const btn = document.getElementById('checkUpdateBtn');
   const status = document.getElementById('updateStatus');
+
+  // 从主进程获取真实版本号（package.json 中的 version）
+  if (window.electronAPI && window.electronAPI.getVersion) {
+    try {
+      CURRENT_VERSION = await window.electronAPI.getVersion();
+    } catch (e) {
+      console.error('获取版本号失败:', e);
+    }
+  }
 
   // 显示当前版本
   document.getElementById('versionInfo').textContent = 'v' + CURRENT_VERSION;
