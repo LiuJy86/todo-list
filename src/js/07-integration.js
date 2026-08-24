@@ -80,22 +80,25 @@ function updateStickyTitle() {
   if (!h1) return;
   var total = todos.length;
   var done = todos.filter(function (t) { return t.done; }).length;
-  var indicator = document.querySelector('.sticky-indicator');
   if (document.body.classList.contains('sticky-mode')) {
-    // 便签模式：显示 📌 指示器 + 计数
-    if (indicator) indicator.style.display = 'inline';
+    // 便签模式：显示进度胶囊
+    var percent = total > 0 ? Math.round((done / total) * 100) : 0;
+    var progressHtml = '<span class="sticky-progress">' +
+      '<span class="sticky-progress-bar"><span class="sticky-progress-fill" style="width:' + percent + '%"></span></span>' +
+      '<span class="sticky-progress-text">' + percent + '%</span>' +
+      '</span>';
     if (total === 0) {
-      h1.innerHTML = '<span class="logo-emoji">✅</span> <span class="sticky-indicator" style="display:inline;">📌</span> ToDoList';
+      h1.innerHTML = 'ToDoList';
     } else if (stickyCollapsed) {
-      // 折叠状态：显示完成进度 ✓X/Y
-      h1.innerHTML = '<span class="logo-emoji">✅</span> <span class="sticky-indicator" style="display:inline;">📌</span> ToDoList ✓' + done + '/' + total;
+      // 折叠状态：显示进度胶囊
+      h1.innerHTML = 'ToDoList' + progressHtml;
     } else {
-      // 展开状态：显示总待办数
-      h1.innerHTML = '<span class="logo-emoji">✅</span> <span class="sticky-indicator" style="display:inline;">📌</span> ToDoList (' + total + '项待办)';
+      // 展开状态：显示进度胶囊
+      h1.innerHTML = 'ToDoList' + progressHtml;
     }
   } else {
-    // 普通模式：隐藏指示器，恢复原标题
-    h1.innerHTML = '<span class="logo-emoji">✅</span> <span class="sticky-indicator" style="display:none;">📌</span> ToDoList';
+    // 普通模式：纯文字标题
+    h1.innerHTML = 'ToDoList';
   }
 }
 
@@ -450,15 +453,10 @@ function wrappedToggleTodo(id) {
   }
 }
 
-// 包装 deleteTodo：确认 → 动画删除 → 表情 + toast 反馈
+// 包装 deleteTodo：动画删除 → 表情 + toast 反馈（不再弹窗确认）
 function wrappedDeleteTodo(id) {
   const todo = todos.find(function (t) { return t.id === id; });
-  // 【v2.13.0】删除前确认，防止误操作
-  var confirmMsg = todo ? '确定要删除「' + todo.text + '」吗？' : '确定要删除吗？';
-  if (!window.confirm(confirmMsg)) {
-    return; // 用户取消，不执行删除
-  }
-  deleteTodo(id);  // 调用原始函数（含删除动画）
+  deleteTodo(id);  // 直接执行删除（含动画）
   if (window.petMood) {
     if (todo && todo.done) {
       window.petMood.angry(); // 删除已完成的 → 生气
