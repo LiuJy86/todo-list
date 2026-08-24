@@ -10,31 +10,16 @@
 }
 
 /* ============================================
-   滚动条美化（同时处理 html 和 body）
+   隐藏滚动条（保留滚动功能）
    Electron/Chromium 的滚动条在 <html> 元素上
    ============================================ */
 html {
-  /* 美化滚动条：macOS 风格极细淡色 */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(139, 122, 155, 0.3) transparent;
-  -ms-overflow-style: none;
+  scrollbar-width: none;         /* Firefox */
+  -ms-overflow-style: none;      /* IE/Edge */
 }
 
 html::-webkit-scrollbar {
-  width: 4px;
-}
-
-html::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-html::-webkit-scrollbar-thumb {
-  background: rgba(139, 122, 155, 0.3);
-  border-radius: 4px;
-}
-
-html::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 122, 155, 0.5);
+  display: none;                 /* Chrome/Safari/Edge */
 }
 
 body.settings-body {
