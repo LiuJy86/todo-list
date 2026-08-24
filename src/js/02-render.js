@@ -193,9 +193,19 @@ function adjustStickyWindowHeight() {
 
       // 如果高度变化小于阈值，不调整（防止窗口持续微小变化）
       if (lastAppliedHeight > 0 && Math.abs(targetHeight - lastAppliedHeight) < HEIGHT_THRESHOLD) {
-        return;
+        // 但仍需检查是否溢出（内容动态变化时）
+        const isOverflow = contentHeight > MAX_HEIGHT;
+        const hasClass = document.body.classList.contains('is-overflow');
+        if (isOverflow === hasClass) return; // 状态没变，跳过
       }
       lastAppliedHeight = targetHeight;
+
+      // 内容超出最大高度时，添加 is-overflow 类启用列表区域滚动
+      if (contentHeight > MAX_HEIGHT) {
+        document.body.classList.add('is-overflow');
+      } else {
+        document.body.classList.remove('is-overflow');
+      }
 
       window.electronAPI.resizeWindow(fixedWidth, targetHeight);
     });

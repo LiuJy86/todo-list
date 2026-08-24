@@ -2287,19 +2287,13 @@ body.sticky-mode {
   overflow-y: auto;
 }
 
-/* 美化滚动条 — Apple 风格极简细条 */
+/* 隐藏列表区域滚动条（全局统一） */
+.list-area {
+  scrollbar-width: none;         /* Firefox */
+  -ms-overflow-style: none;      /* IE/Edge */
+}
 .list-area::-webkit-scrollbar {
-  width: 6px;
-}
-.list-area::-webkit-scrollbar-track {
-  background: transparent;
-}
-.list-area::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 3px;
-}
-.list-area:hover::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.25);
+  display: none;                 /* Chrome/Safari/Edge */
 }
 
 /* 便签模式下：四周留白，透气舒适（底部留更多空白，有呼吸感） */
