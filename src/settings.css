@@ -15,6 +15,13 @@ body.settings-body {
   min-height: 100vh;
   color: #333;
   overflow-y: auto;
+  /* 隐藏滚动条（保留滚动功能） */
+  scrollbar-width: none;         /* Firefox */
+  -ms-overflow-style: none;      /* IE/Edge */
+}
+
+body.settings-body::-webkit-scrollbar {
+  display: none;                 /* Chrome/Safari/Edge */
 }
 
 /* 设置容器 */
