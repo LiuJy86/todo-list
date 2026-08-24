@@ -4,6 +4,41 @@
 
 ---
 
+## [v2.21.0] - 2026-08-24
+
+### 优化 (Improved) — 标题设计与视觉层次
+
+1. **标题简化**
+   - 移除标题中的 ✅ 和 📌 emoji，改为纯文字 `ToDoList`
+   - 更干净、更专业的视觉呈现
+   - 文件：`src/index.html`、`src/js/07-integration.js`
+
+2. **新增副标题**
+   - 标题下方新增 `高效待办 · 轻松管理` 副标题
+   - Apple 风格淡色说明文字（#8E8E93）
+   - 便签模式下自动隐藏副标题，保持紧凑
+   - 文件：`src/index.html`、`src/style.css`（`.header-subtitle`）
+
+3. **便签模式进度胶囊**
+   - 标题旁新增渐变进度胶囊，显示完成百分比
+   - 绿色渐变填充（#34C759），固定宽度不变形
+   - 进度变化时 0.3s 平滑过渡动画
+   - 文件：`src/style.css`（`.sticky-progress`）、`src/js/07-integration.js`（`updateStickyTitle`）
+
+4. **标题区域呼吸感优化**
+   - 增加标题栏内边距（20px 上 / 18px 下）
+   - 标题与副标题间距从 4px 增加到 8px
+   - 胶囊内边距微调，整体更舒展
+   - 文件：`src/style.css`
+
+### 核心文件
+
+- `src/index.html`：标题结构简化、新增副标题元素
+- `src/style.css`：副标题样式、进度胶囊、标题间距优化
+- `src/js/07-integration.js`：`updateStickyTitle` 函数重构，支持进度胶囊
+
+---
+
 ## [v2.18.0] - 2026-08-24
 
 ### 新增 (Added) — 桌面端设置功能
