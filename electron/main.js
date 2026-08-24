@@ -516,6 +516,7 @@ function toggleStickyMode(enable) {
       title: 'ToDoList',
       icon: getIconPath(),
       autoHideMenuBar: true,
+      titleBarStyle: 'hidden',     // 隐藏原生标题栏，与主窗口一致
       backgroundColor: '#F2F2F7',
       type: 'toolbar',  // 关键：toolbar 类型不受 Windows+D 影响
       webPreferences: {
@@ -571,6 +572,7 @@ function toggleStickyMode(enable) {
       title: 'ToDoList',
       icon: getIconPath(),
       autoHideMenuBar: true,
+      titleBarStyle: 'hidden',     // 隐藏原生标题栏，与主窗口一致
       backgroundColor: '#F2F2F7',
       webPreferences: {
         contextIsolation: true,
