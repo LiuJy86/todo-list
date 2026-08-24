@@ -450,6 +450,11 @@ function createTodoElement(todo) {
       deleteTodo(todo.id);
     }
   });
+  // 悬停删除按钮时隐藏详细 tooltip，避免干扰操作
+  deleteBtn.addEventListener('mouseenter', hideAllTooltips);
+  deleteBtn.addEventListener('mouseleave', function () {
+    // 离开后如果仍在 li 内，可重新显示（由 li 的 mouseenter 处理）
+  });
 
   // 【长文本展开/收起】文字超过 3 行时添加展开按钮
   // 通过比较 scrollHeight 和 clientHeight 判断是否被截断
@@ -475,6 +480,19 @@ function createTodoElement(todo) {
 
 // ---------- 4.1.x 时间轴 tooltip（JS 动态创建，挂载到 body 避免 overflow 裁剪） ----------
 
+// 全局 tooltip 追踪：当前显示的 tooltip 元素数组
+const activeTooltips = [];
+
+// 隐藏所有当前显示的 tooltip（用于悬停按钮等交互元素时）
+function hideAllTooltips() {
+  while (activeTooltips.length > 0) {
+    const el = activeTooltips.pop();
+    if (el && el.parentNode) {
+      el.remove();
+    }
+  }
+}
+
 // 通用 tooltip 附件函数：JS 动态创建，position: fixed 脱离滚动容器裁剪
 function attachTooltip(element, text) {
   let tooltipEl = null;
@@ -485,6 +503,7 @@ function attachTooltip(element, text) {
     tooltipEl.className = 'js-tooltip';
     tooltipEl.textContent = text;
     document.body.appendChild(tooltipEl);
+    activeTooltips.push(tooltipEl);
 
     const rect = element.getBoundingClientRect();
     const tooltipRect = tooltipEl.getBoundingClientRect();
@@ -505,6 +524,8 @@ function attachTooltip(element, text) {
 
   function hideTooltip() {
     if (tooltipEl) {
+      const idx = activeTooltips.indexOf(tooltipEl);
+      if (idx !== -1) activeTooltips.splice(idx, 1);
       tooltipEl.remove();
       tooltipEl = null;
     }
