@@ -145,11 +145,20 @@ function render() {
   // 保存数据
   save();
 
+  // 【v2.14.0】便签模式：每次渲染后更新标题（待办计数 / 完成进度）
+  if (typeof updateStickyTitle === 'function') {
+    updateStickyTitle();
+  }
+
   // 便签模式：每次渲染后根据内容自适应窗口高度
   adjustStickyWindowHeight();
 }
 
 // 便签模式窗口高度自适应：有多少待办，窗口就有多大
+// 使用防抖 + 阈值判断，避免连续微小变化导致窗口持续缩小
+let lastAppliedHeight = 0; // 上次应用的高度，用于判断是否需要更新
+const HEIGHT_THRESHOLD = 8; // 高度变化小于 8px 时不调整，避免无限缩小
+
 function adjustStickyWindowHeight() {
   // 只在便签模式且未折叠时调整
   if (!document.body.classList.contains('sticky-mode')) return;
@@ -159,25 +168,35 @@ function adjustStickyWindowHeight() {
   // 双重 requestAnimationFrame：等浏览器完成样式计算和布局后再测量
   requestAnimationFrame(function () {
     requestAnimationFrame(function () {
-      // 测量 todoList 容器的 offsetHeight（包含所有子元素、padding）
-      const todoList = document.getElementById('todoList');
-      const listHeight = todoList ? todoList.offsetHeight : 0;
+      // 直接测量 main 元素的总高度（包含 padding 和所有子元素）
+      const mainEl = document.querySelector('main');
+      const mainHeight = mainEl ? mainEl.scrollHeight : 0;
 
       // header 高度（标题栏）
       const header = document.querySelector('header');
       const headerHeight = header ? header.offsetHeight : 40;
 
-      // 计算总高度：header + 列表 + 40px 留白（确保内容完整显示）
-      const EXTRA_PADDING = 40;
-      const contentHeight = headerHeight + listHeight + EXTRA_PADDING;
+      // 总高度 = header + main（已含 padding），再加少量呼吸空间
+      const BREATH_SPACE = 8;
+      const contentHeight = headerHeight + mainHeight + BREATH_SPACE;
 
       // 计算目标高度，设置上下限
       const MIN_HEIGHT = 80;      // 最小高度：只显示标题栏
       const MAX_HEIGHT = 600;     // 最大高度：防止窗口过高，超出部分滚动
-      const targetHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, contentHeight));
+      const rawHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, contentHeight));
 
-      // 宽度固定为进入便签模式时的宽度，不随内容变化
+      // 取整到整数像素，避免亚像素渲染导致的微小差异
+      const targetHeight = Math.round(rawHeight);
+
+      // 宽度固定为进入便签模式时记录的宽度，折叠/展开时不变化
       const fixedWidth = window.stickyModeWidth || 480;
+
+      // 如果高度变化小于阈值，不调整（防止窗口持续微小变化）
+      if (lastAppliedHeight > 0 && Math.abs(targetHeight - lastAppliedHeight) < HEIGHT_THRESHOLD) {
+        return;
+      }
+      lastAppliedHeight = targetHeight;
+
       window.electronAPI.resizeWindow(fixedWidth, targetHeight);
     });
   });

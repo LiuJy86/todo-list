@@ -38,12 +38,15 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
     if (enabled) {
       document.body.classList.add('sticky-mode');
       document.documentElement.classList.add('sticky-mode');
-      // 记录进入便签模式时的宽度，后续自适应时保持宽度不变
-      window.stickyModeWidth = window.innerWidth;
+      // 记录进入便签模式时的宽度（使用 clientWidth，不含滚动条）
+      // 注意：不用 window.innerWidth，因为它会随滚动条出现/变化
+      window.stickyModeWidth = document.documentElement.clientWidth || 480;
       // 便签模式：显示折叠按钮和「+」按钮
       var collapseBtn = document.getElementById('stickyCollapseBtn');
       if (collapseBtn) collapseBtn.style.display = 'inline-block';
       if (addToggleBtn) addToggleBtn.style.display = 'inline-block';
+      // 【v2.14.0】更新标题（显示便签指示器 + 待办计数）
+      updateStickyTitle();
       // 重新渲染：清理未完成收纳按钮、刷新列表
       render();
     } else {
@@ -60,13 +63,40 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
         addToggleBtn.style.display = 'none';
         addToggleBtn.classList.remove('active');
       }
-      if (stickyInputArea) stickyInputArea.style.display = 'none';
+      if (stickyInputArea) stickyInputArea.classList.remove('show');
       stickyCollapsed = false;
       document.body.classList.remove('sticky-collapsed');
+      // 【v2.14.0】更新标题（恢复原标题）
+      updateStickyTitle();
       // 重新渲染：恢复普通模式的收纳按钮
       render();
     }
   });
+}
+
+// 【v2.14.0】更新便签模式标题（显示待办计数 / 完成进度）
+function updateStickyTitle() {
+  var h1 = document.querySelector('header h1');
+  if (!h1) return;
+  var total = todos.length;
+  var done = todos.filter(function (t) { return t.done; }).length;
+  var indicator = document.querySelector('.sticky-indicator');
+  if (document.body.classList.contains('sticky-mode')) {
+    // 便签模式：显示 📌 指示器 + 计数
+    if (indicator) indicator.style.display = 'inline';
+    if (total === 0) {
+      h1.innerHTML = '<span class="logo-emoji">✅</span> <span class="sticky-indicator" style="display:inline;">📌</span> ToDoList';
+    } else if (stickyCollapsed) {
+      // 折叠状态：显示完成进度 ✓X/Y
+      h1.innerHTML = '<span class="logo-emoji">✅</span> <span class="sticky-indicator" style="display:inline;">📌</span> ToDoList ✓' + done + '/' + total;
+    } else {
+      // 展开状态：显示总待办数
+      h1.innerHTML = '<span class="logo-emoji">✅</span> <span class="sticky-indicator" style="display:inline;">📌</span> ToDoList (' + total + '项待办)';
+    }
+  } else {
+    // 普通模式：隐藏指示器，恢复原标题
+    h1.innerHTML = '<span class="logo-emoji">✅</span> <span class="sticky-indicator" style="display:none;">📌</span> ToDoList';
+  }
 }
 
 // 便签模式折叠按钮：点击折叠/展开整个窗口
@@ -75,26 +105,45 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
   if (!collapseBtn) return;
   collapseBtn.addEventListener('click', function () {
     stickyCollapsed = !stickyCollapsed;
+    var addToggleBtn = document.getElementById('stickyAddToggleBtn');
+    // 使用进入便签模式时记录的固定宽度，折叠/展开时宽度不变
+    const fixedWidth = window.stickyModeWidth || 480;
     if (stickyCollapsed) {
-      // 折叠：记住当前宽度，高度缩到 80px
-      stickyWidthBeforeCollapse = window.innerWidth;
+      // 折叠：先收起输入区，再隐藏内容 + 缩窄窗口（与 CSS 动画同步）
+      lastAppliedHeight = 0; // 重置高度记录，下次展开时重新计算
+      // 收起输入区（如果有展开的话）
+      if (addToggleBtn) {
+        addToggleBtn.classList.remove('active');
+      }
+      var inputArea = document.getElementById('stickyInputArea');
+      if (inputArea) {
+        inputArea.classList.remove('show');
+        setTimeout(function () {
+          if (!inputArea.classList.contains('show')) inputArea.style.display = 'none';
+        }, 300);
+      }
+      // 添加折叠 class（CSS 动画：max-height → 0, opacity → 0）
       document.body.classList.add('sticky-collapsed');
       if (window.electronAPI && window.electronAPI.resizeWindow) {
-        window.electronAPI.resizeWindow(stickyWidthBeforeCollapse, 80);
+        window.electronAPI.resizeWindow(fixedWidth, 80);
       }
       collapseBtn.textContent = '▲';
       collapseBtn.title = '展开窗口';
+      // 【v2.14.0】折叠时更新标题（显示完成进度）
+      updateStickyTitle();
     } else {
-      // 展开：根据内容自适应高度（不再固定 760px）
+      // 展开：先显示内容，再调整窗口高度
       document.body.classList.remove('sticky-collapsed');
-      // 先恢复宽度，高度会在 render 后的 adjustStickyWindowHeight 里自适应
+      // 先恢复到一个较小高度，让内容显示出来
       if (window.electronAPI && window.electronAPI.resizeWindow) {
-        window.electronAPI.resizeWindow(stickyWidthBeforeCollapse, 80);
+        window.electronAPI.resizeWindow(fixedWidth, 80);
       }
       collapseBtn.textContent = '▼';
       collapseBtn.title = '折叠窗口';
-      // 等 DOM 更新后，根据内容调整高度
-      setTimeout(adjustStickyWindowHeight, 50);
+      // 【v2.14.0】展开时更新标题（显示待办计数）
+      updateStickyTitle();
+      // 等 CSS 动画展开后，根据内容自适应高度
+      setTimeout(adjustStickyWindowHeight, 350);
     }
   });
 })();
@@ -110,12 +159,18 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
   var lastEnterTime = 0;
   var DOUBLE_ENTER_INTERVAL = 400; // 400 毫秒内连按两次回车视为「双击」
 
-  // 收起输入区
+  // 收起输入区（动画结束后清除 inline display，避免与 CSS 动画冲突）
   function collapseInput() {
-    inputArea.style.display = 'none';
+    inputArea.classList.remove('show');
     addToggleBtn.classList.remove('active');
     stickyInput.value = '';
     lastEnterTime = 0;
+    // 动画结束后隐藏元素（与 CSS transition 时长 0.3s 一致）
+    setTimeout(function () {
+      if (!inputArea.classList.contains('show')) {
+        inputArea.style.display = 'none';
+      }
+    }, 300);
   }
 
   // 执行添加：读取输入 → 推入数组 → 渲染 → 清空
@@ -142,6 +197,13 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
     });
     // 重新渲染（render 内部会自动 save + 调整便签窗口高度）
     render();
+    // 【v2.14.0】添加成功反馈：输入框绿色边框闪烁
+    stickyInput.classList.add('success-flash');
+    setTimeout(function () {
+      stickyInput.classList.remove('success-flash');
+    }, 400);
+    // 【v2.14.0】更新标题（待办计数变化）
+    updateStickyTitle();
     // 清空输入框并保持聚焦
     stickyInput.value = '';
     stickyInput.focus();
@@ -149,16 +211,18 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
 
   // 点击标题栏「+」按钮：展开/收起输入区
   addToggleBtn.addEventListener('click', function () {
-    if (inputArea.style.display === 'none') {
-      // 展开
-      inputArea.style.display = 'block';
+    if (!inputArea.classList.contains('show')) {
+      // 展开：先清除 inline display，再加 CSS class 触发动画
+      inputArea.style.display = '';
+      // 用 requestAnimationFrame 确保 display 生效后再加 class，动画才能触发
+      requestAnimationFrame(function () {
+        inputArea.classList.add('show');
+      });
       addToggleBtn.classList.add('active'); // 高亮按钮
       stickyInput.focus();
     } else {
       // 收起
-      inputArea.style.display = 'none';
-      addToggleBtn.classList.remove('active');
-      stickyInput.value = '';
+      collapseInput();
     }
   });
 
@@ -180,6 +244,26 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
     // 按 Escape 收起输入区
     if (e.key === 'Escape') {
       collapseInput();
+    }
+  });
+})();
+
+// 【v2.14.0】便签模式：双击 Esc 退出便签模式
+(function () {
+  var lastEscTime = 0;
+  var DOUBLE_ESC_INTERVAL = 400; // 400 毫秒内按两次 Esc 视为「双击」
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && document.body.classList.contains('sticky-mode')) {
+      var now = Date.now();
+      if (now - lastEscTime < DOUBLE_ESC_INTERVAL) {
+        // 双击 Esc → 退出便签模式
+        if (window.electronAPI && window.electronAPI.exitStickyMode) {
+          window.electronAPI.exitStickyMode();
+        }
+        lastEscTime = 0;
+      } else {
+        lastEscTime = now;
+      }
     }
   });
 })();

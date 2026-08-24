@@ -24,5 +24,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // resizable: 是否允许用户拖拽调整窗口大小
   resizeWindow: function (width, height, resizable) {
     ipcRenderer.send('resize-window', width, height, resizable);
+  },
+  // 【v2.14.0】退出便签模式（渲染进程 → 主进程）
+  exitStickyMode: function () {
+    ipcRenderer.send('exit-sticky-mode');
   }
 });

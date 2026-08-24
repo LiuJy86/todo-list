@@ -857,8 +857,6 @@ main {
   border: 1px solid var(--card-border);
   box-shadow: 0 2px 12px rgba(31, 38, 135, 0.06);
   transition: all var(--transition-smooth);
-  /* 进入动画 */
-  animation: slideIn 0.3s ease-out;
   position: relative;  /* 用于已提醒 ::before 铃铛定位 */
 }
 
@@ -2004,10 +2002,23 @@ header {
   color: #4a90d9;
 }
 
-/* 便签模式折叠后：只显示标题栏，隐藏其他所有内容 */
-.sticky-mode.sticky-collapsed main,
-.sticky-mode.sticky-collapsed .input-area,
-.sticky-mode.sticky-collapsed .list-area,
+/* 【v2.14.0】便签模式：main 区域添加过渡效果，折叠/展开时平滑动画 */
+.sticky-mode main {
+  transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease;
+  max-height: 1000px; /* 足够大以容纳内容 */
+  opacity: 1;
+  overflow: hidden;
+}
+
+/* 便签模式折叠后：只显示标题栏，隐藏其他所有内容（用 max-height 替代 display:none 实现动画） */
+.sticky-mode.sticky-collapsed main {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  overflow: hidden !important;
+}
+/* 这些元素在便签模式下本来就隐藏，折叠时保持隐藏即可 */
 .sticky-mode.sticky-collapsed .reminder-notice,
 .sticky-mode.sticky-collapsed .stitch-pet,
 .sticky-mode.sticky-collapsed .guide-fab,
@@ -2043,11 +2054,28 @@ body.sticky-mode {
 .sticky-mode header {
   padding: 10px 12px 6px;
   margin-bottom: 0;
+  /* 【v2.14.0】便签模式：标题栏可拖拽移动窗口 */
+  cursor: move;
+  -webkit-app-region: drag;
+  /* 【v2.14.0】便签模式：淡色背景区分普通模式 */
+  background: rgba(74, 144, 217, 0.06);
+  border-bottom: 1px solid rgba(74, 144, 217, 0.15);
 }
 .sticky-mode header h1 {
   font-size: 16px;
   text-align: center;
   margin: 0;
+}
+/* 【v2.14.0】便签模式：标题栏按钮区域不可拖拽（避免拖拽时误触按钮） */
+.sticky-mode .header-btns {
+  -webkit-app-region: no-drag;
+}
+/* 【v2.14.0】便签模式指示器：默认隐藏，便签模式下显示 */
+.sticky-indicator {
+  display: none;
+}
+.sticky-mode .sticky-indicator {
+  display: inline;
 }
 
 /* 列表区：内部滚动（普通模式下 main 高度固定，list-area 撑满剩余空间） */
@@ -2089,9 +2117,9 @@ body.sticky-mode {
   background: rgba(0, 0, 0, 0.3);
 }
 
-/* 便签模式下：四周留白，透气舒适 */
+/* 便签模式下：四周留白，透气舒适（底部留更多空白，有呼吸感） */
 .sticky-mode main {
-  padding: 12px 12px 24px 12px;
+  padding: 12px 12px 36px 12px;
 }
 
 /* ======================== 便签模式按钮显示规则 ======================== */
@@ -2104,12 +2132,20 @@ body.sticky-mode {
 
 /* ======================== 便签模式展开的输入区 ======================== */
 
-/* 默认隐藏（JS 控制展开） */
+/* 【v2.14.0】便签模式输入区：用 max-height 实现平滑展开/收起动画 */
 .sticky-input-area {
-  display: none;
-  padding: 10px 14px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0 14px;
   background: linear-gradient(180deg, rgba(74,144,217,0.04), transparent);
   border-bottom: 1px solid rgba(74, 144, 217, 0.12);
+  transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease;
+}
+.sticky-input-area.show {
+  max-height: 80px;
+  opacity: 1;
+  padding: 10px 14px;
 }
 
 /* 输入框样式：清爽、圆润 */
@@ -2130,6 +2166,10 @@ body.sticky-mode {
 }
 #stickyInput::placeholder {
   color: #aab4c0;
+}
+/* 【v2.14.0】便签模式输入框：添加成功反馈（绿色边框闪烁） */
+#stickyInput.success-flash {
+  animation: success-pulse 0.4s ease-out;
 }
 
 /* 便签模式下：待办项更紧凑 */

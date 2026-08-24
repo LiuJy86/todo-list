@@ -4,6 +4,67 @@
 
 ---
 
+## [v2.14.0] - 2026-08-24
+
+### 新增 (Added) — 便签模式功能增强
+
+1. **📌 便签模式指示器**
+   - 进入便签模式后标题左侧显示 📌 图标，淡色标题栏背景区分普通模式
+   - 文件：`src/index.html`、`src/style.css`、`src/js/07-integration.js`
+
+2. **待办计数显示**
+   - 展开状态显示 `(3项待办)`，折叠状态显示完成进度 `✓2/5`
+   - 文件：`src/js/07-integration.js`（`updateStickyTitle()` 函数）
+
+3. **双击 Esc 退出便签模式**
+   - 400ms 内按两次 Esc 即可退出便签模式
+   - 文件：`src/js/07-integration.js`、`electron/preload.js`、`electron/main.js`
+
+4. **添加成功反馈**
+   - 便签模式下添加事项时输入框绿色边框闪烁
+   - 文件：`src/style.css`、`src/js/07-integration.js`
+
+### 优化 (Improved) — 便签模式视觉与动画
+
+1. **便签纸质感**
+   - 标题栏淡色背景 + 拖拽光标提示（`cursor: move`、`-webkit-app-region: drag`）
+   - 文件：`src/style.css`
+
+2. **输入区平滑展开/收起动画**
+   - 使用 `max-height` + `opacity` 过渡替代 `display: none/block` 瞬间切换
+   - 文件：`src/style.css`
+
+3. **折叠/展开动画优化**
+   - 用 `max-height` + `opacity` 过渡替代 `display: none`，与窗口 resize 动画同步
+   - 文件：`src/style.css`
+
+4. **底部留白呼吸感**
+   - 便签模式 main 区域底部内边距从 24px 增加到 36px
+   - 高度计算改用 `scrollHeight` 直接测量，确保底部空白不被裁切
+   - 文件：`src/style.css`、`src/js/02-render.js`
+
+### 修复 (Fixed)
+
+1. **便签模式宽度跳动**
+   - 折叠/展开时宽度使用进入便签模式时记录的固定值（`document.documentElement.clientWidth`），不再依赖会随滚动条变化的 `window.innerWidth`
+   - 高度计算添加阈值判断（8px），防止连续微小变化导致窗口持续缩小
+   - 文件：`src/js/02-render.js`、`src/js/07-integration.js`
+
+2. **添加待办闪动问题**
+   - 移除 `.todo_item` 基础类上的 `slideIn` 动画，避免与 `todo-item-enter` 的 `slideInDown` 动画冲突
+   - 文件：`src/style.css`
+
+### 核心文件
+
+- `src/style.css`：便签纸质感、输入区动画、折叠动画、底部留白、修复动画冲突
+- `src/index.html`：📌 指示器元素
+- `src/js/02-render.js`：高度计算改用 scrollHeight、宽度固定、阈值防抖
+- `src/js/07-integration.js`：updateStickyTitle、双击 Esc 退出、添加成功反馈
+- `electron/preload.js`：暴露 `exitStickyMode` API
+- `electron/main.js`：新增 `exit-sticky-mode` IPC 处理、托盘菜单状态同步
+
+---
+
 ## [v2.13.0] - 2026-08-24
 
 ### 新增 (Added) — 用户体验优化

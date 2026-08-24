@@ -236,6 +236,20 @@ ipcMain.on('resize-window', function (_, width, height, resizable) {
   mainWindow.setResizable(resizable !== false);
 });
 
+// 【v2.14.0】处理退出便签模式请求（渲染进程通过双击 Esc 触发）
+ipcMain.on('exit-sticky-mode', function () {
+  if (isStickyMode) {
+    toggleStickyMode(false);
+    // 同步托盘菜单的便签模式复选框状态
+    if (stickyMenu) {
+      var stickyItem = stickyMenu.items.find(function (item) {
+        return item.label === '🗒 便签模式';
+      });
+      if (stickyItem) stickyItem.checked = false;
+    }
+  }
+});
+
 // 切换便签模式
 function toggleStickyMode(enable) {
   if (!mainWindow) return;
