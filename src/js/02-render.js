@@ -1,0 +1,432 @@
+// ---------- 4. 渲染函数：增量更新 DOM，不做全量重建 ----------
+
+function render() {
+  // 分离未完成和已完成
+  // 未完成项倒序：最新添加的显示在最上面
+  const pending = todos.filter(function (t) { return !t.done; }).reverse();
+  const done = todos.filter(function (t) { return t.done; });
+
+  // 收纳判断：只保留已完成收纳，未完成项永不收纳
+  const hasDoneCollapsible = done.length > 0; // 只要有已完成项就显示收纳按钮
+  var isStickyMode = document.body.classList.contains('sticky-mode');
+
+  // 计算可见项：未完成项全部显示，已完成项按展开/收起决定
+  // 未完成项倒序：最新添加的显示在最上面
+  let visiblePending = pending;
+  let visibleDone = (hasDoneCollapsible && !isExpanded) ? [] : done;
+
+  // 整体可见项顺序：未完成（最新在上）→ 已完成（底部）
+  const visibleItems = visiblePending.concat(visibleDone);
+
+  // 注意：此处不清空 nodeCache！
+  // 缓存的意义就是复用已有节点，只通过 insertBefore 移动位置来重排，避免重建 DOM 造成的闪动
+  // 已删除项的缓存会在第三步统一清理
+
+  // 第一步：处理可见项的 DOM 节点（移动/创建/更新）
+  const rebuiltIds = new Set(); // 记录本次新建的节点 ID
+  visibleItems.forEach(function (todo, index) {
+    let li = nodeCache.get(todo.id);
+    if (!li) {
+      // 缓存中没有 → 创建新节点，并移除 DOM 中可能残留的同 ID 旧节点
+      const oldNode = todoList.querySelector('.todo-item[data-id="' + todo.id + '"]');
+      if (oldNode) oldNode.remove();
+      li = createTodoElement(todo);
+      nodeCache.set(todo.id, li);
+      rebuiltIds.add(todo.id);
+    }
+    // 确保节点在正确位置（用 insertBefore 移动节点，浏览器不会闪动）
+    const refNode = todoList.children[index];
+    if (refNode !== li) {
+      todoList.insertBefore(li, refNode || null);
+    }
+    // 更新完成状态（仅切换 class 和 checkbox，不重建 DOM）
+    updateItemState(li, todo);
+  });
+
+  // 【v2.7.0 新增】移除不在可见列表中的 DOM 节点（如被收纳的已完成项）
+  const visibleIds = new Set(visibleItems.map(function (t) { return t.id; }));
+  Array.from(todoList.children).forEach(function (child) {
+    // 只处理待办项节点，跳过收纳按钮和收纳容器
+    if (child.classList && child.classList.contains('todo-item')) {
+      const itemId = parseInt(child.dataset.id, 10);
+      if (!visibleIds.has(itemId)) {
+        child.remove();
+      }
+    }
+  });
+
+  // 第二步：处理收纳区 UI（只保留已完成收纳按钮）
+  let collapseBtn = document.getElementById('collapseBtn');
+  let collapsedList = document.getElementById('collapsedList');
+
+  // 移除可能残留的未完成收纳按钮（兼容旧版本）
+  var pendingCollapseBtn = document.getElementById('pendingCollapseBtn');
+  if (pendingCollapseBtn) {
+    pendingCollapseBtn.remove();
+    pendingCollapseBtn = null;
+  }
+
+  // 收纳区 UI：只保留已完成收纳按钮
+  if (hasDoneCollapsible) {
+    if (!collapseBtn) {
+      collapseBtn = document.createElement('li');
+      collapseBtn.id = 'collapseBtn';
+      collapseBtn.className = 'collapse-btn';
+      collapseBtn.addEventListener('click', function () {
+        isExpanded = !isExpanded;
+        render();
+      });
+    }
+    // 更新文案
+    const hiddenCount = done.length;
+    if (isExpanded) {
+      collapseBtn.innerHTML = '<span>收起 ▲</span>';
+      collapseBtn.classList.add('expanded');
+    } else {
+      collapseBtn.innerHTML = '<span>还有 <strong id="collapseCount">' + hiddenCount + '</strong> 项已完成待办</span><span class="arrow">▼</span>';
+      collapseBtn.classList.remove('expanded');
+    }
+    // 按钮位置：紧接在已完成可见项之后
+    const offset = visiblePending.length + visibleDone.length;
+    const btnRef = todoList.children[offset];
+    if (btnRef !== collapseBtn) {
+      todoList.insertBefore(collapseBtn, btnRef || null);
+    }
+
+    // 收纳容器（展开时显示所有被收纳的已完成项）
+    if (!collapsedList) {
+      collapsedList = document.createElement('ul');
+      collapsedList.id = 'collapsedList';
+      collapsedList.className = 'collapsed-list';
+    }
+    const listRef = collapseBtn.nextSibling;
+    if (listRef !== collapsedList) {
+      todoList.insertBefore(collapsedList, listRef);
+    }
+    collapsedList.style.display = isExpanded ? 'flex' : 'none';
+  } else {
+    // 没有已完成项，移除收纳 UI
+    if (collapseBtn) collapseBtn.remove();
+    if (collapsedList) collapsedList.remove();
+  }
+
+  // 第三步：清理已删除项的缓存节点
+  const activeIds = new Set(todos.map(function (t) { return t.id; }));
+  nodeCache.forEach(function (node, id) {
+    if (!activeIds.has(id)) {
+      node.remove();
+      nodeCache.delete(id);
+    }
+  });
+
+  // 保存数据
+  save();
+
+  // 便签模式：每次渲染后根据内容自适应窗口高度
+  adjustStickyWindowHeight();
+}
+
+// 便签模式窗口高度自适应：有多少待办，窗口就有多大
+function adjustStickyWindowHeight() {
+  // 只在便签模式且未折叠时调整
+  if (!document.body.classList.contains('sticky-mode')) return;
+  if (stickyCollapsed) return;
+  if (!window.electronAPI || !window.electronAPI.resizeWindow) return;
+
+  // 双重 requestAnimationFrame：等浏览器完成样式计算和布局后再测量
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      // 测量 todoList 容器的 offsetHeight（包含所有子元素、padding）
+      const todoList = document.getElementById('todoList');
+      const listHeight = todoList ? todoList.offsetHeight : 0;
+
+      // header 高度（标题栏）
+      const header = document.querySelector('header');
+      const headerHeight = header ? header.offsetHeight : 40;
+
+      // 计算总高度：header + 列表 + 40px 留白（确保内容完整显示）
+      const EXTRA_PADDING = 40;
+      const contentHeight = headerHeight + listHeight + EXTRA_PADDING;
+
+      // 计算目标高度，设置上下限
+      const MIN_HEIGHT = 80;      // 最小高度：只显示标题栏
+      const MAX_HEIGHT = 600;     // 最大高度：防止窗口过高，超出部分滚动
+      const targetHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, contentHeight));
+
+      // 宽度固定为进入便签模式时的宽度，不随内容变化
+      const fixedWidth = window.stickyModeWidth || 480;
+      window.electronAPI.resizeWindow(fixedWidth, targetHeight);
+    });
+  });
+}
+
+
+// ---------- 4.1 创建单条待办事项 DOM ----------
+
+function createTodoElement(todo) {
+  const li = document.createElement('li');
+  li.className = 'todo-item';
+  li.dataset.id = todo.id;
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.className = 'todo-checkbox';
+  checkbox.addEventListener('change', function () {
+    if (typeof window.wrappedToggleTodo === 'function') {
+      window.wrappedToggleTodo(todo.id);
+    } else {
+      toggleTodo(todo.id);
+    }
+  });
+
+  const span = document.createElement('span');
+  span.className = 'todo-text';
+  span.textContent = todo.text;
+
+  // 【双击编辑】双击待办文字可原地编辑
+  span.addEventListener('dblclick', function (e) {
+    e.stopPropagation();
+    // 如果已经在编辑状态，不重复触发
+    if (span.classList.contains('editing')) return;
+    // 已完成的事项不允许编辑
+    if (todo.done) return;
+
+    span.classList.add('editing');
+    const originalText = todo.text;
+    // 创建输入框替代原文本
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'todo-edit-input';
+    input.value = originalText;
+    span.textContent = '';
+    span.appendChild(input);
+    input.focus();
+    input.select();
+
+    // 保存编辑
+    function saveEdit() {
+      const newText = input.value.trim();
+      span.classList.remove('editing');
+      if (newText && newText !== originalText) {
+        // 更新数据
+        todo.text = newText;
+        // 如果原文本有提醒时间，重新解析新文本
+        if (todo.remindAt && window.reminderModule) {
+          const parsed = window.reminderModule.parse(newText);
+          if (parsed.remindAt) {
+            todo.remindAt = parsed.remindAt;
+            todo.text = window.reminderModule.cleanTodoText(parsed.text);
+          }
+        }
+        save();
+        render();
+        // 史迪奇反馈
+        if (window.petMood) {
+          window.petMood.toast('已更新待办内容，加油！', 'info');
+        }
+      } else {
+        // 没改动或为空，恢复原文
+        render();
+      }
+    }
+    // 取消编辑
+    function cancelEdit() {
+      span.classList.remove('editing');
+      render();
+    }
+
+    // 按 Enter 保存，按 Esc 取消，失去焦点也保存
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveEdit();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelEdit();
+      }
+    });
+    input.addEventListener('blur', function () {
+      saveEdit();
+    });
+  });
+
+  // 构造 Tooltip 内容
+  const tooltipParts = [];
+  if (todo.remindAt) {
+    const d = new Date(todo.remindAt);
+    const dateStr = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' +
+      String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    tooltipParts.push('⏰ ' + dateStr);
+  }
+  if (todo.recurrence && todo.recurrence.enabled) {
+    const unitMap = { minute: '分钟', hour: '小时', day: '天', week: '周' };
+    let cycleText = '🔄 循环：每 ' + todo.recurrence.interval + ' ' + unitMap[todo.recurrence.unit];
+    // 有目标次数时，在循环信息后追加次数进度（targetCount 统一存在 recurrence 内）
+    const recurrenceTarget = todo.recurrence && todo.recurrence.targetCount;
+    if (recurrenceTarget && recurrenceTarget > 0) {
+      cycleText += '（' + (todo.completionCount || 0) + '/' + recurrenceTarget + ' 次）';
+    }
+    tooltipParts.push(cycleText);
+  }
+  if (tooltipParts.length > 0) {
+    li.setAttribute('data-tooltip', tooltipParts.join(' | '));
+    li.classList.add('has-tooltip');
+  }
+
+  // 【次数已集成到循环提醒】非循环事项不再显示独立计数器
+  // 判断是否为循环事项（需要在添加 badge 前决定按钮区域）
+  const isCycle = todo.recurrence && todo.recurrence.enabled;
+
+  if (todo.remindAt || isCycle) {
+    li.appendChild(checkbox);
+    li.appendChild(span);
+
+    // 提醒徽章（仅有 remindAt 时显示）
+    if (todo.remindAt) {
+      const badge = document.createElement('span');
+      badge.className = 'reminder-badge';
+      li.appendChild(badge);
+
+      // 循环徽章装饰
+      if (isCycle) {
+        badge.classList.add('reminder-badge-cycle');
+      }
+    }
+
+    // 循环完成次数小徽章（有目标次数时显示 "×2/8"，无目标时显示 "×2"）
+    // targetCount 统一存在 recurrence 内
+    const recurrenceTarget = todo.recurrence && todo.recurrence.targetCount;
+    if (isCycle && todo.completionCount > 0) {
+      const countBadge = document.createElement('span');
+      countBadge.className = 'completion-count';
+      if (recurrenceTarget && recurrenceTarget > 0) {
+        // 有目标次数：显示 "已完成/总次数"
+        countBadge.textContent = '×' + todo.completionCount + '/' + recurrenceTarget;
+      } else {
+        // 无目标次数：只显示完成数
+        countBadge.textContent = '×' + todo.completionCount;
+      }
+      li.appendChild(countBadge);
+    }
+
+    // 停止循环按钮（所有循环事项都显示，不依赖 remindAt）
+    if (isCycle) {
+      const stopBtn = document.createElement('button');
+      stopBtn.className = 'stop-cycle-btn';
+      stopBtn.textContent = '⏹';
+      stopBtn.title = '停止循环提醒';
+      stopBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        if (window.reminderModule) {
+          window.reminderModule.stopCycle(todo.id);
+        }
+      });
+      li.appendChild(stopBtn);
+    }
+  } else {
+    li.appendChild(checkbox);
+    li.appendChild(span);
+  }
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'delete-btn';
+  deleteBtn.textContent = '删除';
+  deleteBtn.addEventListener('click', function () {
+    if (typeof window.wrappedDeleteTodo === 'function') {
+      window.wrappedDeleteTodo(todo.id);
+    } else {
+      deleteTodo(todo.id);
+    }
+  });
+
+  // 【长文本展开/收起】文字超过 3 行时添加展开按钮
+  // 通过比较 scrollHeight 和 clientHeight 判断是否被截断
+  requestAnimationFrame(function () {
+    if (span.scrollHeight > span.clientHeight + 2) {
+      li.classList.add('has-long-text');
+      const expandBtn = document.createElement('span');
+      expandBtn.className = 'todo-expand-btn';
+      expandBtn.textContent = '展开';
+      expandBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        span.classList.toggle('expanded');
+        expandBtn.textContent = span.classList.contains('expanded') ? '收起' : '展开';
+      });
+      li.appendChild(expandBtn);
+    }
+  });
+
+  li.appendChild(deleteBtn);
+  return li;
+}
+
+
+// ---------- 4.2 更新单项的完成状态（仅切换 class/checked，不重建） ----------
+
+function updateItemState(li, todo) {
+  li.classList.toggle('completed', todo.done);
+  // 切换已提醒标记 class（CSS 据此显示左上角小铃铛）
+  li.classList.toggle('reminded', !!todo.reminded);
+  const checkbox = li.querySelector('.todo-checkbox');
+  if (checkbox) {
+    checkbox.checked = todo.done;
+  }
+  // 【v2.7.0 新增】同步文本内容（修复双击编辑后不刷新的问题）
+  // 仅在非编辑状态下更新，避免覆盖用户正在输入的内容
+  const textSpan = li.querySelector('.todo-text');
+  if (textSpan && !textSpan.classList.contains('editing') && textSpan.textContent !== todo.text) {
+    textSpan.textContent = todo.text;
+  }
+  // 刷新提醒徽章的文案与颜色（按距离提醒时间变色）
+  updateReminderBadge(li, todo);
+}
+
+
+// ---------- 4.3 提醒徽章刷新 ----------
+
+// 时间戳格式化为"8月15日 08:00"样式，便于用户阅读
+function formatReminderText(ts) {
+  const d = new Date(ts);
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return m + '月' + day + '日 ' + hh + ':' + mm;
+}
+
+// 根据距离提醒时间的远近，刷新徽章文案与颜色 class
+// 规则：> 1天 灰色 / ≤1天且>1小时 紫色 / ≤1小时 橙色脉冲 / 已过期 红色删除线
+function updateReminderBadge(li, todo) {
+  const badge = li.querySelector('.reminder-badge');
+  if (!badge) return;       // 无徽章节点（未设提醒的事项）
+  if (!todo.remindAt) return;
+
+  const now = Date.now();
+  const diff = todo.remindAt - now;  // 正：未来；负：已过期
+
+  // 清掉旧的状态类，避免叠加
+  badge.classList.remove(
+    'reminder-badge-far', 'reminder-badge-soon',
+    'reminder-badge-urgent', 'reminder-badge-overdue'
+  );
+
+  if (todo.reminded || diff <= 0) {
+    // 已提醒过或已过期：红色删除线
+    badge.textContent = formatReminderText(todo.remindAt) + ' 已过';
+    badge.classList.add('reminder-badge-overdue');
+  } else if (diff > 86400000) {
+    // > 1 天：灰色
+    badge.textContent = formatReminderText(todo.remindAt);
+    badge.classList.add('reminder-badge-far');
+  } else if (diff > 3600000) {
+    // ≤ 1 天且 > 1 小时：紫色
+    badge.textContent = formatReminderText(todo.remindAt);
+    badge.classList.add('reminder-badge-soon');
+  } else {
+    // ≤ 1 小时：橙色 + 脉冲 + 倒计时
+    const mins = Math.max(1, Math.round(diff / 60000));
+    badge.textContent = '还有 ' + mins + ' 分钟';
+    badge.classList.add('reminder-badge-urgent');
+  }
+}

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- 页面字符编码与视口设置，视口设置保证移动端也能正常显示 -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ToDoList</title>
+  <!-- 引入样式表，负责页面外观 -->
+  <link rel="stylesheet" href="style.css?v=24">
+</head>
+<body>
+
+  <!-- 史迪奇桌宠（左侧图片桌宠） -->
+  <div id="stitchPet" class="stitch-pet">
+    <!-- 光环效果 -->
+    <div class="pet-glow"></div>
+    <!-- 粒子容器 -->
+    <div class="pet-particles" id="petParticles"></div>
+    <!-- 对话气泡 -->
+    <div class="pet-bubble" id="petBubble"></div>
+    <!-- 桌宠图片（img 文件夹下的 GIF 动图，3-5 秒随机轮播切换） -->
+    <img src="img/史迪奇1.gif" alt="Stitch 桌宠" class="pet-img" id="petImg" draggable="false" />
+    <!-- 影子 -->
+    <div class="pet-shadow"></div>
+    <!-- 关闭按钮 -->
+    <button class="pet-close" id="petClose" title="隐藏">×</button>
+  </div>
+
+  <!-- 页面头部：标题 + emoji logo -->
+  <header>
+    <h1><span class="logo-emoji">✅</span> ToDoList</h1>
+    <!-- 头部按钮组：置顶 / 便签折叠 / 便签添加 -->
+    <div class="header-btns">
+      <button id="pinBtn" class="pin-btn" title="窗口置顶">📌</button>
+      <button id="stickyCollapseBtn" class="pin-btn" title="折叠列表" style="display:none;">▼</button>
+      <button id="stickyAddToggleBtn" class="pin-btn" title="添加事项" style="display:none;">＋</button>
+    </div>
+  </header>
+
+  <!-- 主体内容区 -->
+  <main>
+
+    <!-- 输入区：用户在这里输入新的待办事项 -->
+    <section class="input-area">
+      <!-- 文本输入框，id 用于 JS 获取其内容 -->
+      <!-- placeholder 改为带示例，引导用户尝试自然语言解析（如"8:00 吃饭"） -->
+      <input
+        type="text"
+        id="todoInput"
+        placeholder="如：九点半提醒我开线上会议"
+        autocomplete="off"
+      >
+      <!-- 日期时间选择器（自定义 Popover 浮层，替代原生 datetime-local） -->
+      <div class="datetime-picker" id="datetimePicker">
+        <div class="datetime-trigger" id="datetimeTrigger" title="点击选择提醒时间">
+          <span class="datetime-display" id="datetimeDisplay">选择提醒时间（可选）</span>
+          <span class="datetime-icon">📅</span>
+        </div>
+        <!-- Popover 浮层（两列布局） -->
+        <div class="datetime-popover" id="datetimePopover">
+          <!-- 左列：日期 + 时间 -->
+          <div class="dp-col dp-col-left">
+            <!-- 日期区 -->
+            <div class="dp-section">
+              <div class="dp-label">日期</div>
+              <div class="dp-preset-row" id="dpDatePresets">
+                <button type="button" class="dp-preset" data-date="today">今天</button>
+                <button type="button" class="dp-preset" data-date="tomorrow">明天</button>
+                <button type="button" class="dp-preset" data-date="dayAfter">后天</button>
+                <button type="button" class="dp-preset" data-date="nextWeek">下周一</button>
+              </div>
+              <!-- 年份标签 + 月/日滚轮 -->
+              <div class="dp-date-row">
+                <span class="dp-year-label" id="dpYearLabel"></span>
+                <div class="dp-wheel-picker" id="dpWheelPicker">
+                  <div class="dp-wheel-col" id="dpWheelMonth">
+                    <div class="dp-wheel-mask"></div>
+                    <div class="dp-wheel-highlight"></div>
+                    <div class="dp-wheel-list" id="dpWheelMonthList"></div>
+                  </div>
+                  <div class="dp-wheel-col" id="dpWheelDay">
+                    <div class="dp-wheel-mask"></div>
+                    <div class="dp-wheel-highlight"></div>
+                    <div class="dp-wheel-list" id="dpWheelDayList"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- 时间区 -->
+            <div class="dp-section">
+              <div class="dp-label">时间</div>
+              <!-- 滚轮时间选择器 -->
+              <div class="dp-wheel-picker dp-wheel-picker-compact" id="dpTimeWheelPicker">
+                <div class="dp-wheel-col" id="dpWheelHour">
+                  <div class="dp-wheel-mask"></div>
+                  <div class="dp-wheel-highlight"></div>
+                  <div class="dp-wheel-list" id="dpWheelHourList"></div>
+                </div>
+                <div class="dp-wheel-sep">:</div>
+                <div class="dp-wheel-col" id="dpWheelMinute">
+                  <div class="dp-wheel-mask"></div>
+                  <div class="dp-wheel-highlight"></div>
+                  <div class="dp-wheel-list" id="dpWheelMinuteList"></div>
+                </div>
+              </div>
+              <div class="dp-preset-row dp-time-presets" id="dpTimePresets">
+                <button type="button" class="dp-preset" data-time="now" id="dpNowBtn">现在</button>
+                <button type="button" class="dp-preset" data-time="morning">8:00</button>
+                <button type="button" class="dp-preset" data-time="noon">12:00</button>
+                <button type="button" class="dp-preset" data-time="evening">20:00</button>
+              </div>
+            </div>
+          </div>
+          <!-- 右列：循环提醒 + 操作按钮 -->
+          <div class="dp-col dp-col-right">
+            <!-- 循环提醒区 -->
+            <div class="dp-section dp-cycle-section">
+              <div class="dp-label-row">
+                <span class="dp-label">🔄 循环提醒</span>
+                <label class="dp-toggle">
+                  <input type="checkbox" id="dpCycleToggle">
+                  <span class="dp-toggle-slider"></span>
+                </label>
+              </div>
+              <div class="dp-cycle-options" id="dpCycleOptions" style="display:none;">
+                <div class="dp-preset-row" id="dpCyclePresets">
+                  <button type="button" class="dp-preset" data-cycle="30m">30 分钟</button>
+                  <button type="button" class="dp-preset" data-cycle="1h">1 小时</button>
+                  <button type="button" class="dp-preset" data-cycle="1d">1 天</button>
+                  <button type="button" class="dp-preset" data-cycle="1w">1 周</button>
+                  <button type="button" class="dp-preset" data-cycle="custom">自定义</button>
+                </div>
+                <div class="dp-custom-cycle" id="dpCustomCycle" style="display:none;">
+                  <input type="number" id="dpCycleValue" min="1" max="999" placeholder="值" class="dp-cycle-input">
+                  <select id="dpCycleUnit" class="dp-cycle-unit">
+                    <option value="minute">分钟</option>
+                    <option value="hour">小时</option>
+                    <option value="day">天</option>
+                    <option value="week">周</option>
+                  </select>
+                </div>
+                <!-- 循环次数：设置提醒几次后自动停止（留空=无限循环） -->
+                <div class="dp-cycle-count-row" id="dpCycleCountRow">
+                  <span class="dp-cycle-count-label">次数</span>
+                  <input type="number" id="dpCycleCount" min="1" max="999" placeholder="∞" class="dp-cycle-count-input">
+                  <span class="dp-cycle-count-unit">次后停止</span>
+                </div>
+              </div>
+            </div>
+            <!-- 操作按钮 -->
+            <div class="dp-actions">
+              <button type="button" class="dp-btn dp-btn-clear" id="dpClearBtn">清除</button>
+              <button type="button" class="dp-btn dp-btn-confirm" id="dpConfirmBtn">确定</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- 添加按钮，id 用于 JS 监听点击事件 -->
+      <button id="addBtn">添加</button>
+    </section>
+
+    <!-- 提醒功能限制提示条：告知用户浏览器关闭后无法触发提醒 + 音效测试按钮 -->
+    <div class="reminder-notice" id="reminderNotice">
+      <span class="reminder-notice-text">提示：浏览器完全关闭后无法触发提醒，请保持本页面打开</span>
+      <button type="button" class="sound-test-btn" id="soundTestBtn" title='点击播放"叮咚"提示音'>🔊 测试音效</button>
+    </div>
+
+    <!-- 便签模式展开的输入区（默认隐藏，点击标题栏「+」后显示） -->
+    <section class="sticky-input-area" id="stickyInputArea" style="display:none;">
+      <input type="text" id="stickyInput" placeholder="输入事项，按回车添加..." autocomplete="off">
+    </section>
+
+    <!-- 列表区：所有待办事项会显示在这里 -->
+    <section class="list-area">
+      <!-- 空的无序列表，后续由 JS 动态添加 <li> 列表项 -->
+      <ul id="todoList"></ul>
+    </section>
+
+  </main>
+
+  <!-- 操作指南悬浮入口（右下角，与左下角的桌宠恢复按钮对称） -->
+  <a href="user_guide.html" class="guide-fab" title="查看操作指南" aria-label="查看操作指南">📖</a>
+
+  <!-- GitHub 仓库悬浮入口（右下角，位于指南按钮上方） -->
+  <a href="https://github.com/LiuJy86/todo-list" target="_blank" rel="noopener noreferrer" class="github-fab" title="访问 GitHub 仓库" aria-label="访问 GitHub 仓库">
+    <!-- GitHub 图标（SVG，离线可用，无需网络字体） -->
+    <svg viewBox="0 0 16 16" width="24" height="24" aria-hidden="true" fill="currentColor">
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0016 8c0-4.42-3.58-8-8-8z"/>
+    </svg>
+  </a>
+
+  <!-- 引入脚本（按依赖顺序加载）：数据层 → 渲染 → CRUD → 功能模块 → 整合层 -->
+  <script src="js/01-data.js"></script>
+  <script src="js/02-render.js"></script>
+  <script src="js/03-crud.js"></script>
+  <script src="js/04-pet.js"></script>
+  <script src="js/05-datetime.js"></script>
+  <script src="js/06-reminder.js"></script>
+  <script src="js/07-integration.js"></script>
+</body>
+</html>

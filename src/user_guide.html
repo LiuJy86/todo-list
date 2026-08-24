@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>操作指南 · 待办事项清单</title>
+  <link rel="stylesheet" href="style.css?v=24">
+  <style>
+    /* 背景渐变：与主页保持一致，fixed 让渐变覆盖整个视口不滚动 */
+    body {
+      background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+      overflow: auto;
+    }
+    .guide-container {
+      max-width: 720px;
+      margin: 32px auto;
+      padding: 36px 40px 48px;
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      box-shadow: var(--card-shadow);
+    }
+    .guide-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .guide-header h1 { margin: 0; font-size: 24px; color: var(--text-primary); }
+    .back-btn {
+      padding: 8px 16px;
+      border: none;
+      background: linear-gradient(135deg, #667eea 0%, #5c4fc0 100%);
+      color: #fff;
+      border-radius: 999px;
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .guide-philosophy {
+      margin-bottom: 28px;
+      padding: 20px 24px;
+      background: linear-gradient(135deg, rgba(102,126,234,0.06), rgba(92,79,192,0.06));
+      border: 1px solid rgba(102,126,234,0.15);
+      border-radius: 12px;
+    }
+    .guide-philosophy p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.8;
+      margin: 0 0 10px;
+    }
+    .guide-philosophy p:last-child { margin-bottom: 0; }
+    .philosophy-quote {
+      font-size: 17px !important;
+      font-weight: 600;
+      color: var(--accent-color) !important;
+      text-align: center;
+      margin-bottom: 14px !important;
+    }
+
+    .toc {
+      background: rgba(255,255,255,0.5);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px 20px;
+      margin-bottom: 28px;
+    }
+    .toc h3 { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); }
+    .toc ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+    .toc li { font-size: 13px; }
+    .toc a { color: var(--accent-color); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+
+    .guide-section { margin-bottom: 28px; }
+    .guide-section > h2 {
+      font-size: 17px;
+      color: var(--text-primary);
+      margin: 0 0 12px;
+      padding-left: 10px;
+      border-left: 3px solid var(--accent-color);
+    }
+    .guide-section p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin: 6px 0;
+    }
+    .guide-section ul {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin: 6px 0;
+      padding-left: 20px;
+    }
+    .guide-section li { margin: 3px 0; }
+    .guide-section code {
+      font-family: 'Segoe UI', 'PingFang SC', monospace;
+      background: rgba(102,126,234,0.12);
+      color: #5c4fc0;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .badge-examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+    .badge-examples .reminder-badge { position: static; transform: none; }
+
+    .tip {
+      margin: 10px 0;
+      padding: 10px 14px;
+      background: rgba(255,167,38,0.08);
+      border-left: 3px solid #ffa726;
+      border-radius: 4px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 600px) {
+      .guide-container { margin: 16px; padding: 24px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="guide-container">
+
+    <div class="guide-header">
+      <h1>📖 操作指南</h1>
+      <a href="index.html" class="back-btn">← 返回</a>
+    </div>
+
+    <!-- 理念 -->
+    <div class="guide-philosophy">
+      <p class="philosophy-quote">「工具应该是透明的。」</p>
+      <p>你打开它，记下几件小事，然后关掉它——就像在便签上划掉一行那样自然。没有账号，没有推送，没有永不停歇的红点。</p>
+    </div>
+
+    <!-- 目录 -->
+    <div class="toc">
+      <h3>📑 目录</h3>
+      <ul>
+        <li><a href="#s1">1. 基本操作</a></li>
+        <li><a href="#s2">2. 设置提醒</a></li>
+        <li><a href="#s3">3. 列表与收纳</a></li>
+        <li><a href="#s4">4. 史迪奇桌宠</a></li>
+        <li><a href="#s5">5. 网页版</a></li>
+        <li><a href="#s6">6. 桌面端</a></li>
+        <li><a href="#s7">7. 常见问题</a></li>
+      </ul>
+    </div>
+
+    <!-- 1. 基本操作 -->
+    <section class="guide-section" id="s1">
+      <h2>1. 基本操作</h2>
+      <ul>
+        <li><strong>添加事项：</strong>在输入框输入内容，按回车或点击「添加」</li>
+        <li><strong>完成事项：</strong>点击事项左侧的复选框，完成后自动沉到底部</li>
+        <li><strong>取消完成：</strong>再点一次复选框，事项回到顶部</li>
+        <li><strong>修改事项：</strong>双击事项文字进入编辑，按回车保存，按 Esc 取消</li>
+        <li><strong>删除事项：</strong>鼠标悬停事项，点击右侧删除按钮</li>
+      </ul>
+    </section>
+
+    <!-- 2. 设置提醒 -->
+    <section class="guide-section" id="s2">
+      <h2>2. 设置提醒</h2>
+
+      <p><strong>直接输入时间（推荐）：</strong>在输入框里写上时间，系统自动识别：</p>
+      <ul>
+        <li><code>八点半下班</code>、<code>明天早上跑步</code>、<code>半小时后喝水</code></li>
+        <li><code>每30分钟喝水</code> → 自动开启循环提醒</li>
+      </ul>
+      <div class="tip">💡 下午说"八点半"会自动设为 20:30，晚上说则算明天早上</div>
+
+      <p><strong>精确选择：</strong>点击输入框下方的「📅 选择提醒时间」，用滚轮选日期和时间。支持快捷选项：今天/明天/后天/下周一，以及「现在」按钮。</p>
+
+      <p><strong>循环提醒：</strong>在时间选择器右侧开启「🔄 循环提醒」，可选每 30 分钟/1 小时/1 天/1 周，也可以自定义间隔。还能设置循环几次后自动停止。</p>
+
+      <p><strong>到点会怎样：</strong>播放提示音 + 事项红框抖动 + 史迪奇弹出气泡提醒你。</p>
+
+      <p><strong>提醒徽章：</strong>设置了提醒的事项会显示彩色徽章，颜色越深越紧迫：</p>
+      <ul>
+        <li><span class="reminder-badge reminder-far">远期</span> 灰色 — 超过 1 天</li>
+        <li><span class="reminder-badge reminder-soon">接近</span> 紫色 — 1 天内</li>
+        <li><span class="reminder-badge reminder-urgent">还有 N 分钟</span> 橙色 — 1 小时内，带脉冲动画</li>
+        <li><span class="reminder-badge reminder-overdue">已过期</span> 红色 — 已过提醒时间</li>
+      </ul>
+    </section>
+
+    <!-- 3. 列表与收纳 -->
+    <section class="guide-section" id="s3">
+      <h2>3. 列表与收纳</h2>
+      <ul>
+        <li><strong>新事项在最上面：</strong>刚添加的事项显示在列表顶部</li>
+        <li><strong>已完成沉底：</strong>勾选完成后移到最下面的「已完成」区域</li>
+        <li><strong>收纳已完成：</strong>点击「还有 N 项已完成待办 ▼」可以展开或收起</li>
+        <li><strong>长文本自动折叠：</strong>超过 3 行会显示「展开」按钮</li>
+        <li><strong>每日日报：</strong>每晚 21:00 自动弹出，也能点击史迪奇随时查看</li>
+      </ul>
+    </section>
+
+    <!-- 4. 桌宠 -->
+    <section class="guide-section" id="s4">
+      <h2>4. 史迪奇桌宠</h2>
+      <ul>
+        <li>添加/完成/删除事项时，史迪奇会弹出气泡回应</li>
+        <li>点击页面空白处，史迪奇会走到你点击的位置</li>
+        <li>按住史迪奇可以拖动它</li>
+        <li>点击史迪奇查看今日日报</li>
+        <li>点击右上角 × 隐藏，左下角按钮可找回</li>
+      </ul>
+    </section>
+
+    <!-- 5. 网页版 -->
+    <section class="guide-section" id="s5">
+      <h2>5. 网页版</h2>
+      <ul>
+        <li><strong>打开方式：</strong>直接用浏览器打开即可使用，无需安装</li>
+        <li><strong>数据存储：</strong>所有事项保存在浏览器本地，刷新和重启都在</li>
+        <li><strong>提醒功能：</strong>需要保持页面打开（最小化或后台标签页都可以）</li>
+        <li><strong>添加桌面快捷方式：</strong>在手机浏览器中选择「添加到主屏幕」，打开后像 App 一样使用</li>
+      </ul>
+    </section>
+
+    <!-- 6. 桌面端 -->
+    <section class="guide-section" id="s6">
+      <h2>6. 桌面端（Electron）</h2>
+      <ul>
+        <li><strong>便签模式：</strong>右键托盘图标勾选，窗口变成桌面便签</li>
+        <li><strong>添加事项：</strong>标题栏「＋」按钮展开输入区，双击回车或按 Esc 收起</li>
+        <li><strong>折叠窗口：</strong>标题栏「▼」按钮</li>
+        <li><strong>窗口置顶：</strong>标题栏 📌 按钮</li>
+      </ul>
+    </section>
+
+    <!-- 7. 常见问题 -->
+    <section class="guide-section" id="s7">
+      <h2>7. 常见问题</h2>
+
+      <p><strong>Q1：事项太多怎么办？</strong></p>
+      <p>已完成的事项会自动沉底，还能点击「还有 N 项已完成 ▼」收纳起来，让列表保持清爽。</p>
+
+      <p><strong>Q2：史迪奇挡到内容了？</strong></p>
+      <p>按住史迪奇可以拖动它到任意位置，也可以点击右上角 × 隐藏它。</p>
+
+    
+    </section>
+
+  </div>
+</body>
+</html>

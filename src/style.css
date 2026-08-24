@@ -1,0 +1,2150 @@
+/* ===== CSS 变量 (设计令牌) ===== */
+:root {
+  --bg-gradient-start: #c9a0dc;
+  --bg-gradient-end: #5fa8e6;
+  
+  --card-bg: rgba(255, 255, 255, 0.9);
+  --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+  --card-border: rgba(255, 255, 255, 0.7);
+  
+  --text-primary: #1a1a2e;
+  --text-secondary: #555;
+  --text-muted: #8888a0;
+  
+  --accent-color: #667eea;
+  --accent-hover: #5568d3;
+  
+  --delete-color: #ff6b6b;
+  --delete-hover: #ee5a5a;
+  
+  --border-color: rgba(0, 0, 0, 0.15);
+  --input-bg: rgba(255, 255, 255, 0.95);
+  
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* 提醒徽章颜色（按紧迫度分级） */
+  --reminder-far: #8888a0;       /* 远期：灰色 */
+  --reminder-soon: #667eea;      /* 接近：紫色（主色） */
+  --reminder-urgent: #ffa726;    /* 紧迫：橙色 */
+  --reminder-overdue: #ff6b6b;   /* 已过期：红色（与删除色统一） */
+}
+
+/* ===== 全局重置 ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ===== 页面整体样式 ===== */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  /* 渐变背景，现代感 */
+  background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* 隐藏外层滚动条，只保留列表区域内部滚动 */
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* 隐藏 body 的滚动条（Chrome / Edge / Safari） */
+body::-webkit-scrollbar {
+  display: none;
+}
+/* 隐藏 body 的滚动条（Firefox） */
+html {
+  scrollbar-width: none;
+}
+
+/* ===== 页面头部 ===== */
+header {
+  text-align: center;
+  padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg);
+}
+
+header h1 {
+  font-size: 26px;
+  font-weight: 800;
+  /* 渐变文字效果：紫蓝渐变 */
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* emoji logo 保持原色（不参与渐变） */
+.logo-emoji {
+  -webkit-text-fill-color: initial;
+  font-size: 22px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+/* 操作指南悬浮入口（右下角 FAB） */
+/* 与左下角的 #petRestoreBtn（桌宠恢复按钮）对称，两者不会同时出现冲突 */
+.guide-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9998;  /* 与桌宠恢复按钮同层，但分居左右两角 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  font-size: 22px;
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(135deg, #667eea 0%, #5c4fc0 100%);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  cursor: pointer;
+  line-height: 1;
+  user-select: none;
+}
+.guide-fab:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.55);
+  background: linear-gradient(135deg, #5c4fc0 0%, #4d3fb0 100%);
+}
+.guide-fab:active { transform: translateY(0) scale(1); }
+
+/* 窄屏：稍微缩小并贴近边缘，避免遮挡内容 */
+@media (max-width: 480px) {
+  .guide-fab {
+    width: 46px;
+    height: 46px;
+    font-size: 20px;
+    right: 16px;
+    bottom: 16px;
+  }
+}
+
+/* GitHub 仓库悬浮入口（右下角，位于 .guide-fab 上方） */
+/* 深色风格与紫色 .guide-fab 区分；同 right/bottom 对齐，垂直堆叠 */
+.github-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 88px;  /* .guide-fab 高度 52 + 间距 36 = 88，保证两按钮不重叠 */
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  color: #fff;
+  background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  cursor: pointer;
+  line-height: 1;
+  user-select: none;
+}
+.github-fab svg { display: block; }
+.github-fab:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, #2f363d 0%, #24292e 100%);
+}
+.github-fab:active { transform: translateY(0) scale(1); }
+
+/* 窄屏：与 .guide-fab 同步缩小并保持垂直间距 */
+@media (max-width: 480px) {
+  .github-fab {
+    width: 46px;
+    height: 46px;
+    right: 16px;
+    bottom: 74px;  /* 16 + 46 + 12 = 74，保持与窄屏 .guide-fab 的 12px 间距 */
+  }
+  .github-fab svg { width: 20px; height: 20px; }
+}
+
+/* ===== 主体内容区 ===== */
+main {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md) var(--spacing-xl);
+  /* body 不滚动，由 main 撑开、list-area 内部滚动 */
+  height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== 输入区 ===== */
+.input-area {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  /* 玻璃拟态容器 */
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-sm);
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--card-border);
+  /* 改为两行布局：第一行文本框占满，第二行 datetime-local + 按钮 */
+  flex-wrap: wrap;
+  align-items: center;
+  /* 确保 popover 浮层能覆盖下方列表项 */
+  position: relative;
+  z-index: 100;
+}
+
+/* 窄屏适配：datetime-local 换行避免挤压文本框 */
+@media (max-width: 600px) {
+  .input-area {
+    flex-wrap: wrap;
+  }
+  #remindAtInput {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
+
+#todoInput {
+  flex: 1 1 100%;  /* 占满第一行 */
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: 15px;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: all var(--transition-smooth);
+}
+
+#todoInput::placeholder {
+  color: var(--text-muted);
+}
+
+#todoInput:focus {
+  background: #fff;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* 日期时间选择器（自定义 Popover 浮层，v2.4.0 替换原生 datetime-local） */
+.datetime-picker {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 180px;
+  max-width: 300px;
+}
+
+.datetime-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: var(--spacing-md) var(--spacing-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: all var(--transition-smooth);
+  cursor: pointer;
+  font-family: inherit;
+  min-width: 180px;
+  max-width: 300px;
+}
+
+.datetime-trigger:hover {
+  background: #fff;
+}
+
+.datetime-trigger.active,
+.datetime-trigger:focus {
+  background: #fff;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.datetime-display {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.datetime-display.placeholder {
+  color: var(--text-muted);
+}
+
+.datetime-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* Popover 浮层 — 两列紧凑版 */
+.datetime-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: auto;
+  width: 420px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(31, 38, 135, 0.14);
+  padding: 14px;
+  z-index: 10000;
+  display: none;
+  animation: popoverIn 0.18s ease-out;
+}
+
+/* 两列布局 */
+.datetime-popover {
+  display: none;
+}
+.datetime-popover.open {
+  display: flex;
+  gap: 14px;
+}
+
+.dp-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dp-col-left {
+  flex: 1.2;  /* 日期时间列稍宽 */
+}
+
+.dp-col-right {
+  flex: 1;     /* 循环 + 按钮列 */
+  border-left: 1px solid rgba(0, 0, 0, 0.05);
+  padding-left: 14px;
+}
+
+@keyframes popoverIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dp-section {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dp-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+}
+
+.dp-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.dp-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+
+.dp-label-row .dp-label {
+  margin-bottom: 0;
+}
+
+.dp-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.dp-preset {
+  padding: 3px 9px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: rgba(102, 126, 234, 0.08);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.dp-preset:hover {
+  background: rgba(102, 126, 234, 0.15);
+  color: var(--accent-color);
+}
+
+.dp-preset.active {
+  background: var(--accent-color);
+  color: #fff;
+  border-color: var(--accent-color);
+}
+
+/* ========== 滚轮选择器 — 小而美 ========== */
+
+/* 日期行：年份标签 + 月/日滚轮 */
+.dp-date-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.dp-year-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-color);
+  min-width: 42px;
+  text-align: center;
+  padding: 4px 8px;
+  background: #fafbff;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+  box-shadow: inset 0 0 0 1px rgba(102, 126, 234, 0.08);
+}
+
+/* 日期滚轮 */
+.dp-wheel-picker {
+  display: flex;
+  gap: 0;
+  height: 42px;
+  background: #fafbff;
+  border: none;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(102, 126, 234, 0.08);
+  flex: 1;
+  min-width: 0;
+}
+
+.dp-wheel-col {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  min-width: 0;
+}
+
+.dp-wheel-list {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+  transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  padding: 14px 0; /* 42px容器中心21px，item高14px，顶=21-7=14px */
+}
+
+.dp-wheel-item {
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: #bbb;
+  cursor: pointer;
+  transition: color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+  user-select: none;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+}
+
+.dp-wheel-item.selected {
+  color: var(--accent-color);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.dp-wheel-item.near {
+  color: #999;
+  opacity: 0.45;
+}
+
+.dp-wheel-item.far {
+  color: #ccc;
+  opacity: 0.15;
+}
+
+/* 中央指示线 — 柔和圆角矩形 */
+.dp-wheel-highlight {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 18px;
+  background: rgba(102, 126, 234, 0.06);
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: inset 0 0 0 1px rgba(102, 126, 234, 0.15);
+}
+
+/* 上下渐隐遮罩 — 加强版，只露出选中项 */
+.dp-wheel-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    rgba(250, 251, 255, 1) 0%,
+    rgba(250, 251, 255, 0.95) 18%,
+    rgba(250, 251, 255, 0.4) 40%,
+    transparent 50%,
+    rgba(250, 251, 255, 0.4) 60%,
+    rgba(250, 251, 255, 0.95) 82%,
+    rgba(250, 251, 255, 1) 100%
+  );
+}
+
+/* 时间预设按钮 — 与滚轮保持呼吸感 */
+.dp-time-presets {
+  margin-top: 6px;
+  margin-bottom: 0;
+  justify-content: flex-start;
+}
+
+.dp-time-presets .dp-preset {
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+}
+.dp-wheel-picker-compact {
+  height: 42px;
+  width: 100%;
+}
+
+.dp-wheel-picker-compact .dp-wheel-list {
+  padding: 14px 0;
+}
+
+.dp-wheel-picker-compact .dp-wheel-item {
+  height: 14px;
+  line-height: 14px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-wheel-picker-compact .dp-wheel-item.selected {
+  font-size: 13px;
+}
+
+.dp-wheel-sep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #aaa;
+  flex-shrink: 0;
+  user-select: none;
+  padding: 0 1px;
+}
+
+/* 隐藏滚动条 */
+.dp-wheel-col::-webkit-scrollbar {
+  display: none;
+}
+
+.dp-wheel-col {
+  scrollbar-width: none;
+}
+
+.dp-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.dp-time-select {
+  width: 56px;
+  padding: 4px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  outline: none;
+  color: var(--text-primary);
+  background: #fff;
+  font-family: inherit;
+}
+
+.dp-time-select:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+}
+
+.dp-time-sep {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* 循环提醒开关 */
+.dp-cycle-section {
+  margin-bottom: 4px;
+}
+
+.dp-toggle {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.dp-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.dp-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 20px;
+  transition: background 0.2s;
+}
+
+.dp-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 2px;
+  top: 2px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.dp-toggle input:checked + .dp-toggle-slider {
+  background: var(--accent-color);
+}
+
+.dp-toggle input:checked + .dp-toggle-slider::before {
+  transform: translateX(18px);
+}
+
+.dp-cycle-options {
+  margin-top: 6px;
+}
+
+.dp-custom-cycle {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.dp-cycle-input {
+  width: 60px;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  outline: none;
+  text-align: center;
+}
+
+.dp-cycle-input:focus {
+  border-color: var(--accent-color);
+}
+
+.dp-cycle-unit {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  outline: none;
+  background: #fff;
+}
+
+.dp-cycle-unit:focus {
+  border-color: var(--accent-color);
+}
+
+/* 循环次数输入（提醒几次后停止） */
+.dp-cycle-count-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: rgba(102, 126, 234, 0.06);
+  border-radius: 6px;
+}
+
+.dp-cycle-count-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.dp-cycle-count-input {
+  width: 48px;
+  padding: 3px 6px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  outline: none;
+  text-align: center;
+  background: #fff;
+}
+
+.dp-cycle-count-input:focus {
+  border-color: var(--accent-color);
+}
+
+.dp-cycle-count-input::placeholder {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.dp-cycle-count-unit {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 操作按钮 — 右列底部 */
+.dp-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  padding-top: 8px;
+  margin-top: auto;  /* 推到右列底部 */
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dp-btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.dp-btn-clear {
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.dp-btn-clear:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.dp-btn-confirm {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-color) 0%, #764ba2 100%);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+}
+
+.dp-btn-confirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+}
+
+/* 窄屏适配 */
+@media (max-width: 600px) {
+  .datetime-picker {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: none;
+  }
+  .datetime-trigger {
+    min-width: 0;
+    max-width: none;
+  }
+  .datetime-popover {
+    left: 0;
+    right: 0;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+#addBtn {
+  width: auto;
+  min-width: 80px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  /* 渐变按钮背景 */
+  background: linear-gradient(135deg, var(--accent-color) 0%, #764ba2 100%);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  /* 按钮阴影 */
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  flex-shrink: 0;
+}
+
+#addBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+#addBtn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+}
+
+/* ===== 列表区 ===== */
+#todoList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 单条待办事项 */
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 10px var(--spacing-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 2px 12px rgba(31, 38, 135, 0.06);
+  transition: all var(--transition-smooth);
+  /* 进入动画 */
+  animation: slideIn 0.3s ease-out;
+  position: relative;  /* 用于已提醒 ::before 铃铛定位 */
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.todo-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(31, 38, 135, 0.1);
+  z-index: 100;  /* 悬浮时提升层级，避免被桌宠遮挡 */
+}
+
+/* 自定义复选框 */
+.todo-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.todo-checkbox:hover {
+  border-color: var(--accent-color);
+}
+
+.todo-checkbox:checked {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.todo-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+}
+
+/* 待办事项文本：自动换行 + 超长时折叠 */
+.todo-text {
+  flex: 1;
+  font-size: 15px;
+  color: var(--text-primary);
+  word-break: break-word;           /* 允许任意位置换行 */
+  white-space: normal;              /* 正常换行 */
+  line-height: 1.5;
+  transition: all var(--transition-fast);
+  /* 默认最多显示 3 行 */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* 展开状态：显示全部 */
+.todo-text.expanded {
+  -webkit-line-clamp: unset;
+  display: block;
+  overflow: visible;
+}
+/* 展开/收起按钮：紧跟在文本后面 */
+.todo-expand-btn {
+  display: none;                     /* 默认隐藏 */
+  font-size: 12px;
+  color: var(--accent-color);
+  cursor: pointer;
+  padding-left: 4px;
+  white-space: nowrap;
+  user-select: none;
+}
+.todo-expand-btn:hover {
+  text-decoration: underline;
+}
+/* 待办项有超长文本时显示展开按钮（紧跟文本） */
+.todo-item.has-long-text .todo-expand-btn {
+  display: inline;
+}
+
+/* ===== 循环次数输入框（已集成到循环提醒区） ===== */
+/* 旧独立输入框已移除，样式迁移至 .dp-cycle-count-input */
+
+/* ===== 双击编辑：原地输入框 ===== */
+.todo-edit-input {
+  width: 100%;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: rgba(102, 126, 234, 0.08);
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  padding: 4px 8px;
+  outline: none;
+  box-sizing: border-box;
+}
+.todo-edit-input:focus {
+  background: rgba(102, 126, 234, 0.12);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+/* ===== 计数器样式已移除（次数功能已集成到循环提醒中） ===== */
+
+/* ===== 提醒徽章：紧贴事项文本右侧，按紧迫度变色 ===== */
+.reminder-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;            /* 推到右侧（删除按钮左侧） */
+  margin-right: var(--spacing-sm);
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  letter-spacing: 0.2px;
+}
+
+/* 远期（> 1 天）：灰色 */
+.reminder-badge-far {
+  color: var(--reminder-far);
+  background: rgba(136, 136, 160, 0.12);
+  border-color: rgba(136, 136, 160, 0.3);
+}
+
+/* 接近（≤ 1 天，> 1 小时）：紫色（主色） */
+.reminder-badge-soon {
+  color: var(--reminder-soon);
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+/* 紧迫（≤ 1 小时）：橙色 + 脉冲动画 */
+.reminder-badge-urgent {
+  color: #fff;
+  background: var(--reminder-urgent);
+  border-color: var(--reminder-urgent);
+  animation: badge-pulse 1s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(255, 167, 38, 0.5); }
+  50%      { transform: scale(1.05); box-shadow: 0 0 0 4px rgba(255, 167, 38, 0); }
+}
+
+/* 已过期：红色 + 删除线 */
+.reminder-badge-overdue {
+  color: var(--reminder-overdue);
+  background: rgba(255, 107, 107, 0.12);
+  border-color: rgba(255, 107, 107, 0.4);
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+/* 循环徽章装饰 */
+.reminder-badge-cycle {
+  position: relative;
+  padding-right: 12px;
+}
+
+.reminder-badge-cycle::after {
+  content: '🔄';
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  line-height: 1;
+}
+
+/* 完成次数徽章 */
+.completion-count {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #34c759, #28a745);
+  color: #fff;
+  margin-left: 4px;
+  flex-shrink: 0;
+  animation: count-pop 0.3s ease-out;
+}
+
+@keyframes count-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 停止循环按钮 */
+.stop-cycle-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 50%;
+  color: var(--delete-color);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.stop-cycle-btn:hover {
+  background: var(--delete-color);
+  color: #fff;
+  transform: scale(1.1);
+}
+
+/* 带 tooltip 的待办项：悬浮显示提示信息 */
+.todo-item.has-tooltip {
+  cursor: help;
+}
+
+.todo-item.has-tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  background: rgba(31, 38, 135, 0.95);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 8px;
+  white-space: nowrap;
+  z-index: 9999;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.todo-item.has-tooltip:hover::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(31, 38, 135, 0.95);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* 删除按钮 */
+.delete-btn {
+  width: auto;
+  min-width: 50px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--delete-color);
+  background: rgba(255, 107, 107, 0.15);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  opacity: 0.9;
+}
+
+.delete-btn:hover {
+  background: var(--delete-color);
+  color: #fff;
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+/* ===== 已完成状态的视觉区分 ===== */
+.todo-item.completed {
+  opacity: 0.7;
+}
+
+.todo-item.completed .todo-text {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.todo-item.completed .todo-checkbox:checked {
+  background: var(--text-muted);
+  border-color: var(--text-muted);
+}
+
+/* ===== 到点提醒高亮：红框 + 抖动动画 ===== */
+.todo-item.reminding {
+  border-color: var(--reminder-overdue);
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.12), rgba(255, 167, 38, 0.08));
+  box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.25), 0 8px 25px rgba(255, 107, 107, 0.3);
+  animation: reminder-shake 0.5s ease-in-out 4;  /* 抖动 4 次，共 2 秒 */
+}
+
+@keyframes reminder-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-6px); }
+  40%      { transform: translateX(6px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(4px); }
+}
+
+/* 已提醒过的待办：左上角小铃铛标识（::before 需要 .todo-item 设 position: relative）*/
+.todo-item.reminded::before {
+  content: '🔔';
+  position: absolute;
+  left: -6px;
+  top: -8px;
+  font-size: 14px;
+  filter: grayscale(0.3);
+  pointer-events: none;
+}
+
+/* 桌面端（Electron）：隐藏提醒提示条 */
+body.electron .reminder-notice {
+  display: none !important;
+}
+
+/* ===== 提醒功能限制提示条（清晰可读，含测试按钮） ===== */
+.reminder-notice {
+  display: flex;                           /* 左右布局：左侧提示文字，右侧测试按钮 */
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: #b8741a;
+  padding: 6px var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  background: rgba(255, 167, 38, 0.12);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 167, 38, 0.35);
+  letter-spacing: 0.2px;
+  line-height: 1.4;
+}
+
+.reminder-notice-text {
+  flex: 1 1 auto;
+  text-align: center;
+  min-width: 0;
+}
+
+/* 音效测试按钮：紧凑、与整体风格呼应，不抢视觉焦点 */
+.sound-test-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  background: linear-gradient(135deg, #7c6fce, #5c4fc0);   /* 与主按钮同色系，略浅 */
+  border: none;
+  border-radius: 999px;        /* 胶囊形，低调精致 */
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 6px rgba(92, 79, 192, 0.18);
+  line-height: 1;
+}
+
+.sound-test-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(92, 79, 192, 0.3);
+  background: linear-gradient(135deg, #8c7fd8, #6a5cd1);
+}
+
+.sound-test-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(92, 79, 192, 0.25);
+}
+
+/* 播放中状态：变绿 + 脉冲动画（便于肉眼确认"声音确实触发了"） */
+.sound-test-btn.playing {
+  background: linear-gradient(135deg, #34c759, #28a745);
+  box-shadow: 0 2px 10px rgba(40, 167, 69, 0.35);
+  animation: soundPulse 0.5s ease-in-out 1;
+}
+
+@keyframes soundPulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* 响应式：窄屏时按钮换行到第二行居中 */
+@media (max-width: 480px) {
+  .reminder-notice {
+    justify-content: center;
+  }
+  .reminder-notice-text {
+    flex-basis: 100%;
+    text-align: center;
+  }
+  .sound-test-btn {
+    flex: 0 0 auto;
+  }
+}
+
+/* ===== 空状态提示 ===== */
+#todoList:empty::before {
+  content: '暂无待办事项，添加一个开始吧 ✨';
+  display: block;
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-secondary);
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  opacity: 0.85;
+}
+
+/* ===== 收纳区样式 ===== */
+.collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-color);
+  background: rgba(102, 126, 234, 0.12);
+  border: 1.5px solid rgba(102, 126, 234, 0.5);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-top: var(--spacing-sm);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.12);
+}
+
+.collapse-btn:hover {
+  background: rgba(102, 126, 234, 0.22);
+  border-color: rgba(102, 126, 234, 0.7);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.22);
+}
+
+.collapse-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.15);
+}
+
+.collapse-btn .arrow {
+  transition: transform var(--transition-smooth);
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.collapse-btn.expanded .arrow {
+  transform: rotate(180deg);
+}
+
+/* 未完成项收纳按钮变体（与主色调统一紫蓝色系，稍偏亮区分已完成项）*/
+.collapse-btn-pending {
+  color: #4f6bd8;
+  background: rgba(102, 126, 234, 0.18);
+  border-color: rgba(102, 126, 234, 0.6);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.16);
+}
+
+.collapse-btn-pending:hover {
+  background: rgba(102, 126, 234, 0.28);
+  border-color: rgba(102, 126, 234, 0.8);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.26);
+}
+
+.collapse-btn-pending strong {
+  color: #4f6bd8;
+  font-weight: 800;
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+}
+
+/* 已完成项收纳按钮的强调色 */
+.collapse-btn strong {
+  color: var(--accent-color);
+  font-weight: 800;
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+}
+
+.collapsed-list {
+  list-style: none;
+  display: none;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  overflow: hidden;
+  animation: slideDown 0.3s ease-out;
+}
+
+.collapsed-list.show {
+  display: flex;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+  }
+}
+
+/* ===== 史迪奇桌宠 ===== */
+.stitch-pet {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 10;  /* 降低层级，不遮挡内容 */
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transition: left 0.3s ease-out, bottom 0.3s ease-out, transform 0.3s ease-out;
+}
+
+.stitch-pet.dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.stitch-pet.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.3) translateY(100px);
+}
+
+.stitch-pet.hidden .pet-img,
+.stitch-pet.hidden .pet-shadow,
+.stitch-pet.hidden .pet-bubble {
+  opacity: 0;
+}
+
+/* 桌宠图片 */
+.pet-img {
+  display: block;
+  width: 140px;
+  height: auto;
+  /* GIF 背景已抠为纯透明，无需 mask 羽化或 drop-shadow 投影，干净融入页面 */
+  image-rendering: auto;
+  transform-origin: bottom center;
+  animation: pet-idle 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  /* transform 给情绪/拖拽动画，opacity 给轮播淡入淡出 */
+  transition: transform 0.2s ease-out, opacity 0.3s ease;
+}
+
+/* SVG 图片适配 */
+.pet-img[src$=".svg"] {
+  width: 160px;
+  filter: drop-shadow(4px 8px 16px rgba(0, 0, 0, 0.3));
+}
+
+/* 悬浮时晃动感 */
+.stitch-pet:hover .pet-img {
+  animation: pet-wiggle 0.6s ease-in-out infinite;
+}
+
+/* 被点击时跳动 */
+.stitch-pet.bounce .pet-img {
+  animation: pet-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ===== 情绪动画 ===== */
+
+/* 开心（完成待办）- 大跳+旋转 */
+.stitch-pet.happy .pet-img {
+  animation: pet-happy 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pet-happy {
+  0% { transform: scale(1) translateY(0) rotate(0); }
+  25% { transform: scale(1.3) translateY(-40px) rotate(-10deg); }
+  50% { transform: scale(1.1) translateY(-20px) rotate(10deg); }
+  75% { transform: scale(1.15) translateY(-30px) rotate(-5deg); }
+  100% { transform: scale(1) translateY(0) rotate(0); }
+}
+
+/* 兴奋（添加待办）- 快速抖动+发光 */
+.stitch-pet.excited .pet-img {
+  animation: pet-excited 0.5s ease-in-out;
+  filter: drop-shadow(0 0 12px #FFD700) drop-shadow(3px 6px 12px rgba(0,0,0,0.25));
+}
+
+@keyframes pet-excited {
+  0% { transform: scale(1) rotate(0); }
+  20% { transform: scale(1.15) rotate(-8deg); }
+  40% { transform: scale(1.2) rotate(8deg); }
+  60% { transform: scale(1.15) rotate(-6deg); }
+  80% { transform: scale(1.1) rotate(6deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* 难过（删除待办）- 低头+抖动 */
+.stitch-pet.sad .pet-img {
+  animation: pet-sad 1.2s ease-in-out;
+}
+
+@keyframes pet-sad {
+  0% { transform: translateY(0) rotate(0); opacity: 1; }
+  30% { transform: translateY(5px) rotate(-3deg); opacity: 0.8; }
+  60% { transform: translateY(8px) rotate(3deg); opacity: 0.6; }
+  100% { transform: translateY(0) rotate(0); opacity: 1; }
+}
+
+/* 生气（删除已完成）- 剧烈摇晃 */
+.stitch-pet.angry .pet-img {
+  animation: pet-angry 0.5s ease-in-out;
+  filter: drop-shadow(0 0 10px #ff4444) drop-shadow(3px 6px 12px rgba(0,0,0,0.25));
+}
+
+@keyframes pet-angry {
+  0%, 100% { transform: rotate(0) scale(1); }
+  15% { transform: rotate(-15deg) scale(1.05); }
+  30% { transform: rotate(15deg) scale(1.05); }
+  45% { transform: rotate(-12deg) scale(1.08); }
+  60% { transform: rotate(12deg) scale(1.08); }
+  75% { transform: rotate(-6deg) scale(1.03); }
+}
+
+/* 睡觉（长时间无操作）- 缓慢起伏+Z字 */
+.stitch-pet.sleeping .pet-img {
+  animation: pet-sleep 4s ease-in-out infinite;
+  opacity: 0.7;
+}
+
+@keyframes pet-sleep {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-6px) scale(0.98); }
+}
+
+/* 闲置浮动 */
+.stitch-pet.idle .pet-img,
+.stitch-pet:not(.happy):not(.excited):not(.sad):not(.angry):not(.sleeping):not(.bounce):not(.dragging):not(.walking):not(.hidden) .pet-img {
+  animation: pet-idle 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes pet-idle {
+  0%, 100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(1deg);
+  }
+}
+
+/* 悬浮摇摆 */
+.stitch-pet:hover .pet-img {
+  animation: pet-wiggle 0.5s ease-in-out infinite !important;
+}
+
+@keyframes pet-wiggle {
+  0%, 100% { transform: rotate(-6deg) scale(1.05); }
+  50% { transform: rotate(6deg) scale(1.05); }
+}
+
+/* 弹跳 */
+.stitch-pet.bounce .pet-img {
+  animation: pet-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pet-pop {
+  0% { transform: scale(1) translateY(0); }
+  30% { transform: scale(1.3) translateY(-30px); }
+  60% { transform: scale(0.9) translateY(-5px); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+/* ===== 光环效果 ===== */
+.pet-glow {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: -1;
+}
+
+.stitch-pet.happy .pet-glow {
+  opacity: 1;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.5) 0%, rgba(255, 215, 0, 0) 70%);
+  animation: glow-pulse 0.6s ease-out infinite;
+}
+
+.stitch-pet.excited .pet-glow {
+  opacity: 1;
+  background: radial-gradient(circle, rgba(255, 107, 107, 0.5) 0%, rgba(255, 107, 107, 0) 70%);
+  animation: glow-pulse 0.5s ease-out infinite;
+}
+
+.stitch-pet.sad .pet-glow {
+  opacity: 1;
+  background: radial-gradient(circle, rgba(100, 149, 237, 0.4) 0%, rgba(100, 149, 237, 0) 70%);
+  animation: glow-pulse 1.2s ease-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.6; }
+  50% { transform: translateX(-50%) scale(1.3); opacity: 0.2; }
+}
+
+/* ===== 粒子系统 ===== */
+.pet-particles {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.particle {
+  position: absolute;
+  font-size: 18px;
+  pointer-events: none;
+  animation: particle-float 1.2s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes particle-float {
+  0% {
+    transform: translateY(0) scale(0.5) rotate(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-80px) scale(1.5) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* 行走时的彩虹拖尾 */
+.stitch-pet.walking .pet-trail {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: trail-fade 0.8s ease-out forwards;
+}
+
+@keyframes trail-fade {
+  0% { opacity: 0.8; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.3); }
+}
+
+/* ===== ZZZ 睡眠特效 ===== */
+.pet-zzz {
+  position: absolute;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(100, 149, 237, 0.8);
+  animation: zzz-float 2s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes zzz-float {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translate(15px, -40px) scale(1.2); opacity: 0; }
+}
+
+/* ===== 影子 ===== */
+.pet-shadow {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 20px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.25) 0%, transparent 70%);
+  animation: shadow-breathe 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes shadow-breathe {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateX(-50%) scale(0.85);
+    opacity: 0.35;
+  }
+}
+
+/* 对话气泡 — 轻量不突兀 */
+.pet-bubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) scale(0);
+  margin-bottom: 8px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+  text-align: center;
+  opacity: 0;
+  transition: all 0.2s ease-out;
+  pointer-events: none;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  /* 气泡宽度自适应内容，不被截断 */
+  width: max-content;
+  max-width: none;
+  /* 层级高于桌宠本体，确保不被遮挡 */
+  z-index: 100;
+}
+
+.pet-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #fff;
+}
+
+.pet-bubble.show {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* 史迪仔在左边缘时：气泡靠左对齐，避免超出视口 */
+.stitch-pet.near-left .pet-bubble {
+  left: 0;
+  transform: scale(0);
+}
+.stitch-pet.near-left .pet-bubble.show {
+  transform: scale(1);
+}
+.stitch-pet.near-left .pet-bubble::after {
+  left: 24px;
+}
+
+/* 史迪仔在右边缘时：气泡靠右对齐，避免超出视口 */
+.stitch-pet.near-right .pet-bubble {
+  left: auto;
+  right: 10px;
+  transform: scale(0);
+}
+.stitch-pet.near-right .pet-bubble.show {
+  transform: translateX(0) scale(1);
+}
+.stitch-pet.near-right .pet-bubble::after {
+  left: auto;
+  right: 24px;
+}
+
+/* 关闭按钮 */
+.pet-close {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--text-secondary);
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.2s ease-out;
+  z-index: 10;
+}
+
+.stitch-pet:hover .pet-close {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.pet-close:hover {
+  background: var(--delete-color);
+  color: #fff;
+  border-color: var(--delete-color);
+  transform: scale(1.1) !important;
+}
+
+/* 拖拽时的样式 */
+.stitch-pet.dragging .pet-img {
+  animation: none;
+  filter: drop-shadow(5px 10px 20px rgba(0, 0, 0, 0.3));
+}
+
+.stitch-pet.dragging .pet-bubble {
+  opacity: 0;
+}
+
+/* ===== 行走动画 ===== */
+.stitch-pet.walking .pet-img {
+  animation: pet-walk 0.5s ease-in-out infinite;
+}
+
+@keyframes pet-walk {
+  0%, 100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(2deg);
+  }
+}
+
+/* 移动时的影子效果 */
+.stitch-pet.walking .pet-shadow {
+  animation: shadow-walk 0.5s ease-in-out infinite;
+}
+
+@keyframes shadow-walk {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.5; }
+  50% { transform: translateX(-50%) scale(0.7); opacity: 0.2; }
+}
+
+/* 图片朝向翻转（面向左/右） */
+.pet-img.facing-left {
+  transform: scaleX(-1);
+}
+
+.pet-img.facing-right {
+  transform: scaleX(1);
+}
+
+/* 响应式：中等屏幕缩小桌宠 */
+@media (max-width: 768px) {
+  .pet-img {
+    width: 100px;
+  }
+  .pet-shadow {
+    width: 70px;
+    height: 14px;
+  }
+}
+
+
+/* ====================================================
+   史迪奇对话气泡增强样式
+   （原独立 toast 系统已废弃，统一使用史迪奇自身的对话气泡）
+   ==================================================== */
+
+/* 对话气泡：根据待办操作类型显示不同颜色边框 */
+.pet-bubble.type-success {
+  border-color: rgba(78, 205, 196, 0.7);
+  background: linear-gradient(135deg, #fff, #f0fffe);
+}
+
+.pet-bubble.type-info {
+  border-color: rgba(102, 126, 234, 0.7);
+  background: linear-gradient(135deg, #fff, #f5f6ff);
+}
+
+.pet-bubble.type-warning {
+  border-color: rgba(255, 167, 38, 0.7);
+  background: linear-gradient(135deg, #fff, #fff8f0);
+}
+
+.pet-bubble.type-error {
+  border-color: rgba(255, 107, 107, 0.7);
+  background: linear-gradient(135deg, #fff, #fff5f5);
+}
+
+/* ===== 日报弹窗 ===== */
+.daily-report-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.daily-report-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+}
+.daily-report-card {
+  position: relative;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 380px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: reportSlideUp 0.3s ease;
+}
+@keyframes reportSlideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.daily-report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+.daily-report-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.daily-report-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: #f0f0f0;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.daily-report-close:hover {
+  background: #e0e0e0;
+}
+.daily-report-body {
+  padding: 16px 20px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  font-family: inherit;
+  margin: 0;
+}
+.daily-report-footer {
+  padding: 12px 20px 16px;
+  text-align: center;
+}
+.daily-report-btn {
+  padding: 10px 32px;
+  border: none;
+  border-radius: 20px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.daily-report-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+
+/* ============================================================
+   便签模式样式
+   当 body 有 .sticky-mode class 时生效
+   ============================================================ */
+
+/* 便签模式下：隐藏输入区、桌宠、提醒条、指南按钮、GitHub 按钮 */
+.sticky-mode .input-area,
+.sticky-mode .stitch-pet,
+.sticky-mode .reminder-notice,
+.sticky-mode .guide-fab,
+.sticky-mode .github-fab {
+  display: none !important;
+}
+
+/* 头部布局：标题居中，按钮组居右 */
+header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* 头部按钮组：flex 横向排列，间距均匀 */
+.header-btns {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.pin-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.2s, transform 0.2s, background 0.2s;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+/* 「+」按钮激活态：蓝色高亮表示输入区已展开 */
+.pin-btn.active {
+  opacity: 1;
+  background: rgba(74, 144, 217, 0.15);
+  color: #4a90d9;
+}
+
+/* 便签模式折叠后：只显示标题栏，隐藏其他所有内容 */
+.sticky-mode.sticky-collapsed main,
+.sticky-mode.sticky-collapsed .input-area,
+.sticky-mode.sticky-collapsed .list-area,
+.sticky-mode.sticky-collapsed .reminder-notice,
+.sticky-mode.sticky-collapsed .stitch-pet,
+.sticky-mode.sticky-collapsed .guide-fab,
+.sticky-mode.sticky-collapsed .github-fab {
+  display: none !important;
+}
+.sticky-mode.sticky-collapsed header {
+  padding: 8px 0;
+  margin: 0;
+}
+/* 便签模式：取消 body 的 min-height: 100vh 限制，让窗口可以随内容缩小 */
+.sticky-mode {
+  min-height: auto !important;
+}
+
+/* 便签模式：隐藏外层滚动条，只保留列表区域内部滚动 */
+html.sticky-mode,
+body.sticky-mode {
+  overflow: hidden;
+}
+.pin-btn:hover {
+  opacity: 1;
+  background: rgba(0,0,0,0.06);
+}
+/* 置顶按钮激活态：红色 + 旋转 */
+#pinBtn.active {
+  opacity: 1;
+  color: #e74c3c;
+  transform: rotate(-45deg);
+}
+
+/* 便签模式下：标题缩小、居中，四周留白 */
+.sticky-mode header {
+  padding: 10px 12px 6px;
+  margin-bottom: 0;
+}
+.sticky-mode header h1 {
+  font-size: 16px;
+  text-align: center;
+  margin: 0;
+}
+
+/* 列表区：内部滚动（普通模式下 main 高度固定，list-area 撑满剩余空间） */
+.list-area {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0; /* flex 子项需要这个才能正确滚动 */
+}
+
+/* 便签模式：覆盖普通模式的固定高度，恢复自适应 */
+.sticky-mode main {
+  height: auto;
+  display: block;
+}
+.sticky-mode .list-area {
+  overflow-y: visible;
+  max-height: none;
+  flex: none;
+  min-height: auto;
+}
+/* 便签模式内容溢出时：列表区域滚动 */
+.sticky-mode.is-overflow .list-area {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+/* 美化滚动条——平时淡隐，悬停时细条显示（通用，普通模式 + 便签模式共用） */
+.list-area::-webkit-scrollbar {
+  width: 4px;
+}
+.list-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+.list-area::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 2px;
+}
+.list-area:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* 便签模式下：四周留白，透气舒适 */
+.sticky-mode main {
+  padding: 12px 12px 24px 12px;
+}
+
+/* ======================== 便签模式按钮显示规则 ======================== */
+
+/* 便签模式下显示折叠和「+」按钮（通过父级 .header-bts 的 flex 自动横排） */
+.sticky-mode #stickyCollapseBtn,
+.sticky-mode #stickyAddToggleBtn {
+  display: inline-flex !important;
+}
+
+/* ======================== 便签模式展开的输入区 ======================== */
+
+/* 默认隐藏（JS 控制展开） */
+.sticky-input-area {
+  display: none;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(74,144,217,0.04), transparent);
+  border-bottom: 1px solid rgba(74, 144, 217, 0.12);
+}
+
+/* 输入框样式：清爽、圆润 */
+#stickyInput {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid rgba(74, 144, 217, 0.25);
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  background: #fff;
+}
+#stickyInput:focus {
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.12);
+}
+#stickyInput::placeholder {
+  color: #aab4c0;
+}
+
+/* 便签模式下：待办项更紧凑 */
+.sticky-mode .todo-item {
+  padding: 6px 8px;
+  margin-bottom: 4px;
+}
+.sticky-mode .todo-text {
+  font-size: 14px;
+}
+
+/* 便签模式下：收纳按钮更紧凑 */
+.sticky-mode .collapse-btn {
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
