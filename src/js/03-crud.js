@@ -1,9 +1,10 @@
 // ---------- 4. 添加待办事项 ----------
 
 // 添加待办事项
-// 参数：remindAt（可选）— 提醒时间戳（毫秒）；recurrence（可选）— 循环设置对象
+// 参数：remindAt（可选）— 开始提醒时间戳（毫秒）；endRemindAt（可选）— 结束提醒时间戳（毫秒）；
+//       endRemindBefore（可选）— 结束前提醒分钟数；recurrence（可选）— 循环设置对象
 // 返回值：新增的事项对象（供调用方调度提醒）；空输入时返回 undefined
-function addTodo(remindAt, recurrence) {
+function addTodo(remindAt, endRemindAt, endRemindBefore, recurrence) {
   // 1) 读取输入框的值，并用 trim() 去除首尾空格
   const text = todoInput.value.trim();
 
@@ -17,29 +18,34 @@ function addTodo(remindAt, recurrence) {
     return;  // 直接返回，不执行后续添加逻辑
   }
 
-  // 3) 构造新事项对象，推入数组
-  // id 用 Date.now()（当前毫秒时间戳）保证唯一
-  // remindAt：提醒时间戳（毫秒），无提醒为 null
-  // reminded：是否已触发过本轮提醒，初始 false
-  // recurrence：循环设置，无循环为 null（内含 targetCount：目标次数）
-  // completionCount：完成次数，初始 0
-  // 注意：targetCount 统一存在 recurrence 内，不再顶层重复存储
+  // 3) 构造提醒点数组
+  const reminders = [];
+  if (remindAt) {
+    reminders.push({ type: 'start', at: remindAt, reminded: false });
+  }
+  if (endRemindAt) {
+    reminders.push({ type: 'end', at: endRemindAt, reminded: false });
+    if (endRemindBefore > 0) {
+      reminders.push({ type: 'before', at: endRemindAt - endRemindBefore * 60000, reminded: false });
+    }
+  }
+
+  // 4) 构造新事项对象，推入数组
   const newTodo = {
     id: Date.now(),
     text: text,
     done: false,
-    remindAt: remindAt || null,
-    reminded: false,
+    reminders: reminders,
     recurrence: recurrence || null,
     completionCount: 0,
     lastRemindAt: null
   };
   todos.push(newTodo);
 
-  // 4) 数据已变，重新渲染列表
+  // 5) 数据已变，重新渲染列表
   render();
 
-  // 5) 清空输入框，并重新聚焦
+  // 6) 清空输入框，并重新聚焦
   todoInput.value = '';
   todoInput.focus();
 
@@ -49,7 +55,7 @@ function addTodo(remindAt, recurrence) {
     todoInput.classList.remove('success-flash');
   }, 400);
 
-  // 6) 返回新增的事项对象，供调用方调度提醒
+  // 7) 返回新增的事项对象，供调用方调度提醒
   return newTodo;
 }
 
@@ -92,12 +98,15 @@ function toggleTodo(id) {
       return;
     }
 
-    // 3) 推进到下一个周期
+    // 3) 推进到下一个周期（更新 start 类型提醒点）
     if (window.reminderModule) {
       const intervalMs = window.reminderModule.getIntervalMs(todo.recurrence);
       if (intervalMs) {
-        todo.remindAt = Date.now() + intervalMs;
-        todo.reminded = false;
+        const startR = todo.reminders.find(function (r) { return r.type === 'start'; });
+        if (startR) {
+          startR.at = Date.now() + intervalMs;
+          startR.reminded = false;
+        }
         todo.lastRemindAt = Date.now();
       }
     }
@@ -106,7 +115,7 @@ function toggleTodo(id) {
     todo.done = false;
 
     // 5) 调度下一轮
-    if (window.reminderModule && todo.remindAt) {
+    if (window.reminderModule) {
       window.reminderModule.schedule(todo);
     }
 
@@ -128,7 +137,7 @@ function toggleTodo(id) {
   if (window.reminderModule) {
     if (todo.done) {
       window.reminderModule.cancel(id);
-    } else if (todo.remindAt && !todo.reminded) {
+    } else {
       window.reminderModule.schedule(todo);
     }
   }

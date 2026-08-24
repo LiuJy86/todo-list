@@ -318,7 +318,7 @@ def main():
 
         ss_with_reminder = get_todos(page)
         reminder_item = next((t for t in ss_with_reminder if "开会" in t["text"]), None)
-        has_reminder = reminder_item is not None and reminder_item["remindAt"] is not None
+        has_reminder = reminder_item is not None and isinstance(reminder_item.get("reminders"), list) and len(reminder_item["reminders"]) > 0
         shot(page, "13_reminder_parsed")
         log(
             "9. 自然语言解析提醒时间",
@@ -398,6 +398,197 @@ def main():
                 "11.1 选择日期后显示更新",
                 has_date_selected,
                 f"display text={display_text}",
+            )
+
+        # ---------- 11.2 结束时间设置 ----------
+        # 重新打开日期选择器
+        datetime_trigger.click()
+        page.wait_for_timeout(500)
+
+        if popover.count() > 0 and popover.is_visible():
+            # 开启结束时间开关（点击 label 而非隐藏的 input）
+            end_toggle_label = page.locator("label.dp-toggle:has(#dpEndToggle)")
+            if end_toggle_label.count() > 0:
+                end_toggle_label.click()
+                page.wait_for_timeout(300)
+
+                # 验证结束时间区域展开
+                end_options_visible = page.locator("#dpEndOptions").is_visible()
+                shot(page, "16b_end_time_section")
+                log(
+                    "11.2 结束时间区域展开",
+                    end_options_visible,
+                    f"end options visible={end_options_visible}",
+                )
+
+                # 设置结束时间输入（月/日/时/分）
+                page.locator("#dpEndMonthInput").fill("8")
+                page.locator("#dpEndDayInput").fill("25")
+                page.locator("#dpEndHourInput").fill("12")
+                page.locator("#dpEndMinuteInput").fill("0")
+                page.wait_for_timeout(300)
+
+                # 点击确定（先滚动到可见区域）
+                confirm_btn = page.locator("#dpConfirmBtn")
+                confirm_btn.scroll_into_view_if_needed()
+                page.wait_for_timeout(200)
+                confirm_btn.click()
+                page.wait_for_timeout(300)
+
+                # 验证显示文本包含时间范围
+                display_text_after_end = page.locator("#datetimeDisplay").text_content()
+                has_range = "~" in display_text_after_end
+                shot(page, "16c_end_time_set")
+                log(
+                    "11.2 结束时间设置成功",
+                    has_range,
+                    f"display text={display_text_after_end}",
+                )
+
+        # ---------- 11.2.1 结束时间快捷预设 ----------
+        datetime_trigger.click()
+        page.wait_for_timeout(500)
+
+        if popover.count() > 0 and popover.is_visible():
+            # 设置开始时间为今天 09:00
+            page.locator(".dp-preset[data-date='today']").click()
+            page.wait_for_timeout(200)
+            page.locator("#dpHourInput").fill("9")
+            page.locator("#dpMinuteInput").fill("0")
+            page.wait_for_timeout(200)
+
+            # 开启结束时间
+            end_toggle_label = page.locator("label.dp-toggle:has(#dpEndToggle)")
+            if end_toggle_label.count() > 0:
+                end_toggle_label.click()
+                page.wait_for_timeout(300)
+
+                # 点击"+1小时"快捷预设（使用 JS 点击避免可见性问题）
+                page.evaluate("document.querySelector('.dp-end-time-presets .dp-preset[data-end-time=\"1h\"]').click()")
+                page.wait_for_timeout(300)
+
+                # 点击确定
+                confirm_btn = page.locator("#dpConfirmBtn")
+                confirm_btn.scroll_into_view_if_needed()
+                page.wait_for_timeout(200)
+                confirm_btn.click()
+                page.wait_for_timeout(300)
+
+                # 验证显示文本包含时间范围（开始 09:00，结束应自动设为 10:00）
+                display_text_after_preset = page.locator("#datetimeDisplay").text_content()
+                has_range_with_10 = "~" in display_text_after_preset and "10:00" in display_text_after_preset
+                shot(page, "16c2_end_time_preset")
+                log(
+                    "11.2.1 结束时间快捷预设（+1小时）",
+                    has_range_with_10,
+                    f"display text={display_text_after_preset}",
+                )
+
+        # ---------- 11.3 结束前提醒设置 ----------
+        datetime_trigger.click()
+        page.wait_for_timeout(500)
+
+        if popover.count() > 0 and popover.is_visible():
+            # 开启结束前提醒开关
+            before_toggle_label = page.locator("label.dp-toggle:has(#dpBeforeToggle)")
+            if before_toggle_label.count() > 0:
+                before_toggle_label.click()
+                page.wait_for_timeout(300)
+
+                # 验证结束前提醒区域展开
+                before_options_visible = page.locator("#dpBeforeOptions").is_visible()
+
+                # 点击"15分钟"预设（使用 JS 点击避免可见性问题）
+                page.evaluate("document.querySelector('.dp-before-presets .dp-preset[data-before=\"15\"]').click()")
+                page.wait_for_timeout(300)
+
+                # 点击确定
+                page.locator("#dpConfirmBtn").click()
+                page.wait_for_timeout(300)
+
+                # 验证显示文本包含结束前提醒
+                display_text_after_before = page.locator("#datetimeDisplay").text_content()
+                has_before = "前15分" in display_text_after_before or "15" in display_text_after_before
+                shot(page, "16d_before_reminder_set")
+                log(
+                    "11.3 结束前提醒设置成功",
+                    has_before,
+                    f"display text={display_text_after_before}",
+                )
+
+        # ---------- 11.4 添加时间范围事项 + 时间轴验证 ----------
+        # 打开日期选择器，设置开始+结束时间
+        datetime_trigger.click()
+        page.wait_for_timeout(500)
+
+        if popover.count() > 0 and popover.is_visible():
+            # 点击"今天"预设设置开始时间
+            page.locator(".dp-preset[data-date='today']").click()
+            page.wait_for_timeout(200)
+
+            # 设置开始时间为 09:00
+            page.locator("#dpHourInput").fill("9")
+            page.locator("#dpMinuteInput").fill("0")
+            page.wait_for_timeout(200)
+
+            # 开启结束时间并设置为 12:00（点击 label 触发）
+            end_toggle_label = page.locator("label.dp-toggle:has(#dpEndToggle)")
+            if end_toggle_label.count() > 0:
+                end_toggle_label.click()
+                page.wait_for_timeout(300)
+                page.locator("#dpEndHourInput").fill("12")
+                page.locator("#dpEndMinuteInput").fill("0")
+                page.wait_for_timeout(200)
+
+            # 开启结束前提醒 15 分钟
+            before_toggle_label = page.locator("label.dp-toggle:has(#dpBeforeToggle)")
+            if before_toggle_label.count() > 0:
+                before_toggle_label.click()
+                page.wait_for_timeout(300)
+                page.evaluate("document.querySelector('.dp-before-presets .dp-preset[data-before=\"15\"]').click()")
+                page.wait_for_timeout(200)
+
+            # 点击确定并添加事项
+            page.locator("#dpConfirmBtn").click()
+            page.wait_for_timeout(300)
+
+        page.locator("#todoInput").fill("项目会议")
+        page.locator("#todoInput").press("Enter")
+        page.wait_for_timeout(500)
+
+        # 验证时间轴元素出现
+        timeline = page.locator("#todoList .todo-item .todo-timeline")
+        timeline_visible = timeline.count() > 0
+
+        # 验证时间轴标签
+        timeline_label = page.locator("#todoList .todo-item .todo-timeline-label")
+        timeline_label_text = timeline_label.first.text_content() if timeline_label.count() > 0 else ""
+
+        # 验证徽章在有时间轴时不显示（去重）
+        badge_in_item = page.locator("#todoList .todo-item", has_text="项目会议").locator(".reminder-badge")
+        badge_hidden = badge_in_item.count() == 0
+
+        shot(page, "16e_timeline_visible")
+        log(
+            "11.4 时间轴显示（徽章去重）",
+            timeline_visible and badge_hidden,
+            f"timeline visible={timeline_visible}, label={timeline_label_text}, badge hidden={badge_hidden}",
+        )
+
+        # 验证时间轴悬浮提示（JS 动态创建 .js-tooltip 元素）
+        if timeline_visible:
+            timeline.first.hover()
+            page.wait_for_timeout(500)
+            # 验证动态 tooltip 元素出现
+            dynamic_tooltip = page.locator("body > .js-tooltip")
+            dynamic_visible = dynamic_tooltip.count() > 0 and dynamic_tooltip.is_visible()
+            tooltip_text = dynamic_tooltip.text_content() if dynamic_visible else ""
+            has_detail = "📅" in tooltip_text and "🏁" in tooltip_text
+            shot(page, "16f_timeline_tooltip")
+            log(
+                "11.4 时间轴悬浮提示",
+                dynamic_visible and has_detail,
+                f"tooltip visible={dynamic_visible}, text={tooltip_text}",
             )
 
         # ---------- 12. 长文本折叠/展开 ----------

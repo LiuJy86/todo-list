@@ -4,6 +4,37 @@
 
 ---
 
+## [v2.18.0] - 2026-08-24
+
+### 新增 (Added) — 结束时间快捷预设
+
+1. **快捷时间按钮**
+   - 结束时间区域新增 +1小时、+2小时、明天、下周 快捷按钮
+   - 基于开始时间自动计算结束时间，一键设置无需手动输入
+   - 文件：`src/index.html`、`src/js/05-datetime.js`
+
+### 优化 (Improved) — Tooltip 与浮层
+
+1. **JS 动态 Tooltip 替代 CSS 伪元素**
+   - 所有待办项的悬浮提示改用 JS 动态创建，挂载到 `<body>`
+   - 使用 `position: fixed` 彻底解决 `overflow-y: auto` 容器裁剪问题
+   - 智能定位：默认上方，空间不足自动切换下方，边界保护不超出视口
+   - 文件：`src/js/02-render.js`（`attachTooltip()` 函数）、`src/style.css`（`.js-tooltip` 样式）
+
+2. **日期选择器浮层可滚动**
+   - 浮层添加 `max-height: 80vh` 和 `overflow-y: auto`
+   - 内容超出视口时可滚动，避免按钮不可见
+   - 文件：`src/style.css`
+
+### 核心文件
+
+- `src/index.html`：结束时间快捷预设按钮
+- `src/style.css`：`.js-tooltip` 样式、浮层滚动
+- `src/js/02-render.js`：`attachTooltip()` 通用 tooltip 函数、时间轴和待办项绑定
+- `src/js/05-datetime.js`：`selectEndTimePreset()` 函数、预设按钮事件绑定
+
+---
+
 ## [v2.17.0] - 2026-08-24
 
 ### 新增 (Added) — 全局快捷键

@@ -58,56 +58,84 @@
         </div>
         <!-- Popover 浮层（两列布局） -->
         <div class="datetime-popover" id="datetimePopover">
-          <!-- 左列：日期 + 时间 -->
+          <!-- 左列：开始时间 + 结束时间 + 结束前提醒 -->
           <div class="dp-col dp-col-left">
-            <!-- 日期区 -->
+            <!-- 开始时间区 -->
             <div class="dp-section">
-              <div class="dp-label">日期</div>
+              <div class="dp-label">📅 开始时间</div>
               <div class="dp-preset-row" id="dpDatePresets">
                 <button type="button" class="dp-preset" data-date="today">今天</button>
                 <button type="button" class="dp-preset" data-date="tomorrow">明天</button>
                 <button type="button" class="dp-preset" data-date="dayAfter">后天</button>
                 <button type="button" class="dp-preset" data-date="nextWeek">下周一</button>
               </div>
-              <!-- 年份标签 + 月/日滚轮 -->
-              <div class="dp-date-row">
-                <span class="dp-year-label" id="dpYearLabel"></span>
-                <div class="dp-wheel-picker" id="dpWheelPicker">
-                  <div class="dp-wheel-col" id="dpWheelMonth">
-                    <div class="dp-wheel-mask"></div>
-                    <div class="dp-wheel-highlight"></div>
-                    <div class="dp-wheel-list" id="dpWheelMonthList"></div>
-                  </div>
-                  <div class="dp-wheel-col" id="dpWheelDay">
-                    <div class="dp-wheel-mask"></div>
-                    <div class="dp-wheel-highlight"></div>
-                    <div class="dp-wheel-list" id="dpWheelDayList"></div>
-                  </div>
-                </div>
+              <!-- 日期输入：点击可直接输入月/日 -->
+              <div class="dp-date-input-row">
+                <input type="number" id="dpMonthInput" class="dp-date-input" min="1" max="12" placeholder="月">
+                <span class="dp-date-sep">/</span>
+                <input type="number" id="dpDayInput" class="dp-date-input" min="1" max="31" placeholder="日">
               </div>
-            </div>
-            <!-- 时间区 -->
-            <div class="dp-section">
-              <div class="dp-label">时间</div>
-              <!-- 滚轮时间选择器 -->
-              <div class="dp-wheel-picker dp-wheel-picker-compact" id="dpTimeWheelPicker">
-                <div class="dp-wheel-col" id="dpWheelHour">
-                  <div class="dp-wheel-mask"></div>
-                  <div class="dp-wheel-highlight"></div>
-                  <div class="dp-wheel-list" id="dpWheelHourList"></div>
-                </div>
-                <div class="dp-wheel-sep">:</div>
-                <div class="dp-wheel-col" id="dpWheelMinute">
-                  <div class="dp-wheel-mask"></div>
-                  <div class="dp-wheel-highlight"></div>
-                  <div class="dp-wheel-list" id="dpWheelMinuteList"></div>
-                </div>
+              <!-- 时间输入：点击可直接输入时/分 -->
+              <div class="dp-time-input-row">
+                <input type="number" id="dpHourInput" class="dp-time-input" min="0" max="23" placeholder="时">
+                <span class="dp-time-sep">:</span>
+                <input type="number" id="dpMinuteInput" class="dp-time-input" min="0" max="59" placeholder="分">
               </div>
               <div class="dp-preset-row dp-time-presets" id="dpTimePresets">
                 <button type="button" class="dp-preset" data-time="now" id="dpNowBtn">现在</button>
                 <button type="button" class="dp-preset" data-time="morning">8:00</button>
                 <button type="button" class="dp-preset" data-time="noon">12:00</button>
                 <button type="button" class="dp-preset" data-time="evening">20:00</button>
+              </div>
+            </div>
+            <!-- 结束时间区 -->
+            <div class="dp-section dp-end-section">
+              <div class="dp-label-row">
+                <span class="dp-label">🏁 结束时间</span>
+                <label class="dp-toggle">
+                  <input type="checkbox" id="dpEndToggle">
+                  <span class="dp-toggle-slider"></span>
+                </label>
+              </div>
+              <div class="dp-end-options" id="dpEndOptions" style="display:none;">
+                <div class="dp-date-input-row">
+                  <input type="number" id="dpEndMonthInput" class="dp-date-input" min="1" max="12" placeholder="月">
+                  <span class="dp-date-sep">/</span>
+                  <input type="number" id="dpEndDayInput" class="dp-date-input" min="1" max="31" placeholder="日">
+                </div>
+                <div class="dp-time-input-row">
+                  <input type="number" id="dpEndHourInput" class="dp-time-input" min="0" max="23" placeholder="时">
+                  <span class="dp-time-sep">:</span>
+                  <input type="number" id="dpEndMinuteInput" class="dp-time-input" min="0" max="59" placeholder="分">
+                </div>
+                <div class="dp-preset-row dp-end-time-presets" id="dpEndTimePresets">
+                  <button type="button" class="dp-preset" data-end-time="1h">+1小时</button>
+                  <button type="button" class="dp-preset" data-end-time="2h">+2小时</button>
+                  <button type="button" class="dp-preset" data-end-time="明天">明天</button>
+                  <button type="button" class="dp-preset" data-end-time="下周">下周</button>
+                </div>
+              </div>
+            </div>
+            <!-- 结束前提醒区 -->
+            <div class="dp-section dp-before-section">
+              <div class="dp-label-row">
+                <span class="dp-label">⏰ 结束前提醒</span>
+                <label class="dp-toggle">
+                  <input type="checkbox" id="dpBeforeToggle">
+                  <span class="dp-toggle-slider"></span>
+                </label>
+              </div>
+              <div class="dp-before-options" id="dpBeforeOptions" style="display:none;">
+                <div class="dp-before-input-row">
+                  <input type="number" id="dpBeforeInput" class="dp-before-input" min="1" max="999" placeholder="分钟">
+                  <span class="dp-before-unit">分钟前提醒</span>
+                </div>
+                <div class="dp-preset-row dp-before-presets">
+                  <button type="button" class="dp-preset" data-before="5">5 分钟</button>
+                  <button type="button" class="dp-preset" data-before="10">10 分钟</button>
+                  <button type="button" class="dp-preset" data-before="15">15 分钟</button>
+                  <button type="button" class="dp-preset" data-before="30">30 分钟</button>
+                </div>
               </div>
             </div>
           </div>

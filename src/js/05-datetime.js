@@ -3,9 +3,13 @@
 
 const datetimePickerModule = (function () {
   // 模块内部状态
-  let currentDate = null;       // 已选日期 (Date 对象，时间部分为 00:00)
-  let currentHour = 8;          // 已选小时
-  let currentMinute = 0;        // 已选分钟
+  let currentDate = null;       // 开始日期 (Date 对象，时间部分为 00:00)
+  let currentHour = 8;          // 开始小时
+  let currentMinute = 0;        // 开始分钟
+  let currentEndDate = null;    // 结束日期 (Date 对象，可选)
+  let currentEndHour = 9;       // 结束小时
+  let currentEndMinute = 0;     // 结束分钟
+  let endRemindBefore = 0;      // 结束前提醒分钟数，0=不提醒
   let currentRecurrence = null; // 循环设置对象
   let activeDatePreset = null;  // 当前激活的日期预设
   let activeTimePreset = null;  // 当前激活的时间预设
@@ -19,7 +23,21 @@ const datetimePickerModule = (function () {
   const datePresetRow = document.getElementById('dpDatePresets');
   const hourSelect = document.getElementById('dpHourSelect');
   const minuteSelect = document.getElementById('dpMinuteSelect');
+  const hourInput = document.getElementById('dpHourInput');
+  const minuteInput = document.getElementById('dpMinuteInput');
+  const monthInput = document.getElementById('dpMonthInput');
+  const dayInput = document.getElementById('dpDayInput');
+  const endMonthInput = document.getElementById('dpEndMonthInput');
+  const endDayInput = document.getElementById('dpEndDayInput');
+  const endHourInput = document.getElementById('dpEndHourInput');
+  const endMinuteInput = document.getElementById('dpEndMinuteInput');
+  const endToggle = document.getElementById('dpEndToggle');
+  const endOptions = document.getElementById('dpEndOptions');
+  const beforeToggle = document.getElementById('dpBeforeToggle');
+  const beforeOptions = document.getElementById('dpBeforeOptions');
+  const beforeInput = document.getElementById('dpBeforeInput');
   const timePresetRow = document.getElementById('dpTimePresets');
+  const endTimePresetRow = document.getElementById('dpEndTimePresets');
   const cycleToggle = document.getElementById('dpCycleToggle');
   const cycleOptions = document.getElementById('dpCycleOptions');
   const cyclePresetRow = document.getElementById('dpCyclePresets');
@@ -30,259 +48,161 @@ const datetimePickerModule = (function () {
   const clearBtn = document.getElementById('dpClearBtn');
   const confirmBtn = document.getElementById('dpConfirmBtn');
 
-  // ========== 滚轮选择器（月/日 + 时/分） ==========
-  const DATE_ITEM_HEIGHT = 14;
-  const TIME_ITEM_HEIGHT = 14;
-
-  const wheelMonthList = document.getElementById('dpWheelMonthList');
-  const wheelDayList = document.getElementById('dpWheelDayList');
-  const wheelHourList = document.getElementById('dpWheelHourList');
-  const wheelMinuteList = document.getElementById('dpWheelMinuteList');
-  const yearLabel = document.getElementById('dpYearLabel');
-
-  // 滚轮列状态
-  const wheelState = {
-    month:  { listEl: wheelMonthList,  items: [], index: 0, scrollTop: 0, itemH: DATE_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 },
-    day:    { listEl: wheelDayList,    items: [], index: 0, scrollTop: 0, itemH: DATE_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 },
-    hour:   { listEl: wheelHourList,   items: [], index: 8, scrollTop: 0, itemH: TIME_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 },
-    minute: { listEl: wheelMinuteList, items: [], index: 0, scrollTop: 0, itemH: TIME_ITEM_HEIGHT, dragging: false, startY: 0, startScroll: 0 }
-  };
+  // ========== 日期输入（月/日） ==========
 
   // 获取指定年月的天数
   function getDaysInMonth(year, month) {
     return new Date(year, month, 0).getDate();
   }
 
-  // 渲染单个滚轮列
-  function renderWheel(col, items, selectedIndex) {
-    const state = wheelState[col];
-    const h = state.itemH;
-    state.items = items;
-    state.index = selectedIndex;
-    state.listEl.innerHTML = items.map((val, i) => {
-      let cls = 'dp-wheel-item';
-      if (i === selectedIndex) cls += ' selected';
-      else if (Math.abs(i - selectedIndex) <= 1) cls += ' near';
-      else cls += ' far';
-      return '<div class="' + cls + '" data-idx="' + i + '">' + val + '</div>';
-    }).join('');
-    state.scrollTop = selectedIndex * h;
-    state.listEl.style.transform = 'translateY(' + (-state.scrollTop) + 'px)';
+  // 初始化日期输入框
+  function initDateInputs() {
+    // 初始化输入框默认值
+    updateDateInputs();
+    updateTimeInputs();
+    updateEndDateInputs();
+    updateEndTimeInputs();
   }
 
-  // 滚动并吸附到最近项
-  function snapWheel(col) {
-    const state = wheelState[col];
-    const h = state.itemH;
-    const rawIndex = Math.round(state.scrollTop / h);
-    state.index = Math.max(0, Math.min(state.items.length - 1, rawIndex));
-    state.scrollTop = state.index * h;
-    state.listEl.style.transform = 'translateY(' + (-state.scrollTop) + 'px)';
-    // 更新选中项样式
-    state.listEl.querySelectorAll('.dp-wheel-item').forEach((el, i) => {
-      el.classList.remove('selected', 'near', 'far');
-      if (i === state.index) el.classList.add('selected');
-      else if (Math.abs(i - state.index) <= 1) el.classList.add('near');
-      else el.classList.add('far');
-    });
+  // 同步开始月/日到输入框
+  function updateDateInputs() {
+    if (!currentDate) return;
+    if (monthInput) monthInput.value = String(currentDate.getMonth() + 1);
+    if (dayInput) dayInput.value = String(currentDate.getDate());
   }
 
-  // 绑定滚轮列的拖拽和滚轮事件
-  function bindWheel(col, onChange) {
-    const state = wheelState[col];
-    const h = state.itemH;
-    const listEl = state.listEl;
-
-    // 鼠标拖拽
-    listEl.addEventListener('mousedown', function (e) {
-      state.dragging = true;
-      state.startY = e.clientY;
-      state.startScroll = state.scrollTop;
-      listEl.style.transition = 'none';
-    });
-    document.addEventListener('mousemove', function (e) {
-      if (!state.dragging) return;
-      const delta = state.startY - e.clientY;
-      state.scrollTop = state.startScroll + delta;
-      state.scrollTop = Math.max(0, Math.min(state.scrollTop, (state.items.length - 1) * h));
-      listEl.style.transform = 'translateY(' + (-state.scrollTop) + 'px)';
-    });
-    document.addEventListener('mouseup', function () {
-      if (!state.dragging) return;
-      state.dragging = false;
-      listEl.style.transition = '';
-      snapWheel(col);
-      if (onChange) onChange();
-    });
-
-    // 滚轮事件
-    listEl.addEventListener('wheel', function (e) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? h : -h;
-      const newTop = state.scrollTop + delta;
-      state.scrollTop = Math.max(0, Math.min(newTop, (state.items.length - 1) * h));
-      listEl.style.transform = 'translateY(' + (-state.scrollTop) + 'px)';
-      clearTimeout(state._wheelTimer);
-      state._wheelTimer = setTimeout(function () {
-        snapWheel(col);
-        if (onChange) onChange();
-      }, 120);
-    }, { passive: false });
-
-    // 点击直接选中
-    listEl.addEventListener('click', function (e) {
-      const item = e.target.closest('.dp-wheel-item');
-      if (!item) return;
-      const idx = parseInt(item.dataset.idx);
-      state.scrollTop = idx * h;
-      snapWheel(col);
-      if (onChange) onChange();
-    });
-
-    // 触摸事件（移动端支持）
-    listEl.addEventListener('touchstart', function (e) {
-      state.dragging = true;
-      state.startY = e.touches[0].clientY;
-      state.startScroll = state.scrollTop;
-      listEl.style.transition = 'none';
-    }, { passive: true });
-    listEl.addEventListener('touchmove', function (e) {
-      if (!state.dragging) return;
-      const delta = state.startY - e.touches[0].clientY;
-      state.scrollTop = state.startScroll + delta;
-      state.scrollTop = Math.max(0, Math.min(state.scrollTop, (state.items.length - 1) * h));
-      listEl.style.transform = 'translateY(' + (-state.scrollTop) + 'px)';
-    }, { passive: true });
-    listEl.addEventListener('touchend', function () {
-      if (!state.dragging) return;
-      state.dragging = false;
-      listEl.style.transition = '';
-      snapWheel(col);
-      if (onChange) onChange();
-    });
+  // 同步结束月/日到输入框
+  function updateEndDateInputs() {
+    if (!currentEndDate) return;
+    if (endMonthInput) endMonthInput.value = String(currentEndDate.getMonth() + 1);
+    if (endDayInput) endDayInput.value = String(currentEndDate.getDate());
   }
 
-  // 初始化滚轮
-  function initWheelPicker() {
-    const now = new Date();
-    const currentY = now.getFullYear();
-    const currentM = now.getMonth() + 1;
-    const currentD = now.getDate();
-
-    // 年份标签
-    yearLabel.textContent = currentY + '年';
-
-    // 月份：1 ~ 12
-    const months = [];
-    for (let m = 1; m <= 12; m++) months.push(String(m));
-    renderWheel('month', months, currentM - 1);
-
-    // 日期：根据当前年月
-    const daysInMonth = getDaysInMonth(currentY, currentM);
-    const days = [];
-    for (let d = 1; d <= daysInMonth; d++) days.push(String(d));
-    renderWheel('day', days, currentD - 1);
-
-    // 小时：0 ~ 23
-    const hours = [];
-    for (let h = 0; h < 24; h++) hours.push(String(h).padStart(2, '0'));
-    renderWheel('hour', hours, currentHour);
-
-    // 分钟：0 ~ 59
-    const minutes = [];
-    for (let m = 0; m < 60; m++) minutes.push(String(m).padStart(2, '0'));
-    renderWheel('minute', minutes, currentMinute);
-
-    // 绑定事件
-    bindWheel('month', onWheelDateChange);
-    bindWheel('day', onWheelDateChange);
-    bindWheel('hour', onWheelTimeChange);
-    bindWheel('minute', onWheelTimeChange);
+  // 同步开始时/分到输入框
+  function updateTimeInputs() {
+    if (hourInput) hourInput.value = String(currentHour).padStart(2, '0');
+    if (minuteInput) minuteInput.value = String(currentMinute).padStart(2, '0');
   }
 
-  // 滚轮日期变化回调
-  function onWheelDateChange() {
+  // 同步结束时/分到输入框
+  function updateEndTimeInputs() {
+    if (endHourInput) endHourInput.value = String(currentEndHour).padStart(2, '0');
+    if (endMinuteInput) endMinuteInput.value = String(currentEndMinute).padStart(2, '0');
+  }
+
+  // 开始日期输入变化回调
+  function onDateInputChange() {
+    let m = parseInt(monthInput.value, 10);
+    let d = parseInt(dayInput.value, 10);
     const y = currentDate ? currentDate.getFullYear() : new Date().getFullYear();
-    const m = parseInt(wheelState.month.items[wheelState.month.index]);
-    const d = parseInt(wheelState.day.items[wheelState.day.index]);
+
+    if (isNaN(m) || m < 1) m = 1;
+    if (m > 12) m = 12;
 
     const maxDay = getDaysInMonth(y, m);
-    if (wheelState.day.index >= maxDay) {
-      const days = [];
-      for (let i = 1; i <= maxDay; i++) days.push(String(i));
-      renderWheel('day', days, maxDay - 1);
-    }
+    if (isNaN(d) || d < 1) d = 1;
+    if (d > maxDay) d = maxDay;
 
     currentDate = new Date(y, m - 1, d);
     currentDate.setHours(0, 0, 0, 0);
+
+    // 同步回输入框（修正非法值）
+    if (monthInput) monthInput.value = String(m);
+    if (dayInput) dayInput.value = String(d);
+
     activeDatePreset = null;
     datePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
     updateDisplay();
   }
 
-  // 滚轮时间变化回调
-  function onWheelTimeChange() {
-    currentHour = wheelState.hour.index;
-    currentMinute = wheelState.minute.index;
+  // 结束日期输入变化回调
+  function onEndDateInputChange() {
+    let m = parseInt(endMonthInput.value, 10);
+    let d = parseInt(endDayInput.value, 10);
+    const y = currentEndDate ? currentEndDate.getFullYear() : (currentDate ? currentDate.getFullYear() : new Date().getFullYear());
+
+    if (isNaN(m) || m < 1) m = 1;
+    if (m > 12) m = 12;
+
+    const maxDay = getDaysInMonth(y, m);
+    if (isNaN(d) || d < 1) d = 1;
+    if (d > maxDay) d = maxDay;
+
+    currentEndDate = new Date(y, m - 1, d);
+    currentEndDate.setHours(0, 0, 0, 0);
+
+    // 同步回输入框（修正非法值）
+    if (endMonthInput) endMonthInput.value = String(m);
+    if (endDayInput) endDayInput.value = String(d);
+
+    updateDisplay();
+  }
+
+  // 结束时间输入变化回调
+  function onEndTimeInputChange() {
+    let h = parseInt(endHourInput.value, 10);
+    let m = parseInt(endMinuteInput.value, 10);
+
+    if (isNaN(h) || h < 0) h = 0;
+    if (h > 23) h = 23;
+    if (isNaN(m) || m < 0) m = 0;
+    if (m > 59) m = 59;
+
+    currentEndHour = h;
+    currentEndMinute = m;
+
+    if (endHourInput) endHourInput.value = String(h).padStart(2, '0');
+    if (endMinuteInput) endMinuteInput.value = String(m).padStart(2, '0');
+
+    updateDisplay();
+  }
+
+  // 结束前提醒变化回调
+  function onBeforeInputChange() {
+    let v = parseInt(beforeInput.value, 10);
+    if (isNaN(v) || v < 1) v = 0;
+    if (v > 999) v = 999;
+    endRemindBefore = v;
+    if (v === 0) {
+      beforeInput.value = '';
+    }
+    updateDisplay();
+  }
+
+  // 时间变化回调（由输入框触发）
+  function onTimeChange() {
     activeTimePreset = null;
     timePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
     updateDisplay();
   }
 
-  // 设置滚轮到指定日期
-  function setWheelToDate(date) {
-    const y = date.getFullYear();
-    const m = date.getMonth() + 1;
-    const d = date.getDate();
-    const DATE_H = wheelState.month.itemH;
-
-    // 年份标签
-    yearLabel.textContent = y + '年';
-
-    // 月份
-    const monthIdx = m - 1;
-    wheelState.month.index = monthIdx;
-    wheelState.month.scrollTop = monthIdx * DATE_H;
-    wheelState.month.listEl.style.transform = 'translateY(' + (-monthIdx * DATE_H) + 'px)';
-    wheelState.month.listEl.querySelectorAll('.dp-wheel-item').forEach((el, i) => {
-      el.classList.remove('selected', 'near', 'far');
-      if (i === monthIdx) el.classList.add('selected');
-      else if (Math.abs(i - monthIdx) <= 1) el.classList.add('near');
-      else el.classList.add('far');
-    });
-
-    // 日期
-    const maxDay = getDaysInMonth(y, m);
-    const days = [];
-    for (let i = 1; i <= maxDay; i++) days.push(String(i));
-    const dayIdx = Math.min(d - 1, maxDay - 1);
-    renderWheel('day', days, dayIdx);
+  // 同步指定开始日期到输入框
+  function setDateInputs(date) {
+    if (!date) return;
+    if (monthInput) monthInput.value = String(date.getMonth() + 1);
+    if (dayInput) dayInput.value = String(date.getDate());
   }
 
-  // 设置时间滚轮
-  function setWheelToTime(hour, minute) {
-    const H = wheelState.hour.itemH;
-    // 小时
-    wheelState.hour.index = hour;
-    wheelState.hour.scrollTop = hour * H;
-    wheelState.hour.listEl.style.transform = 'translateY(' + (-hour * H) + 'px)';
-    wheelState.hour.listEl.querySelectorAll('.dp-wheel-item').forEach((el, i) => {
-      el.classList.remove('selected', 'near', 'far');
-      if (i === hour) el.classList.add('selected');
-      else if (Math.abs(i - hour) <= 1) el.classList.add('near');
-      else el.classList.add('far');
-    });
-    // 分钟
-    wheelState.minute.index = minute;
-    wheelState.minute.scrollTop = minute * H;
-    wheelState.minute.listEl.style.transform = 'translateY(' + (-minute * H) + 'px)';
-    wheelState.minute.listEl.querySelectorAll('.dp-wheel-item').forEach((el, i) => {
-      el.classList.remove('selected', 'near', 'far');
-      if (i === minute) el.classList.add('selected');
-      else if (Math.abs(i - minute) <= 1) el.classList.add('near');
-      else el.classList.add('far');
-    });
+  // 同步指定结束日期到输入框
+  function setEndDateInputs(date) {
+    if (!date) return;
+    if (endMonthInput) endMonthInput.value = String(date.getMonth() + 1);
+    if (endDayInput) endDayInput.value = String(date.getDate());
   }
+
+  // 获取结束时间戳（无结束时间返回 null）
+  function getEndTimestamp() {
+    if (!currentEndDate) return null;
+    const d = new Date(currentEndDate);
+    d.setHours(currentEndHour, currentEndMinute, 0, 0);
+    return d.getTime();
+  }
+
+  // 获取结束前提醒分钟数
+  function getEndRemindBefore() {
+    return endRemindBefore;
+  }
+
 
   // 选择时间预设
   function selectTimePreset(preset) {
@@ -297,20 +217,76 @@ const datetimePickerModule = (function () {
     if (!p) return;
     currentHour = p.h;
     currentMinute = p.m;
-    setWheelToTime(p.h, p.m);
+    updateTimeInputs();
     timePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
       b.classList.toggle('active', b.dataset.time === preset);
     });
     activeTimePreset = preset;
   }
+
+  // 结束时间快捷预设：+1小时、+2小时、明天、下周
+  function selectEndTimePreset(preset) {
+    if (!currentDate) return;
+    // 基于开始时间计算结束时间
+    const startTs = new Date(currentDate);
+    startTs.setHours(currentHour, currentMinute, 0, 0);
+
+    let endTs;
+    const presets = {
+      '1h': 60 * 60 * 1000,
+      '2h': 2 * 60 * 60 * 1000,
+      '明天': 24 * 60 * 60 * 1000,
+      '下周': 7 * 24 * 60 * 60 * 1000
+    };
+
+    if (presets[preset]) {
+      endTs = new Date(startTs.getTime() + presets[preset]);
+    } else {
+      return;
+    }
+
+    currentEndDate = new Date(endTs);
+    currentEndDate.setHours(0, 0, 0, 0);
+    currentEndHour = endTs.getHours();
+    currentEndMinute = endTs.getMinutes();
+    setEndDateInputs(currentEndDate);
+    updateEndTimeInputs();
+
+    // 高亮当前预设按钮
+    if (endTimePresetRow) {
+      endTimePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.endTime === preset);
+      });
+    }
+    updateDisplay();
+  }
+
   function formatDisplayText() {
     if (!currentDate) return '选择提醒时间（可选）';
     const d = new Date(currentDate);
     const hh = String(currentHour).padStart(2, '0');
     const mm = String(currentMinute).padStart(2, '0');
     const dateStr = (d.getMonth() + 1) + '月' + d.getDate() + '日';
-    const timeStr = hh + ':' + mm;
-    let text = dateStr + ' ' + timeStr;
+    let text = dateStr + ' ' + hh + ':' + mm;
+
+    // 结束时间
+    if (currentEndDate) {
+      const ed = new Date(currentEndDate);
+      const eh = String(currentEndHour).padStart(2, '0');
+      const em = String(currentEndMinute).padStart(2, '0');
+      const endDateStr = (ed.getMonth() + 1) + '月' + ed.getDate() + '日';
+      if (dateStr === endDateStr) {
+        text += ' ~ ' + eh + ':' + em;
+      } else {
+        text += ' ~ ' + endDateStr + ' ' + eh + ':' + em;
+      }
+    }
+
+    // 结束前提醒
+    if (endRemindBefore > 0) {
+      text += ' (前' + endRemindBefore + '分)';
+    }
+
     if (currentRecurrence) {
       text += ' · ' + formatRecurrenceShort(currentRecurrence);
     }
@@ -386,8 +362,8 @@ const datetimePickerModule = (function () {
     }
     currentDate = d;
     currentDate.setHours(0, 0, 0, 0);
-    // 同步到滚轮
-    setWheelToDate(d);
+    // 同步到输入框
+    setDateInputs(d);
     // 高亮预设按钮
     datePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
       b.classList.toggle('active', b.dataset.date === preset);
@@ -395,25 +371,6 @@ const datetimePickerModule = (function () {
     activeDatePreset = preset;
   }
 
-  // 选择时间预设（旧版保留，已弃用）
-  function selectTimePreset_Deprecated(preset) {
-    const now = new Date();
-    const presets = {
-      now: { h: now.getHours(), m: now.getMinutes() },
-      morning: { h: 8, m: 0 },
-      noon: { h: 12, m: 0 },
-      evening: { h: 20, m: 0 }
-    };
-    const p = presets[preset];
-    if (!p) return;
-    currentHour = p.h;
-    currentMinute = p.m;
-    setWheelToTime(p.h, p.m);
-    timePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
-      b.classList.toggle('active', b.dataset.time === preset);
-    });
-    activeTimePreset = preset;
-  }
 
   // 选择循环预设
   function selectCyclePreset(preset) {
@@ -448,6 +405,10 @@ const datetimePickerModule = (function () {
     currentDate = null;
     currentHour = 8;
     currentMinute = 0;
+    currentEndDate = null;
+    currentEndHour = 9;
+    currentEndMinute = 0;
+    endRemindBefore = 0;
     currentRecurrence = null;
     activeDatePreset = null;
     activeTimePreset = null;
@@ -465,23 +426,57 @@ const datetimePickerModule = (function () {
     cycleCountInput.value = ''; // 清空循环次数
     hourSelect.value = '08';
     minuteSelect.value = '00';
-    // 重置滚轮到今天
-    const now = new Date();
-    setWheelToDate(now);
-    setWheelToTime(8, 0);
+    if (hourInput) hourInput.value = '';
+    if (minuteInput) minuteInput.value = '';
+    if (monthInput) monthInput.value = '';
+    if (dayInput) dayInput.value = '';
+    // 重置结束时间
+    if (endToggle) endToggle.checked = false;
+    if (endOptions) endOptions.style.display = 'none';
+    if (endMonthInput) endMonthInput.value = '';
+    if (endDayInput) endDayInput.value = '';
+    if (endHourInput) endHourInput.value = '';
+    if (endMinuteInput) endMinuteInput.value = '';
+    // 重置结束前提醒
+    if (beforeToggle) beforeToggle.checked = false;
+    if (beforeOptions) beforeOptions.style.display = 'none';
+    if (beforeInput) beforeInput.value = '';
+    currentHour = 8;
+    currentMinute = 0;
+    currentEndHour = 9;
+    currentEndMinute = 0;
+    endRemindBefore = 0;
     close();
   }
 
   // 同步值到显示（在自然语言解析成功后调用）
-  function syncFromTimestamp(timestamp, recurrence) {
+  function syncFromTimestamp(timestamp, recurrence, endTimestamp, beforeMinutes) {
     if (timestamp) {
       const d = new Date(timestamp);
       currentDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
       currentHour = d.getHours();
       currentMinute = d.getMinutes();
-      // 同步到滚轮
-      setWheelToDate(currentDate);
-      setWheelToTime(currentHour, currentMinute);
+      // 同步到日期和时间输入框
+      setDateInputs(currentDate);
+      updateTimeInputs();
+    }
+    // 同步结束时间
+    if (endTimestamp) {
+      const ed = new Date(endTimestamp);
+      currentEndDate = new Date(ed.getFullYear(), ed.getMonth(), ed.getDate());
+      currentEndHour = ed.getHours();
+      currentEndMinute = ed.getMinutes();
+      setEndDateInputs(currentEndDate);
+      updateEndTimeInputs();
+      if (endToggle) endToggle.checked = true;
+      if (endOptions) endOptions.style.display = 'block';
+    }
+    // 同步结束前提醒
+    if (beforeMinutes && beforeMinutes > 0) {
+      endRemindBefore = beforeMinutes;
+      if (beforeInput) beforeInput.value = String(beforeMinutes);
+      if (beforeToggle) beforeToggle.checked = true;
+      if (beforeOptions) beforeOptions.style.display = 'block';
     }
     if (recurrence) {
       currentRecurrence = recurrence;
@@ -503,7 +498,7 @@ const datetimePickerModule = (function () {
 
   // 绑定事件
   function bind() {
-    initWheelPicker();
+    initDateInputs();
 
     // 触发按钮点击 → 打开/关闭
     datetimeTrigger.addEventListener('click', function (e) {
@@ -537,6 +532,131 @@ const datetimePickerModule = (function () {
       selectTimePreset(btn.dataset.time);
       updateDisplay();
     });
+
+    // 输入框直接输入时/分
+    function onTimeInputChange() {
+      let h = parseInt(hourInput.value, 10);
+      let m = parseInt(minuteInput.value, 10);
+      if (isNaN(h) || h < 0) h = 0;
+      if (h > 23) h = 23;
+      if (isNaN(m) || m < 0) m = 0;
+      if (m > 59) m = 59;
+      currentHour = h;
+      currentMinute = m;
+      activeTimePreset = null;
+      timePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+      updateDisplay();
+    }
+    if (hourInput) {
+      hourInput.addEventListener('change', onTimeInputChange);
+      hourInput.addEventListener('blur', onTimeInputChange);
+    }
+    if (minuteInput) {
+      minuteInput.addEventListener('change', onTimeInputChange);
+      minuteInput.addEventListener('blur', onTimeInputChange);
+    }
+
+    // 输入框直接输入月/日
+    if (monthInput) {
+      monthInput.addEventListener('change', onDateInputChange);
+      monthInput.addEventListener('blur', onDateInputChange);
+    }
+    if (dayInput) {
+      dayInput.addEventListener('change', onDateInputChange);
+      dayInput.addEventListener('blur', onDateInputChange);
+    }
+
+    // 结束时间开关
+    if (endToggle) {
+      endToggle.addEventListener('change', function () {
+        if (endToggle.checked) {
+          endOptions.style.display = 'block';
+          // 默认结束日期=开始日期，时间=开始时间+1小时
+          if (!currentEndDate && currentDate) {
+            currentEndDate = new Date(currentDate);
+            currentEndHour = currentHour + 1;
+            currentEndMinute = currentMinute;
+            if (currentEndHour > 23) currentEndHour = 23;
+            setEndDateInputs(currentEndDate);
+            updateEndTimeInputs();
+          }
+        } else {
+          endOptions.style.display = 'none';
+          currentEndDate = null;
+          updateDisplay();
+        }
+      });
+    }
+
+    // 结束时间输入框
+    if (endMonthInput) {
+      endMonthInput.addEventListener('change', onEndDateInputChange);
+      endMonthInput.addEventListener('blur', onEndDateInputChange);
+    }
+    if (endDayInput) {
+      endDayInput.addEventListener('change', onEndDateInputChange);
+      endDayInput.addEventListener('blur', onEndDateInputChange);
+    }
+    if (endHourInput) {
+      endHourInput.addEventListener('change', onEndTimeInputChange);
+      endHourInput.addEventListener('blur', onEndTimeInputChange);
+    }
+    if (endMinuteInput) {
+      endMinuteInput.addEventListener('change', onEndTimeInputChange);
+      endMinuteInput.addEventListener('blur', onEndTimeInputChange);
+    }
+
+    // 结束前提醒开关
+    if (beforeToggle) {
+      beforeToggle.addEventListener('change', function () {
+        if (beforeToggle.checked) {
+          beforeOptions.style.display = 'block';
+          if (endRemindBefore === 0) {
+            endRemindBefore = 15;
+            beforeInput.value = '15';
+          }
+        } else {
+          beforeOptions.style.display = 'none';
+          endRemindBefore = 0;
+          if (beforeInput) beforeInput.value = '';
+        }
+        updateDisplay();
+      });
+    }
+
+    // 结束前提醒输入框
+    if (beforeInput) {
+      beforeInput.addEventListener('change', onBeforeInputChange);
+      beforeInput.addEventListener('blur', onBeforeInputChange);
+    }
+
+    // 结束时间快捷预设
+    if (endTimePresetRow) {
+      endTimePresetRow.addEventListener('click', function (e) {
+        var btn = e.target.closest('.dp-preset');
+        if (!btn) return;
+        selectEndTimePreset(btn.dataset.endTime);
+      });
+    }
+
+    // 结束前提醒预设按钮
+    var beforePresets = document.querySelector('.dp-before-presets');
+    if (beforePresets) {
+      beforePresets.addEventListener('click', function (e) {
+        var btn = e.target.closest('.dp-preset');
+        if (!btn) return;
+        var mins = parseInt(btn.dataset.before, 10);
+        if (isNaN(mins)) return;
+        endRemindBefore = mins;
+        beforeInput.value = String(mins);
+        // 自动开启开关
+        if (!beforeToggle.checked) {
+          beforeToggle.checked = true;
+          beforeOptions.style.display = 'block';
+        }
+        updateDisplay();
+      });
+    }
 
     // 循环开关
     cycleToggle.addEventListener('change', function () {
@@ -613,6 +733,8 @@ const datetimePickerModule = (function () {
   return {
     bind: bind,
     getTimestamp: getTimestamp,
+    getEndTimestamp: getEndTimestamp,
+    getEndRemindBefore: getEndRemindBefore,
     getRecurrence: getRecurrence,
     syncFromTimestamp: syncFromTimestamp,
     clearAll: clearAll,

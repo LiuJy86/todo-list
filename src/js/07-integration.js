@@ -189,8 +189,7 @@ function updateStickyTitle() {
       id: Date.now(),
       text: text,
       done: false,
-      remindAt: null,
-      reminded: false,
+      reminders: [],
       recurrence: null,
       completionCount: 0,
       lastRemindAt: null
@@ -333,6 +332,8 @@ function wrappedAddTodo() {
   }
 
   let remindAt = null;
+  let endRemindAt = null;
+  let endRemindBefore = 0;
   let recurrence = null;
 
   // 1) 优先尝试自然语言解析
@@ -356,7 +357,7 @@ function wrappedAddTodo() {
       }
       // 同步到日期选择器显示
       if (window.datetimePickerModule) {
-        window.datetimePickerModule.syncFromTimestamp(remindAt, null);
+        window.datetimePickerModule.syncFromTimestamp(remindAt, null, parsed.endRemindAt, parsed.endRemindBefore);
       }
     }
   }
@@ -367,6 +368,16 @@ function wrappedAddTodo() {
   const pickerTs = window.datetimePickerModule ? window.datetimePickerModule.getTimestamp() : null;
   if (pickerTs) {
     remindAt = pickerTs;
+    // 获取结束时间
+    const pickerEndTs = window.datetimePickerModule.getEndTimestamp();
+    if (pickerEndTs) {
+      endRemindAt = pickerEndTs;
+    }
+    // 获取结束前提醒
+    const pickerBefore = window.datetimePickerModule.getEndRemindBefore();
+    if (pickerBefore > 0) {
+      endRemindBefore = pickerBefore;
+    }
     const pickerRecurrence = window.datetimePickerModule.getRecurrence();
     if (pickerRecurrence) {
       recurrence = pickerRecurrence;
@@ -374,9 +385,9 @@ function wrappedAddTodo() {
   }
 
   // 3) 都没有 → 纯添加（不设提醒）
-  const newTodo = addTodo(remindAt, recurrence);
+  const newTodo = addTodo(remindAt, endRemindAt, endRemindBefore, recurrence);
 
-  if (newTodo && newTodo.remindAt && window.reminderModule) {
+  if (newTodo && window.reminderModule && Array.isArray(newTodo.reminders) && newTodo.reminders.length > 0) {
     window.reminderModule.schedule(newTodo);
   }
 
@@ -388,11 +399,20 @@ function wrappedAddTodo() {
   // 触发桌宠反馈
   if (window.petMood) {
     window.petMood.excited();
-    const msg = remindAt
-      ? (recurrence && recurrence.enabled
-          ? '已设好循环提醒，到点我会叫你！'
-          : '已设好提醒，到点我会叫你！')
-      : ADD_TODO_TOASTS[Math.floor(Math.random() * ADD_TODO_TOASTS.length)];
+    let msg;
+    if (remindAt || endRemindAt) {
+      if (recurrence && recurrence.enabled) {
+        msg = '已设好循环提醒，到点我会叫你！';
+      } else if (endRemindAt && endRemindBefore > 0) {
+        msg = '已设好提醒（含结束前 ' + endRemindBefore + ' 分钟提醒），到点我会叫你！';
+      } else if (endRemindAt) {
+        msg = '已设好开始+结束提醒，到点我会叫你！';
+      } else {
+        msg = '已设好提醒，到点我会叫你！';
+      }
+    } else {
+      msg = ADD_TODO_TOASTS[Math.floor(Math.random() * ADD_TODO_TOASTS.length)];
+    }
     window.petMood.toast(msg, 'success');
   }
 }

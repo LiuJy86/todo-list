@@ -325,6 +325,8 @@ main {
 .datetime-popover.open {
   display: flex;
   gap: 14px;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .dp-col {
@@ -544,24 +546,164 @@ main {
   font-size: 10px;
   font-weight: 500;
 }
-.dp-wheel-picker-compact {
-  height: 42px;
-  width: 100%;
+/* 时间输入行：点击可直接输入时/分 */
+.dp-time-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 8px;
 }
-
-.dp-wheel-picker-compact .dp-wheel-list {
-  padding: 14px 0;
-}
-
-.dp-wheel-picker-compact .dp-wheel-item {
-  height: 14px;
-  line-height: 14px;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.dp-wheel-picker-compact .dp-wheel-item.selected {
+.dp-time-input {
+  width: 48px;
+  height: 28px;
+  text-align: center;
+  border: 1.5px solid rgba(74, 144, 217, 0.25);
+  border-radius: 6px;
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.dp-time-input:focus {
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.15);
+}
+.dp-time-sep {
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+}
+/* 日期输入行：点击可直接输入月/日 */
+.dp-date-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.dp-date-input {
+  width: 48px;
+  height: 28px;
+  text-align: center;
+  border: 1.5px solid rgba(74, 144, 217, 0.25);
+  border-radius: 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.dp-date-input:focus {
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.15);
+}
+.dp-date-sep {
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+}
+
+/* ===== 结束时间区 ===== */
+.dp-end-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(74, 144, 217, 0.2);
+}
+.dp-end-options {
+  margin-top: 6px;
+  animation: dpFadeIn 0.2s ease;
+}
+/* ===== 结束前提醒区 ===== */
+.dp-before-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(74, 144, 217, 0.2);
+}
+.dp-before-options {
+  margin-top: 6px;
+  animation: dpFadeIn 0.2s ease;
+}
+.dp-before-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.dp-before-input {
+  width: 60px;
+  height: 28px;
+  text-align: center;
+  border: 1.5px solid rgba(74, 144, 217, 0.25);
+  border-radius: 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.dp-before-input:focus {
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.15);
+}
+.dp-before-unit {
+  font-size: 12px;
+  color: #666;
+}
+.dp-before-presets {
+  justify-content: flex-start;
+}
+.dp-before-presets .dp-preset {
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+}
+@keyframes dpFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== 时间轴可视化（列表项内） ===== */
+.todo-timeline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 2px 0;
+}
+.todo-timeline-bar {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  background: linear-gradient(90deg, #4a90d9, #e74c3c);
+  border-radius: 2px;
+  min-width: 40px;
+}
+.todo-timeline-dot {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.todo-timeline-dot.start {
+  left: 0%;
+  background: #4a90d9;
+}
+.todo-timeline-dot.end {
+  left: 100%;
+  background: #e74c3c;
+}
+.todo-timeline-label {
+  font-size: 10px;
+  color: #888;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .dp-wheel-sep {
@@ -1085,39 +1227,29 @@ main {
   transform: scale(1.1);
 }
 
-/* 带 tooltip 的待办项：悬浮显示提示信息 */
-.todo-item.has-tooltip {
+/* 带 tooltip 的待办项：悬浮显示提示信息（JS 动态创建，此处仅保留 cursor 样式） */
+.todo-item.has-tooltip,
+.todo-timeline.has-tooltip {
   cursor: help;
 }
 
-.todo-item.has-tooltip:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+/* JS 动态 tooltip：position: fixed 脱离滚动容器裁剪 */
+.js-tooltip {
+  position: fixed;
   padding: 8px 12px;
   background: rgba(31, 38, 135, 0.95);
   color: #fff;
   font-size: 12px;
   font-weight: 500;
+  line-height: 1.6;
   border-radius: 8px;
-  white-space: nowrap;
-  z-index: 9999;
+  white-space: pre-line;   /* 保留换行符 */
+  z-index: 10000;
   pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.todo-item.has-tooltip:hover::before {
-  content: '';
-  position: absolute;
-  bottom: calc(100% + 2px);
-  left: 50%;
-  transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-top-color: rgba(31, 38, 135, 0.95);
-  pointer-events: none;
-  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  max-width: 280px;
 }
 
 /* 删除按钮 */

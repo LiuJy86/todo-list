@@ -6,8 +6,11 @@
 // 数据源：所有待办事项都存在这个数组里
 // 每条事项结构：
 //   { id: 唯一标识, text: 内容文本, done: 是否已完成,
-//     remindAt: 提醒时间戳（毫秒，无提醒为 null）,
-//     reminded: 是否已触发过本轮提醒（防重复响铃）,
+//     reminders: [                     // 统一提醒点数组（v2.16.0）
+//       { type: 'start', at: 时间戳, reminded: false },
+//       { type: 'end',   at: 时间戳, reminded: false },
+//       { type: 'before', at: 时间戳, reminded: false }
+//     ],
 //     recurrence: {                    // 循环设置（null=不循环）
 //       enabled: true/false,
 //       interval: 30,                   // 间隔数值
@@ -64,15 +67,51 @@ function load() {
   if (data) {
     // JSON.parse 把字符串还原成 JS 数组，赋值回 todos
     todos = JSON.parse(data);
-    // 数据兼容：补齐旧事项缺失的新字段
+    // 数据兼容：补齐旧事项缺失的新字段 + 迁移到新 reminders 数组格式
     todos.forEach(function (t) {
-      if (t.remindAt === undefined) t.remindAt = null;
-      if (t.reminded === undefined) t.reminded = false;
+      // 旧格式迁移：remindAt/endRemindAt/endRemindBefore → reminders 数组
+      if (!Array.isArray(t.reminders)) {
+        t.reminders = [];
+        if (t.remindAt) {
+          t.reminders.push({ type: 'start', at: t.remindAt, reminded: !!t.reminded });
+        }
+        if (t.endRemindAt) {
+          t.reminders.push({ type: 'end', at: t.endRemindAt, reminded: !!t.endReminded });
+          if (t.endRemindBefore > 0) {
+            t.reminders.push({ type: 'before', at: t.endRemindAt - t.endRemindBefore * 60000, reminded: !!t.beforeReminded });
+          }
+        }
+        // 清理旧字段
+        delete t.remindAt;
+        delete t.endRemindAt;
+        delete t.endRemindBefore;
+        delete t.reminded;
+        delete t.endReminded;
+        delete t.beforeReminded;
+      }
       if (t.recurrence === undefined) t.recurrence = null;
       if (t.completionCount === undefined) t.completionCount = 0;
       if (t.lastRemindAt === undefined) t.lastRemindAt = null;
     });
   }
+}
+
+// 辅助函数：获取指定类型的提醒点
+function getReminder(todo, type) {
+  if (!todo || !Array.isArray(todo.reminders)) return null;
+  return todo.reminders.find(function (r) { return r.type === type; }) || null;
+}
+
+// 辅助函数：获取指定类型的提醒时间戳
+function getReminderAt(todo, type) {
+  var r = getReminder(todo, type);
+  return r ? r.at : null;
+}
+
+// 辅助函数：判断指定类型提醒是否已触发
+function isReminded(todo, type) {
+  var r = getReminder(todo, type);
+  return r ? !!r.reminded : true; // 不存在视为已提醒（不再调度）
 }
 
 

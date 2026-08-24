@@ -6,7 +6,7 @@
   'use strict';
 
   // ---------- 11.1 模块状态 ----------
-  // 调度表：key 为 todo.id，value 为 setTimeout 返回的 timerId
+  // 调度表：key 为 todo.id + ':' + type（type: start/end/before），value 为 setTimeout 返回的 timerId
   // 用于在事项被删除/完成/重新编辑时取消旧定时器，避免幽灵提醒
   const reminderTimers = new Map();
   // AudioContext 实例（首次用户交互后创建并 resume）
@@ -905,95 +905,143 @@
 
   // ---------- 11.5 调度与触发 ----------
 
-  // 为单条事项注册精确 setTimeout
-  function scheduleReminder(todo) {
-    // 无提醒时间 / 已完成 → 跳过
-    // 循环提醒允许 reminded=true（刚触发过正在推进中的），由 advanceCycle 重置 reminded 后再调度
-    if (!todo.remindAt || todo.done) return;
+  // 调度单个提醒点（内部函数）
+  // reminderItem: { type, at, reminded }
+  function scheduleSingleReminder(todo, reminderItem) {
+    if (!reminderItem || !reminderItem.at || todo.done) return;
+    if (reminderItem.reminded) return;
 
-    // 非循环事项：已提醒过则不重复调度
-    if (!todo.recurrence || !todo.recurrence.enabled) {
-      if (todo.reminded) return;
-    }
+    // 循环提醒的 start 类型：允许重新调度（advanceCycle 会重置 reminded）
+    const isCycleStart = reminderItem.type === 'start' && todo.recurrence && todo.recurrence.enabled;
+    if (!isCycleStart && reminderItem.reminded) return;
 
-    const oldTimer = reminderTimers.get(todo.id);
+    const timerKey = todo.id + ':' + reminderItem.type;
+    const oldTimer = reminderTimers.get(timerKey);
     if (oldTimer) clearTimeout(oldTimer);
 
-    const delay = todo.remindAt - Date.now();
+    const delay = reminderItem.at - Date.now();
     if (delay <= 0) {
-      triggerReminder(todo);
+      triggerReminder(todo, reminderItem.type);
     } else {
       const timerId = setTimeout(function () {
-        triggerReminder(todo);
+        triggerReminder(todo, reminderItem.type);
       }, delay);
-      reminderTimers.set(todo.id, timerId);
+      reminderTimers.set(timerKey, timerId);
     }
   }
 
-  // 启动时扫描所有未提醒事项，逐个调度
+  // 为单条事项注册所有提醒
+  function scheduleReminder(todo) {
+    if (todo.done) return;
+    if (!Array.isArray(todo.reminders)) return;
+
+    todo.reminders.forEach(function (r) {
+      scheduleSingleReminder(todo, r);
+    });
+  }
+
+  // 启动时扫描所有事项，逐个调度
   function scheduleAllReminders() {
     todos.forEach(function (t) {
-      if (t.remindAt && !t.reminded && !t.done) {
+      if (!t.done) {
         scheduleReminder(t);
       }
     });
   }
 
-  // 取消某条事项的定时器（删除/完成时调用）
+  // 取消某条事项的所有定时器（删除/完成时调用）
   function cancelReminder(id) {
-    const t = reminderTimers.get(id);
-    if (t) {
-      clearTimeout(t);
-      reminderTimers.delete(id);
+    if (!Array.isArray(todos.find(function (t) { return t.id === id; }) || {}).reminders) {
+      // 兼容：直接清除可能存在的定时器
+      var keys = [];
+      reminderTimers.forEach(function (v, k) {
+        if (k.indexOf(id + ':') === 0) keys.push(k);
+      });
+      keys.forEach(function (k) {
+        clearTimeout(reminderTimers.get(k));
+        reminderTimers.delete(k);
+      });
+      return;
     }
-  }
-
-  // 漏检检查：扫描所有"已到点但 reminded 还是 false"的事项，补触发
-  // 调用时机：visibilitychange 切回前台 / 60 秒 setInterval 兜底
-  function checkMissedReminders() {
-    const now = Date.now();
-    todos.forEach(function (t) {
-      if (t.remindAt && !t.reminded && !t.done && t.remindAt <= now) {
-        triggerReminder(t);
+    var todo = todos.find(function (t) { return t.id === id; });
+    todo.reminders.forEach(function (r) {
+      const key = id + ':' + r.type;
+      const t = reminderTimers.get(key);
+      if (t) {
+        clearTimeout(t);
+        reminderTimers.delete(key);
       }
     });
   }
 
-  // 触发提醒：完整反馈链路
-  function triggerReminder(todo) {
-    // 防重：已提醒过直接返回
-    if (todo.reminded) return;
+  // 漏检检查：扫描所有"已到点但还未提醒"的事项，补触发
+  // 调用时机：visibilitychange 切回前台 / 60 秒 setInterval 兜底
+  function checkMissedReminders() {
+    const now = Date.now();
+    todos.forEach(function (t) {
+      if (t.done) return;
+      if (!Array.isArray(t.reminders)) return;
+      t.reminders.forEach(function (r) {
+        if (r.at && !r.reminded && r.at <= now) {
+          triggerReminder(t, r.type);
+        }
+      });
+    });
+  }
 
-    // 1) 先标记为已提醒 + 持久化
-    todo.reminded = true;
+  // 触发提醒：完整反馈链路
+  // type: 'start' | 'end' | 'before'
+  function triggerReminder(todo, type) {
+    // 找到对应的提醒点
+    if (!Array.isArray(todo.reminders)) return;
+    var reminderItem = todo.reminders.find(function (r) { return r.type === type; });
+    if (!reminderItem) return;
+
+    // 防重：已提醒过直接返回
+    if (reminderItem.reminded) return;
+
+    // 1) 标记为已提醒 + 持久化
+    reminderItem.reminded = true;
     save();
 
     // 2) 播放"叮咚"音效
     playReminderSound();
 
     // 3) 找到对应 <li> 节点，加高亮 + 抖动动画
-    const li = nodeCache.get(todo.id);
+    var li = nodeCache.get(todo.id);
     if (li) {
       li.classList.add('reminding');
+      var duration = type === 'before' ? 3000 : 6000;
       setTimeout(function () {
         li.classList.remove('reminding');
-      }, 6000);
+      }, duration);
     }
 
     // 4) 史迪奇弹气泡
     if (window.petMood) {
       window.petMood.excited();
-      const cycleMsg = todo.recurrence && todo.recurrence.enabled
-        ? '循环提醒：该 ' + todo.text + ' 啦！（已完成 ' + (todo.completionCount || 0) + ' 次）'
-        : '该 ' + todo.text + ' 啦！';
-      window.petMood.toast(cycleMsg, 'warning');
+      var msg;
+      if (type === 'start') {
+        var cycleMsg = todo.recurrence && todo.recurrence.enabled
+          ? '循环提醒：该开始「' + todo.text + '」啦！（已完成 ' + (todo.completionCount || 0) + ' 次）'
+          : '该开始「' + todo.text + '」啦！';
+        msg = cycleMsg;
+      } else if (type === 'end') {
+        msg = '「' + todo.text + '」截止时间到了！';
+      } else if (type === 'before') {
+        // 计算结束前分钟数
+        var endItem = todo.reminders.find(function (r) { return r.type === 'end'; });
+        var beforeMins = endItem ? Math.round((endItem.at - reminderItem.at) / 60000) : 0;
+        msg = '「' + todo.text + '」还有 ' + beforeMins + ' 分钟截止！';
+      }
+      window.petMood.toast(msg, 'warning');
     }
 
-    // 5) 取消该事项的定时器
-    cancelReminder(todo.id);
+    // 5) 取消该类型的定时器
+    reminderTimers.delete(todo.id + ':' + type);
 
-    // 6) 循环提醒：推进到下一个周期并重新调度
-    if (todo.recurrence && todo.recurrence.enabled && !todo.done) {
+    // 6) 循环提醒：推进到下一个周期并重新调度（仅 start 类型）
+    if (type === 'start' && todo.recurrence && todo.recurrence.enabled && !todo.done) {
       advanceCycle(todo);
     }
 
@@ -1004,16 +1052,20 @@
   // 循环提醒：推进到下一个周期
   function advanceCycle(todo) {
     if (!todo.recurrence || !todo.recurrence.enabled) return;
+    if (!Array.isArray(todo.reminders)) return;
 
     const intervalMs = getIntervalMs(todo.recurrence);
     if (!intervalMs) return;
 
-    // 从当前 remindAt 开始累加（用户选择的"从起始时间累加"策略）
-    // 如果本次 remindAt 已经过期，则从现在开始算下一个周期
+    // 找到 start 类型提醒点
+    var startItem = todo.reminders.find(function (r) { return r.type === 'start'; });
+    if (!startItem) return;
+
+    // 从当前时间开始累加（如果已过期则从现在算）
     const now = Date.now();
-    const baseTime = todo.remindAt > now ? todo.remindAt : now;
-    todo.remindAt = baseTime + intervalMs;
-    todo.reminded = false;  // 重置以便下一轮能触发
+    const baseTime = startItem.at > now ? startItem.at : now;
+    startItem.at = baseTime + intervalMs;
+    startItem.reminded = false;  // 重置以便下一轮能触发
     todo.lastRemindAt = now;
     save();
     scheduleReminder(todo);
@@ -1095,6 +1147,8 @@
   // 同时暴露日期选择器模块
   window.datetimePickerModule = {
     getTimestamp: datetimePickerModule.getTimestamp,
+    getEndTimestamp: datetimePickerModule.getEndTimestamp,
+    getEndRemindBefore: datetimePickerModule.getEndRemindBefore,
     getRecurrence: datetimePickerModule.getRecurrence,
     syncFromTimestamp: datetimePickerModule.syncFromTimestamp,
     clearAll: datetimePickerModule.clearAll,
