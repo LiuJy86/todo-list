@@ -1,6 +1,6 @@
 {
   "env": {
-    "ANTHROPIC_AUTH_TOKEN": "ak_2GL92I3NI0ye3iu8j27XG4xN0T21L",
+    "ANTHROPIC_AUTH_TOKEN": "NULL",
     "ANTHROPIC_BASE_URL": "https://api.longcat.chat/anthropic",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "LongCat-2.0",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "LongCat-2.0",
