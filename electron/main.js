@@ -1,6 +1,6 @@
 // Electron 主进程入口
 // 负责创建窗口、系统托盘、应用生命周期管理
-const { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain, globalShortcut } = require('electron');
 const path = require('path');
 
 let mainWindow = null;   // 主窗口
@@ -189,6 +189,24 @@ if (!gotLock) {
     createWindow();
     createTray();
 
+    // 注册全局快捷键 Alt+F：显示/隐藏主窗口
+    // 全局快捷键即使窗口不在前台也能触发，适合快速呼出
+    const ret = globalShortcut.register('Alt+F', () => {
+      if (!mainWindow) return;
+      if (mainWindow.isVisible()) {
+        // 当前可见 → 隐藏到托盘
+        mainWindow.hide();
+      } else {
+        // 当前隐藏 → 显示并聚焦
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    });
+
+    if (!ret) {
+      console.error('Alt+F 快捷键注册失败，可能已被其他程序占用');
+    }
+
     // macOS 下激活应用时重建窗口
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -201,9 +219,11 @@ app.on('window-all-closed', (e) => {
   e.preventDefault();
 });
 
-// 真正退出前清理托盘
+// 真正退出前清理托盘和快捷键
 app.on('before-quit', () => {
   isQuitting = true;
+  // 注销所有全局快捷键，避免残留占用
+  globalShortcut.unregisterAll();
   if (tray) {
     tray.destroy();
     tray = null;

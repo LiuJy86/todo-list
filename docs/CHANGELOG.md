@@ -4,6 +4,22 @@
 
 ---
 
+## [v2.17.0] - 2026-08-24
+
+### 新增 (Added) — 全局快捷键
+
+1. **Alt+F 显示/隐藏窗口**
+   - 注册系统级全局快捷键 `Alt+F`，按下时切换主窗口的显示/隐藏
+   - 即使窗口已隐藏到托盘，按下 Alt+F 也能快速呼出
+   - 应用退出时自动注销快捷键，避免残留占用
+   - 文件：`electron/main.js`
+
+### 核心文件
+
+- `electron/main.js`：引入 `globalShortcut`、注册 Alt+F 快捷键、退出时注销
+
+---
+
 ## [v2.14.0] - 2026-08-24
 
 ### 新增 (Added) — 便签模式功能增强
@@ -62,6 +78,83 @@
 - `src/js/07-integration.js`：updateStickyTitle、双击 Esc 退出、添加成功反馈
 - `electron/preload.js`：暴露 `exitStickyMode` API
 - `electron/main.js`：新增 `exit-sticky-mode` IPC 处理、托盘菜单状态同步
+
+---
+
+## [v2.16.0] - 2026-08-24
+
+### 新增 (Added) — 双时间提醒功能
+
+1. **开始时间 + 结束时间提醒**
+   - 每条待办可独立设置开始时间和结束时间
+   - 开始时间提醒："该开始【xxx】了！"
+   - 结束时间提醒："【xxx】截止时间到了！"
+   - 文件：`src/index.html`、`src/style.css`、`src/js/03-crud.js`、`src/js/06-reminder.js`
+
+2. **结束前 N 分钟提醒**
+   - 可设置结束前 5/10/15/30 分钟（或自定义分钟数）提前提醒
+   - 提醒文案："【xxx】还有 N 分钟截止！"
+   - 文件：`src/index.html`、`src/style.css`、`src/js/05-datetime.js`
+
+3. **日期选择器 UI 增强**
+   - 新增"结束时间"开关区域（带日期+时间输入）
+   - 新增"结束前提醒"开关区域（带快捷预设按钮）
+   - 显示文案示例：`8月25日 09:00 ~ 12:00 (前15分)`
+   - 文件：`src/index.html`、`src/style.css`、`src/js/05-datetime.js`
+
+4. **徽章显示时间范围**
+   - 有开始+结束时间时显示：`8/25 09:00 ~ 12:00`
+   - 仅有开始时间显示：`8/25 09:00`
+   - 颜色状态基于最近的提醒时间判断
+   - 文件：`src/js/02-render.js`
+
+### 优化 (Improved) — 数据模型与可视化
+
+1. **统一提醒点数组**
+   - 将分散的 `remindAt`、`endRemindAt`、`endRemindBefore`、`reminded` 等统一为 `reminders` 数组
+   - 新格式：`reminders: [{ type: 'start'|'end'|'before', at: 时间戳, reminded: false }]`
+   - 向后兼容：旧数据自动迁移到新格式
+   - 文件：`src/js/01-data.js`、`src/js/03-crud.js`、`src/js/06-reminder.js`
+
+2. **时间轴可视化**
+   - 列表项中有开始+结束时间时，显示渐变时间轴（蓝→红）
+   - 两端圆点标识起止位置，下方显示时间段标签（如 `09:00 - 12:00`）
+   - 文件：`src/js/02-render.js`、`src/style.css`
+
+3. **辅助函数封装**
+   - 新增 `getReminder()`、`getReminderAt()`、`isReminded()` 辅助函数
+   - 简化各模块对提醒点的访问逻辑
+   - 文件：`src/js/01-data.js`
+
+### 核心文件
+
+- `src/index.html`：结束时间区、结束前提醒区 UI
+- `src/style.css`：新区域样式、动画、时间轴样式
+- `src/js/01-data.js`：统一 reminders 数组、向后兼容迁移、辅助函数
+- `src/js/05-datetime.js`：结束时间、结束前提醒状态管理、输入同步
+- `src/js/03-crud.js`：`addTodo()` 构建 reminders 数组
+- `src/js/06-reminder.js`：基于 reminders 数组的统一调度、触发、漏检
+- `src/js/02-render.js`：徽章显示时间范围、时间轴可视化、Tooltip 详细信息
+- `src/js/07-integration.js`：传入结束时间和结束前提醒参数
+
+---
+
+## [v2.15.0] - 2026-08-24
+
+### 优化 (Improved) — 日期时间选择器
+
+1. **日期输入改为直接键入**
+   - 移除月/日滚轮选择器，改为点击输入框直接输入月/日
+   - 自动校验范围（月 1-12，日 1-当月最大天数），非法值自动修正
+   - 文件：`src/index.html`、`src/style.css`、`src/js/05-datetime.js`
+
+2. **日期预设同步输入框**
+   - 点击"今天/明天/后天/下周一"预设按钮后，输入框同步显示对应日期
+   - 文件：`src/js/05-datetime.js`
+
+3. **自然语言解析同步输入框**
+   - 解析"明天下午3点"等自然语言后，月/日/时/分输入框全部同步更新
+   - 文件：`src/js/05-datetime.js`
 
 ---
 
