@@ -43,6 +43,12 @@ function addTodo(remindAt, recurrence) {
   todoInput.value = '';
   todoInput.focus();
 
+  // 【v2.13.0】添加成功反馈：输入框绿色边框闪烁
+  todoInput.classList.add('success-flash');
+  setTimeout(function () {
+    todoInput.classList.remove('success-flash');
+  }, 400);
+
   // 6) 返回新增的事项对象，供调用方调度提醒
   return newTodo;
 }
@@ -160,6 +166,23 @@ function deleteTodo(id) {
     window.reminderModule.cancel(id);
   }
 
+  // 【v2.13.0】删除动画：先让节点淡出，再从数据中移除
+  var node = document.querySelector('.todo-item[data-id="' + id + '"]');
+  if (node) {
+    // 添加删除动画 class
+    node.classList.add('removing');
+    // 动画结束后再执行实际删除（300ms 与 CSS 动画时长一致）
+    setTimeout(function () {
+      performDelete(id);
+    }, 300);
+  } else {
+    // 节点不存在，直接删除
+    performDelete(id);
+  }
+}
+
+// 实际执行删除逻辑（从数组移除 + 渲染）
+function performDelete(id) {
   // filter 会遍历数组，返回 true 的元素保留、返回 false 的丢弃
   // 这里保留所有「id 不等于目标 id」的事项，即把目标事项排除掉
   todos = todos.filter(function (t) {

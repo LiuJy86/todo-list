@@ -343,10 +343,15 @@ function wrappedToggleTodo(id) {
   }
 }
 
-// 包装 deleteTodo：根据状态触发对应表情 + toast
+// 包装 deleteTodo：确认 → 动画删除 → 表情 + toast 反馈
 function wrappedDeleteTodo(id) {
   const todo = todos.find(function (t) { return t.id === id; });
-  deleteTodo(id);  // 调用原始函数
+  // 【v2.13.0】删除前确认，防止误操作
+  var confirmMsg = todo ? '确定要删除「' + todo.text + '」吗？' : '确定要删除吗？';
+  if (!window.confirm(confirmMsg)) {
+    return; // 用户取消，不执行删除
+  }
+  deleteTodo(id);  // 调用原始函数（含删除动画）
   if (window.petMood) {
     if (todo && todo.done) {
       window.petMood.angry(); // 删除已完成的 → 生气
@@ -370,6 +375,43 @@ todoInput.addEventListener('keydown', function (e) {
     wrappedAddTodo();
   }
 });
+
+// 【v2.13.0】添加按钮涟漪效果：点击时从点击位置扩散圆形波纹
+function addButtonRipple(event) {
+  var button = event.currentTarget;
+  // 计算点击位置相对于按钮的坐标
+  var rect = button.getBoundingClientRect();
+  var x = event.clientX - rect.left;
+  var y = event.clientY - rect.top;
+  // 创建涟漪元素
+  var ripple = document.createElement('span');
+  ripple.className = 'btn-ripple';
+  ripple.style.left = x + 'px';
+  ripple.style.top = y + 'px';
+  button.appendChild(ripple);
+  // 动画结束后移除涟漪元素
+  ripple.addEventListener('animationend', function () {
+    ripple.remove();
+  });
+}
+addBtn.addEventListener('click', addButtonRipple, true); // 使用捕获阶段，确保在 wrappedAddTodo 之前执行
+
+// 【v2.13.0】空状态示例按钮点击：填入输入框并聚焦
+var emptyState = document.getElementById('emptyState');
+if (emptyState) {
+  emptyState.addEventListener('click', function (e) {
+    var btn = e.target.closest('.empty-example-btn');
+    if (btn) {
+      var text = btn.dataset.text;
+      if (text && todoInput) {
+        todoInput.value = text;
+        todoInput.focus();
+        // 将光标移到文本末尾
+        todoInput.setSelectionRange(text.length, text.length);
+      }
+    }
+  });
+}
 
 // 将包装函数暴露到 window，供 createTodoElement 中的事件监听器调用
 window.wrappedAddTodo = wrappedAddTodo;

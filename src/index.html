@@ -174,6 +174,17 @@
     <section class="list-area">
       <!-- 空的无序列表，后续由 JS 动态添加 <li> 列表项 -->
       <ul id="todoList"></ul>
+      <!-- 空状态提示（无待办时显示，由 JS 控制显示/隐藏） -->
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-icon">📝</div>
+        <div class="empty-title">还没有待办事项</div>
+        <div class="empty-hint">在上方输入框添加你的第一个任务吧！</div>
+        <div class="empty-examples">
+          <button class="empty-example-btn" data-text="明天9点开会">💼 明天9点开会</button>
+          <button class="empty-example-btn" data-text="每30分钟喝水">💧 每30分钟喝水</button>
+          <button class="empty-example-btn" data-text="周末去爬山">🏔 周末去爬山</button>
+        </div>
+      </div>
     </section>
 
   </main>

@@ -4,6 +4,58 @@
 
 ---
 
+## [v2.13.0] - 2026-08-24
+
+### 新增 (Added) — 用户体验优化
+
+1. **删除确认对话框**
+   - 删除待办前弹出确认框，显示待办文本（如"确定要删除「买菜」吗？"）
+   - 用户点击"确定"才执行删除，点击"取消"中止操作
+   - 文件：`src/js/07-integration.js`
+
+2. **按钮涟漪效果**
+   - 添加按钮点击时从点击位置扩散圆形波纹（Material Design 风格）
+   - 波纹自动淡出移除，不残留 DOM
+   - 文件：`src/style.css`（@keyframes ripple-effect）、`src/js/07-integration.js`
+
+3. **添加成功反馈**
+   - 成功添加待办后，输入框绿色边框闪烁 + 扩散光晕
+   - 文件：`src/style.css`（@keyframes success-pulse）、`src/js/03-crud.js`
+
+### 优化 (Improved) — 动画效果
+
+1. **新待办滑入动画**
+   - 新添加的待办从上方平滑滑入（slideInDown 0.35s）
+   - 文件：`src/style.css`（@keyframes slideInDown）、`src/js/02-render.js`
+
+2. **删除淡出动画**
+   - 删除时节点淡出 + 缩小 + 左滑（fadeOutLeft 0.3s）
+   - 动画完成后才从数据中移除，视觉更流畅
+   - 文件：`src/style.css`（@keyframes fadeOutLeft）、`src/js/03-crud.js`
+
+3. **完成庆祝动画（CSS 已就绪）**
+   - 勾选框弹跳动画（checkbox-bounce）
+   - 完成时金色闪光（complete-flash）
+   - 文件：`src/style.css`
+
+### 新增 (Added) — 空状态提示
+
+1. **丰富的空状态组件**
+   - 无待办时显示：浮动图标 + 标题 + 引导文字 + 示例按钮
+   - 示例按钮可点击填入输入框（"明天9点开会"、"每30分钟喝水"、"周末去爬山"）
+   - 文件：`src/index.html`、`src/style.css`、`src/js/02-render.js`
+
+### 核心文件
+
+- `src/style.css`：新增 10+ 个动画 keyframes 和样式类
+- `src/index.html`：添加空状态 DOM 元素
+- `src/js/02-render.js`：空状态显示/隐藏、新节点进入动画
+- `src/js/03-crud.js`：删除动画、添加成功反馈
+- `src/js/07-integration.js`：删除确认、按钮涟漪、空状态按钮事件
+- `verify_playwright.py`：自动处理确认对话框
+
+---
+
 ## [v2.12.1] - 2026-08-24
 
 ### 修复 (Fixed)

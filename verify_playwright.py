@@ -47,6 +47,9 @@ def main():
         context = browser.new_context()
         page = context.new_page()
 
+        # 【v2.13.0】自动处理删除确认对话框（测试中默认点击确认）
+        page.on("dialog", lambda dialog: dialog.accept())
+
         # ---------- 1. 打开页面，验证初始状态 ----------
         page.goto(URL)
         page.wait_for_load_state("networkidle")
@@ -150,7 +153,7 @@ def main():
 
         # ---------- 4. 删除「学习 JavaScript」（当前未完成区第 1 条）----------
         page.locator("#todoList .todo-item", has_text="学习 JavaScript").locator(".delete-btn").click()
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(800)  # 等待删除确认对话框 + 删除动画（300ms）
 
         count_after_del = page.locator("#todoList .todo-item").count()
         ss_after_del = get_todos(page)

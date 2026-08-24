@@ -119,6 +119,29 @@ function render() {
     }
   });
 
+  // 【v2.13.0】空状态显示/隐藏
+  var emptyState = document.getElementById('emptyState');
+  if (emptyState) {
+    if (todos.length === 0) {
+      emptyState.style.display = 'block';
+    } else {
+      emptyState.style.display = 'none';
+    }
+  }
+
+  // 【v2.13.0】为新创建的节点添加进入动画
+  rebuiltIds.forEach(function (id) {
+    var node = nodeCache.get(id);
+    if (node) {
+      node.classList.add('todo-item-enter');
+      // 动画结束后移除 class，避免重复触发
+      node.addEventListener('animationend', function handler() {
+        node.classList.remove('todo-item-enter');
+        node.removeEventListener('animationend', handler);
+      });
+    }
+  });
+
   // 保存数据
   save();
 
