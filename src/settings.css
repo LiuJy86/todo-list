@@ -9,33 +9,40 @@
   box-sizing: border-box;
 }
 
+/* ============================================
+   滚动条美化（同时处理 html 和 body）
+   Electron/Chromium 的滚动条在 <html> 元素上
+   ============================================ */
+html {
+  /* 美化滚动条：macOS 风格极细淡色 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 122, 155, 0.3) transparent;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar {
+  width: 4px;
+}
+
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb {
+  background: rgba(139, 122, 155, 0.3);
+  border-radius: 4px;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 122, 155, 0.5);
+}
+
 body.settings-body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   background: linear-gradient(135deg, #f5f0ff 0%, #e8e0f0 100%);
   min-height: 100vh;
   color: #333;
   overflow-y: auto;
-  /* 美化滚动条：macOS 风格极细淡色 */
-  scrollbar-width: thin;                            /* Firefox */
-  scrollbar-color: rgba(139, 122, 155, 0.3) transparent; /* Firefox */
-  -ms-overflow-style: none;                         /* IE/Edge */
-}
-
-body.settings-body::-webkit-scrollbar {
-  width: 4px;                       /* 极细 */
-}
-
-body.settings-body::-webkit-scrollbar-track {
-  background: transparent;          /* 透明轨道 */
-}
-
-body.settings-body::-webkit-scrollbar-thumb {
-  background: rgba(139, 122, 155, 0.3);  /* 淡紫色滑块 */
-  border-radius: 4px;
-}
-
-body.settings-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 122, 155, 0.5);  /* 悬停加深 */
 }
 
 /* 设置容器 */
