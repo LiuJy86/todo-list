@@ -41,6 +41,59 @@
 
 ---
 
+## [v2.20.0] - 2026-08-24
+
+### 优化 (Improved) — 无边框窗口与交互细节
+
+1. **隐藏原生窗口标题栏**
+   - 主窗口、设置窗口、便签模式均隐藏 Windows 原生标题栏
+   - 页面 header 作为可拖拽区域（`-webkit-app-region: drag`）
+   - 操作按钮区域排除拖拽（`-webkit-app-region: no-drag`）
+   - 文件：`electron/main.js`（`titleBarStyle: 'hidden'`）、`src/style.css`
+
+2. **全局滚动条隐藏**
+   - 所有页面（主页面、设置页面、便签模式）统一隐藏滚动条
+   - 保留鼠标滚轮/触摸板滚动功能
+   - 覆盖 Firefox/IE/Edge/Chrome/Safari 全平台
+   - 文件：`src/style.css`（`html`/`body`/`::-webkit-scrollbar`）、`.list-area` 滚动条隐藏
+
+3. **设置窗口风格统一**
+   - 背景改为 iOS 系统灰 `#F2F2F7`，与主页面一致
+   - 文字色阶对齐 Apple 标准（`#1C1C1E` 主文字 / `#8E8E93` 次要文字）
+   - 强调色统一为 Apple 蓝 `#007AFF`，开关激活态 Apple 绿 `#34C759`
+   - 文件：`src/settings.css`、`electron/main.js`（`backgroundColor: '#F2F2F7'`）
+
+4. **版本号动态读取**
+   - 检查更新的当前版本从 `package.json` 自动读取，不再硬编码
+   - 新增 `getVersion` preload API 和 `get-app-version` IPC 处理
+   - 发版时只需修改 `package.json` 的 `version` 字段
+   - 文件：`electron/preload.js`、`electron/main.js`、`src/settings.js`
+
+### 修复 (Fixed)
+
+1. **便签模式滚动修复**
+   - 内容超出 600px 时自动启用列表区域滚动
+   - 修复 `is-overflow` 类从未被 JavaScript 添加的问题
+   - 文件：`src/js/02-render.js`（`adjustStickyWindowHeight` 动态添加/移除 `is-overflow`）
+
+2. **开机自启动「启动时隐藏」修复**
+   - `applySavedSettings` 和 `set-auto-start` IPC 现在正确读取 `startHidden` 设置
+   - 文件：`electron/main.js`
+
+3. **删除按钮悬停不显示详细 tooltip**
+   - 全局追踪 `activeTooltips` 数组
+   - 鼠标悬停删除按钮、复选框等操作元素时隐藏 tooltip，避免干扰
+   - 文件：`src/js/02-render.js`
+
+### 变更 (Changed)
+
+1. **删除待办不再弹出确认窗口**
+   - 点击删除按钮直接执行删除动画
+   - 保留桌宠表情反馈和 toast 提示
+   - 文件：`src/js/07-integration.js`
+
+---
+
 ## [v2.19.0] - 2026-08-24
 
 ### 优化 (Improved) — Apple 极简白昼 UI 风格
