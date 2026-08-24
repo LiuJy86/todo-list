@@ -37,6 +37,12 @@
 - `src/style.css`：副标题样式、进度胶囊、标题间距优化
 - `src/js/07-integration.js`：`updateStickyTitle` 函数重构，支持进度胶囊
 
+### 修复 (Fixed) — 设置页面滚动条未隐藏
+
+- 设置页面为独立窗口，仅加载 `settings.css`，不加载主页面 `style.css`，导致全局滚动条隐藏规则未生效
+- 在 `src/settings.css` 中补全滚动条隐藏规则（Firefox / IE / Chromium 内核），滚动功能保持不变
+- 文件：`src/settings.css`
+
 ---
 
 ## [v2.18.0] - 2026-08-24

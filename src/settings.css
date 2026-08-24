@@ -9,7 +9,23 @@
   box-sizing: border-box;
 }
 
-/* 滚动条隐藏已全局定义在 style.css，无需重复 */
+/* 隐藏设置页面滚动条（设置页面不加载 style.css，需在此独立定义） */
+html, body {
+  scrollbar-width: none !important;         /* Firefox */
+  -ms-overflow-style: none !important;      /* IE/Edge */
+}
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+  background: transparent !important;
+}
+*::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent !important;
+  display: none !important;
+}
 
 body.settings-body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
