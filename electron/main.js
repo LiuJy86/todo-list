@@ -135,7 +135,7 @@ function createSettingsWindow() {
     title: '设置',
     icon: getIconPath(),
     autoHideMenuBar: true,
-    backgroundColor: '#f5f0ff',
+    backgroundColor: '#F2F2F7',
     resizable: false,
     minimizable: false,
     maximizable: false,
