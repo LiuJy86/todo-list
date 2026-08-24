@@ -90,6 +90,8 @@ header {
   padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg);
   background: var(--bg-secondary);
   border-bottom: 0.5px solid var(--card-border);
+  /* 隐藏原生标题栏后，header 作为可拖拽区域移动窗口 */
+  -webkit-app-region: drag;
 }
 
 header h1 {
@@ -106,9 +108,17 @@ header h1 {
   padding: 6px 14px;
 }
 
-/* emoji logo 保持原色 */
-.logo-emoji {
-  font-size: 16px;
+/* 副标题 — Apple 风格淡色说明文字 */
+.header-subtitle {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-tertiary, #8E8E93);
+  letter-spacing: 0.2px;
+}
+/* 便签模式：隐藏副标题，保持紧凑 */
+.sticky-mode .header-subtitle {
+  display: none;
 }
 
 /* 操作指南悬浮入口（右下角 FAB） */
@@ -2113,6 +2123,8 @@ header {
   display: flex;
   align-items: center;
   gap: 2px;
+  /* 按钮区域不可拖拽，避免与窗口移动冲突 */
+  -webkit-app-region: no-drag;
 }
 .pin-btn {
   background: none;
@@ -2200,6 +2212,39 @@ body.sticky-mode {
   margin: 0;
   padding: 5px 12px;
   border-radius: 12px;
+  gap: 10px;
+}
+
+/* 便签模式：进度胶囊 */
+.sticky-progress {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.sticky-mode .sticky-progress {
+  display: inline-flex;
+}
+.sticky-progress-bar {
+  width: 48px;
+  height: 5px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.sticky-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #34C759, #30D158);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.sticky-progress-text {
+  font-size: 10px;
+  font-weight: 600;
+  color: #34C759;
+  min-width: 28px;
 }
 /* 【v2.14.0】便签模式：标题栏按钮区域不可拖拽（避免拖拽时误触按钮） */
 .sticky-mode .header-btns {
