@@ -526,9 +526,22 @@ function toggleStickyMode(enable) {
     // 重新加载页面
     mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
 
-    // 页面加载完成后通知进入便签模式
+    // 页面加载完成后淡入显示并通知进入便签模式
     mainWindow.webContents.on('did-finish-load', () => {
       mainWindow.webContents.send('sticky-mode', true);
+      // 淡入动画：从透明到不透明
+      mainWindow.setOpacity(0);
+      mainWindow.show();
+      let opacity = 0;
+      const fadeIn = setInterval(() => {
+        opacity += 0.15;
+        if (opacity >= 1) {
+          mainWindow.setOpacity(1);
+          clearInterval(fadeIn);
+        } else {
+          mainWindow.setOpacity(opacity);
+        }
+      }, 16);
     });
 
     // 重新绑定关闭拦截
@@ -580,9 +593,22 @@ function toggleStickyMode(enable) {
     // 重新加载页面
     mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
 
-    // 页面加载完成后通知退出便签模式
+    // 页面加载完成后淡入显示并通知退出便签模式
     mainWindow.webContents.on('did-finish-load', () => {
       mainWindow.webContents.send('sticky-mode', false);
+      // 淡入动画
+      mainWindow.setOpacity(0);
+      mainWindow.show();
+      let opacity = 0;
+      const fadeIn = setInterval(() => {
+        opacity += 0.15;
+        if (opacity >= 1) {
+          mainWindow.setOpacity(1);
+          clearInterval(fadeIn);
+        } else {
+          mainWindow.setOpacity(opacity);
+        }
+      }, 16);
     });
 
     // 重新绑定关闭拦截
