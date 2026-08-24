@@ -1,42 +1,57 @@
-/* ===== CSS 变量 (设计令牌) ===== */
+/* ===== CSS 变量 (设计令牌) — Apple 极简白昼风格 ===== */
 :root {
-  --bg-gradient-start: #c9a0dc;
-  --bg-gradient-end: #5fa8e6;
-  
-  --card-bg: rgba(255, 255, 255, 0.9);
-  --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
-  --card-border: rgba(255, 255, 255, 0.7);
-  
-  --text-primary: #1a1a2e;
-  --text-secondary: #555;
-  --text-muted: #8888a0;
-  
-  --accent-color: #667eea;
-  --accent-hover: #5568d3;
-  
-  --delete-color: #ff6b6b;
-  --delete-hover: #ee5a5a;
-  
-  --border-color: rgba(0, 0, 0, 0.15);
-  --input-bg: rgba(255, 255, 255, 0.95);
-  
+  /* 背景：iOS 系统灰 */
+  --bg-primary: #F2F2F7;
+  --bg-secondary: #FFFFFF;
+
+  /* 卡片：纯白 + 微妙阴影 */
+  --card-bg: #FFFFFF;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --card-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --card-border: rgba(0, 0, 0, 0.08);
+
+  /* 文字：Apple 标准色阶 */
+  --text-primary: #1C1C1E;
+  --text-secondary: #3A3A3C;
+  --text-muted: #8E8E93;
+
+  /* 强调色：iOS 系统蓝 */
+  --accent-color: #007AFF;
+  --accent-hover: #0066D6;
+  --accent-light: rgba(0, 122, 255, 0.1);
+
+  /* 功能色 */
+  --delete-color: #FF3B30;
+  --delete-hover: #D70015;
+  --success-color: #34C759;
+  --warning-color: #FF9500;
+
+  --border-color: rgba(0, 0, 0, 0.1);
+  --input-bg: #FFFFFF;
+
+  /* 圆角：Apple 风格精致小圆角 */
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  
+  --radius-md: 10px;
+  --radius-lg: 12px;
+
+  /* 间距：4 倍数系统 */
+  --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 12px;
   --spacing-lg: 16px;
   --spacing-xl: 24px;
-  
-  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --spacing-2xl: 32px;
 
-  /* 提醒徽章颜色（按紧迫度分级） */
-  --reminder-far: #8888a0;       /* 远期：灰色 */
-  --reminder-soon: #667eea;      /* 接近：紫色（主色） */
-  --reminder-urgent: #ffa726;    /* 紧迫：橙色 */
-  --reminder-overdue: #ff6b6b;   /* 已过期：红色（与删除色统一） */
+  /* 动画：Apple 标准缓动曲线 */
+  --transition-fast: 0.15s cubic-bezier(0.42, 0, 0.58, 1);
+  --transition-smooth: 0.3s cubic-bezier(0.42, 0, 0.58, 1);
+  --transition-spring: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* 提醒徽章颜色（按紧迫度分级，Apple 风格低饱和） */
+  --reminder-far: #8E8E93;       /* 远期：灰色 */
+  --reminder-soon: #007AFF;      /* 接近：系统蓝 */
+  --reminder-urgent: #FF9500;    /* 紧迫：橙色 */
+  --reminder-overdue: #FF3B30;   /* 已过期：红色 */
 }
 
 /* ===== 全局重置 ===== */
@@ -46,15 +61,13 @@
   box-sizing: border-box;
 }
 
-/* ===== 页面整体样式 ===== */
+/* ===== 页面整体样式 — Apple 极简白昼 ===== */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  /* 渐变背景，现代感 */
-  background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
-  background-attachment: fixed;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg-primary);
   min-height: 100vh;
   color: var(--text-primary);
-  line-height: 1.6;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* 隐藏外层滚动条，只保留列表区域内部滚动 */
@@ -71,20 +84,18 @@ html {
   scrollbar-width: none;
 }
 
-/* ===== 页面头部 ===== */
+/* ===== 页面头部 — Apple 风格 ===== */
 header {
   text-align: center;
-  padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg);
+  padding: var(--spacing-2xl) var(--spacing-md) var(--spacing-lg);
+  background: var(--bg-secondary);
+  border-bottom: 0.5px solid var(--card-border);
 }
 
 header h1 {
-  font-size: 26px;
-  font-weight: 800;
-  /* 渐变文字效果：紫蓝渐变 */
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-primary);
   letter-spacing: -0.5px;
   display: flex;
   align-items: center;
@@ -92,11 +103,9 @@ header h1 {
   gap: 8px;
 }
 
-/* emoji logo 保持原色（不参与渐变） */
+/* emoji logo 保持原色 */
 .logo-emoji {
-  -webkit-text-fill-color: initial;
-  font-size: 22px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+  font-size: 24px;
 }
 
 /* 操作指南悬浮入口（右下角 FAB） */
@@ -109,26 +118,26 @@ header h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
-  font-size: 22px;
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
   text-decoration: none;
   color: #fff;
-  background: linear-gradient(135deg, #667eea 0%, #5c4fc0 100%);
-  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: var(--accent-color);
+  border: none;
   border-radius: 50%;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+  transition: all var(--transition-fast);
   cursor: pointer;
   line-height: 1;
   user-select: none;
 }
 .guide-fab:hover {
-  transform: translateY(-2px) scale(1.06);
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.55);
-  background: linear-gradient(135deg, #5c4fc0 0%, #4d3fb0 100%);
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 122, 255, 0.4);
+  background: var(--accent-hover);
 }
-.guide-fab:active { transform: translateY(0) scale(1); }
+.guide-fab:active { transform: scale(0.95); }
 
 /* 窄屏：稍微缩小并贴近边缘，避免遮挡内容 */
 @media (max-width: 480px) {
@@ -146,30 +155,30 @@ header h1 {
 .github-fab {
   position: fixed;
   right: 24px;
-  bottom: 88px;  /* .guide-fab 高度 52 + 间距 36 = 88，保证两按钮不重叠 */
+  bottom: 84px;  /* .guide-fab 高度 48 + 间距 36 = 84，保证两按钮不重叠 */
   z-index: 9998;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   color: #fff;
-  background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
-  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: #1C1C1E;
+  border: none;
   border-radius: 50%;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: all var(--transition-fast);
   cursor: pointer;
   line-height: 1;
   user-select: none;
 }
 .github-fab svg { display: block; }
 .github-fab:hover {
-  transform: translateY(-2px) scale(1.06);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  background: linear-gradient(135deg, #2f363d 0%, #24292e 100%);
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  background: #2C2C2E;
 }
-.github-fab:active { transform: translateY(0) scale(1); }
+.github-fab:active { transform: scale(0.95); }
 
 /* 窄屏：与 .guide-fab 同步缩小并保持垂直间距 */
 @media (max-width: 480px) {
@@ -193,19 +202,16 @@ main {
   flex-direction: column;
 }
 
-/* ===== 输入区 ===== */
+/* ===== 输入区 — Apple 风格 ===== */
 .input-area {
   display: flex;
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-md);
-  /* 玻璃拟态容器 */
   background: var(--card-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border-radius: var(--radius-lg);
   padding: var(--spacing-sm);
   box-shadow: var(--card-shadow);
-  border: 1px solid var(--card-border);
+  border: 0.5px solid var(--card-border);
   /* 改为两行布局：第一行文本框占满，第二行 datetime-local + 按钮 */
   flex-wrap: wrap;
   align-items: center;
@@ -228,10 +234,10 @@ main {
 #todoInput {
   flex: 1 1 100%;  /* 占满第一行 */
   padding: var(--spacing-md) var(--spacing-lg);
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-primary);
-  background: var(--input-bg);
-  border: 2px solid transparent;
+  background: var(--bg-primary);
+  border: 1.5px solid transparent;
   border-radius: var(--radius-md);
   outline: none;
   transition: all var(--transition-smooth);
@@ -242,9 +248,9 @@ main {
 }
 
 #todoInput:focus {
-  background: #fff;
+  background: var(--bg-secondary);
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px var(--accent-light);
 }
 
 /* 日期时间选择器（自定义 Popover 浮层，v2.4.0 替换原生 datetime-local） */
@@ -261,10 +267,10 @@ main {
   justify-content: space-between;
   gap: 8px;
   padding: var(--spacing-md) var(--spacing-sm);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
-  background: var(--input-bg);
-  border: 2px solid transparent;
+  background: var(--bg-primary);
+  border: 1.5px solid transparent;
   border-radius: var(--radius-md);
   outline: none;
   transition: all var(--transition-smooth);
@@ -275,14 +281,14 @@ main {
 }
 
 .datetime-trigger:hover {
-  background: #fff;
+  background: var(--bg-secondary);
 }
 
 .datetime-trigger.active,
 .datetime-trigger:focus {
-  background: #fff;
+  background: var(--bg-secondary);
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px var(--accent-light);
 }
 
 .datetime-display {
@@ -301,7 +307,7 @@ main {
   flex-shrink: 0;
 }
 
-/* Popover 浮层 — 两列紧凑版 */
+/* Popover 浮层 — Apple 风格 */
 .datetime-popover {
   position: absolute;
   top: calc(100% + 6px);
@@ -309,13 +315,13 @@ main {
   right: auto;
   width: 420px;
   background: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 6px 24px rgba(31, 38, 135, 0.14);
+  border: 0.5px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12);
   padding: 14px;
   z-index: 10000;
   display: none;
-  animation: popoverIn 0.18s ease-out;
+  animation: popoverIn 0.18s cubic-bezier(0.42, 0, 0.58, 1);
 }
 
 /* 两列布局 */
@@ -391,20 +397,22 @@ main {
 }
 
 .dp-preset {
-  padding: 3px 9px;
+  padding: 4px 10px;
   font-size: 11px;
+  font-weight: 500;
   color: var(--text-secondary);
-  background: rgba(102, 126, 234, 0.08);
-  border: 1px solid transparent;
-  border-radius: 12px;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--card-border);
+  border-radius: 6px;
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
 }
 
 .dp-preset:hover {
-  background: rgba(102, 126, 234, 0.15);
+  background: var(--accent-light);
   color: var(--accent-color);
+  border-color: var(--accent-color);
 }
 
 .dp-preset.active {
@@ -558,22 +566,23 @@ main {
   width: 48px;
   height: 28px;
   text-align: center;
-  border: 1.5px solid rgba(74, 144, 217, 0.25);
+  border: 0.5px solid var(--card-border);
   border-radius: 6px;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   outline: none;
-  background: #fff;
+  background: var(--bg-primary);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .dp-time-input:focus {
-  border-color: #4a90d9;
-  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.15);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-light);
+  background: var(--bg-secondary);
 }
 .dp-time-sep {
   font-size: 14px;
   font-weight: 500;
-  color: #666;
+  color: var(--text-muted);
 }
 /* 日期输入行：点击可直接输入月/日 */
 .dp-date-input-row {
@@ -587,17 +596,18 @@ main {
   width: 48px;
   height: 28px;
   text-align: center;
-  border: 1.5px solid rgba(74, 144, 217, 0.25);
+  border: 0.5px solid var(--card-border);
   border-radius: 6px;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   outline: none;
-  background: #fff;
+  background: var(--bg-primary);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .dp-date-input:focus {
-  border-color: #4a90d9;
-  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.15);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-light);
+  background: var(--bg-secondary);
 }
 .dp-date-sep {
   font-size: 14px;
@@ -636,21 +646,22 @@ main {
   width: 60px;
   height: 28px;
   text-align: center;
-  border: 1.5px solid rgba(74, 144, 217, 0.25);
+  border: 0.5px solid var(--card-border);
   border-radius: 6px;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   outline: none;
-  background: #fff;
+  background: var(--bg-primary);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .dp-before-input:focus {
-  border-color: #4a90d9;
-  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.15);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-light);
+  background: var(--bg-secondary);
 }
 .dp-before-unit {
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted);
 }
 .dp-before-presets {
   justify-content: flex-start;
@@ -665,43 +676,43 @@ main {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ===== 时间轴可视化（列表项内） ===== */
+/* ===== 时间轴可视化（列表项内） — Apple 风格 ===== */
 .todo-timeline {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 6px;
   padding: 2px 0;
 }
 .todo-timeline-bar {
   position: relative;
   flex: 1;
-  height: 4px;
-  background: linear-gradient(90deg, #4a90d9, #e74c3c);
-  border-radius: 2px;
+  height: 3px;
+  background: linear-gradient(90deg, #007AFF, #FF3B30);  /* Apple 蓝→红 */
+  border-radius: 1.5px;
   min-width: 40px;
 }
 .todo-timeline-dot {
   position: absolute;
   top: 50%;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  border: 2px solid #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  border: 1.5px solid #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 .todo-timeline-dot.start {
   left: 0%;
-  background: #4a90d9;
+  background: #007AFF;  /* Apple 蓝 */
 }
 .todo-timeline-dot.end {
   left: 100%;
-  background: #e74c3c;
+  background: #FF3B30;  /* Apple 红 */
 }
 .todo-timeline-label {
   font-size: 10px;
-  color: #888;
+  color: var(--text-muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -769,8 +780,8 @@ main {
 .dp-toggle {
   position: relative;
   display: inline-block;
-  width: 38px;
-  height: 20px;
+  width: 44px;
+  height: 24px;
   cursor: pointer;
 }
 
@@ -783,30 +794,30 @@ main {
 .dp-toggle-slider {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 20px;
-  transition: background 0.2s;
+  background: rgba(120, 120, 128, 0.16);  /* iOS 开关关闭态 */
+  border-radius: 12px;
+  transition: background 0.25s cubic-bezier(0.42, 0, 0.58, 1);
 }
 
 .dp-toggle-slider::before {
   content: '';
   position: absolute;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   left: 2px;
   top: 2px;
   background: #fff;
   border-radius: 50%;
-  transition: transform 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.25s cubic-bezier(0.42, 0, 0.58, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .dp-toggle input:checked + .dp-toggle-slider {
-  background: var(--accent-color);
+  background: #34C759;  /* iOS 开关开启态：绿色 */
 }
 
 .dp-toggle input:checked + .dp-toggle-slider::before {
-  transform: translateX(18px);
+  transform: translateX(20px);
 }
 
 .dp-cycle-options {
@@ -957,25 +968,22 @@ main {
   font-size: 15px;
   font-weight: 600;
   color: #fff;
-  /* 渐变按钮背景 */
-  background: linear-gradient(135deg, var(--accent-color) 0%, #764ba2 100%);
+  /* Apple 风格：纯色扁平按钮 */
+  background: var(--accent-color);
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all var(--transition-smooth);
-  /* 按钮阴影 */
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  transition: all var(--transition-fast);
   flex-shrink: 0;
 }
 
 #addBtn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  background: var(--accent-hover);
 }
 
 #addBtn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+  transform: scale(0.96);
+  opacity: 0.9;
 }
 
 /* ===== 列表区 ===== */
@@ -986,26 +994,24 @@ main {
   gap: 10px;
 }
 
-/* 单条待办事项 */
+/* 单条待办事项 — Apple 风格 */
 .todo-item {
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
   background: var(--card-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 10px var(--spacing-lg);
+  padding: 12px var(--spacing-lg);
   border-radius: var(--radius-md);
-  border: 1px solid var(--card-border);
-  box-shadow: 0 2px 12px rgba(31, 38, 135, 0.06);
-  transition: all var(--transition-smooth);
+  border: 0.5px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  transition: all var(--transition-fast);
   position: relative;  /* 用于已提醒 ::before 铃铛定位 */
 }
 
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
@@ -1014,19 +1020,18 @@ main {
 }
 
 .todo-item:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(31, 38, 135, 0.1);
+  box-shadow: var(--card-shadow-hover);
   z-index: 100;  /* 悬浮时提升层级，避免被桌宠遮挡 */
 }
 
-/* 自定义复选框 */
+/* 自定义复选框 — Apple 风格圆形 */
 .todo-checkbox {
   appearance: none;
   -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
-  border: 2px solid var(--border-color);
-  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 50%;
   cursor: pointer;
   position: relative;
   transition: all var(--transition-fast);
@@ -1045,12 +1050,12 @@ main {
 .todo-checkbox:checked::after {
   content: '';
   position: absolute;
-  left: 6px;
+  left: 5px;
   top: 2px;
   width: 5px;
-  height: 10px;
+  height: 9px;
   border: solid #fff;
-  border-width: 0 2.5px 2.5px 0;
+  border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
@@ -1116,53 +1121,48 @@ main {
 
 /* ===== 计数器样式已移除（次数功能已集成到循环提醒中） ===== */
 
-/* ===== 提醒徽章：紧贴事项文本右侧，按紧迫度变色 ===== */
+/* ===== 提醒徽章：紧贴事项文本右侧，按紧迫度变色 — Apple 风格 ===== */
 .reminder-badge {
   font-size: 11px;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 3px 8px;
+  border-radius: 6px;
   white-space: nowrap;
   flex-shrink: 0;
   margin-left: auto;            /* 推到右侧（删除按钮左侧） */
   margin-right: var(--spacing-sm);
   transition: all var(--transition-fast);
-  border: 1px solid transparent;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.3px;
 }
 
 /* 远期（> 1 天）：灰色 */
 .reminder-badge-far {
   color: var(--reminder-far);
-  background: rgba(136, 136, 160, 0.12);
-  border-color: rgba(136, 136, 160, 0.3);
+  background: rgba(142, 142, 147, 0.12);
 }
 
-/* 接近（≤ 1 天，> 1 小时）：紫色（主色） */
+/* 接近（≤ 1 天，> 1 小时）：系统蓝 */
 .reminder-badge-soon {
   color: var(--reminder-soon);
-  background: rgba(102, 126, 234, 0.15);
-  border-color: rgba(102, 126, 234, 0.4);
+  background: rgba(0, 122, 255, 0.1);
 }
 
-/* 紧迫（≤ 1 小时）：橙色 + 脉冲动画 */
+/* 紧迫（≤ 1 小时）：橙色 */
 .reminder-badge-urgent {
   color: #fff;
   background: var(--reminder-urgent);
-  border-color: var(--reminder-urgent);
-  animation: badge-pulse 1s ease-in-out infinite;
+  animation: badge-pulse 2s ease-in-out infinite;
 }
 
 @keyframes badge-pulse {
-  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(255, 167, 38, 0.5); }
-  50%      { transform: scale(1.05); box-shadow: 0 0 0 4px rgba(255, 167, 38, 0); }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.8; }
 }
 
 /* 已过期：红色 + 删除线 */
 .reminder-badge-overdue {
   color: var(--reminder-overdue);
-  background: rgba(255, 107, 107, 0.12);
-  border-color: rgba(255, 107, 107, 0.4);
+  background: rgba(255, 59, 48, 0.1);
   text-decoration: line-through;
   opacity: 0.8;
 }
@@ -1233,26 +1233,28 @@ main {
   cursor: help;
 }
 
-/* JS 动态 tooltip：position: fixed 脱离滚动容器裁剪 */
+/* JS 动态 tooltip：position: fixed 脱离滚动容器裁剪 — Apple 风格 */
 .js-tooltip {
   position: fixed;
   padding: 8px 12px;
-  background: rgba(31, 38, 135, 0.95);
+  background: rgba(28, 28, 30, 0.85);  /* Apple 风格深色半透明 */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: #fff;
   font-size: 12px;
   font-weight: 500;
-  line-height: 1.6;
+  line-height: 1.5;
   border-radius: 8px;
   white-space: pre-line;   /* 保留换行符 */
   z-index: 10000;
   pointer-events: none;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   opacity: 0;
   transition: opacity 0.15s ease;
   max-width: 280px;
 }
 
-/* 删除按钮 */
+/* 删除按钮 — Apple 风格 */
 .delete-btn {
   width: auto;
   min-width: 50px;
@@ -1260,9 +1262,9 @@ main {
   font-size: 13px;
   font-weight: 500;
   color: var(--delete-color);
-  background: rgba(255, 107, 107, 0.15);
-  border: 1px solid transparent;
-  border-radius: 8px;
+  background: rgba(255, 59, 48, 0.1);
+  border: none;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
   opacity: 0.9;
@@ -1272,12 +1274,11 @@ main {
   background: var(--delete-color);
   color: #fff;
   opacity: 1;
-  transform: scale(1.05);
 }
 
-/* ===== 已完成状态的视觉区分 ===== */
+/* ===== 已完成状态的视觉区分 — Apple 风格 ===== */
 .todo-item.completed {
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
 .todo-item.completed .todo-text {
@@ -1290,20 +1291,17 @@ main {
   border-color: var(--text-muted);
 }
 
-/* ===== 到点提醒高亮：红框 + 抖动动画 ===== */
+/* ===== 到点提醒高亮 — Apple 风格微妙提示 ===== */
 .todo-item.reminding {
   border-color: var(--reminder-overdue);
-  background: linear-gradient(135deg, rgba(255, 107, 107, 0.12), rgba(255, 167, 38, 0.08));
-  box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.25), 0 8px 25px rgba(255, 107, 107, 0.3);
-  animation: reminder-shake 0.5s ease-in-out 4;  /* 抖动 4 次，共 2 秒 */
+  background: rgba(255, 59, 48, 0.04);
+  box-shadow: 0 0 0 1px var(--reminder-overdue);
+  animation: reminder-pulse 2s ease-in-out infinite;
 }
 
-@keyframes reminder-shake {
-  0%, 100% { transform: translateX(0); }
-  20%      { transform: translateX(-6px); }
-  40%      { transform: translateX(6px); }
-  60%      { transform: translateX(-4px); }
-  80%      { transform: translateX(4px); }
+@keyframes reminder-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px var(--reminder-overdue); }
+  50%      { box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.3); }
 }
 
 /* 已提醒过的待办：左上角小铃铛标识（::before 需要 .todo-item 设 position: relative）*/
@@ -2182,16 +2180,16 @@ body.sticky-mode {
   transform: rotate(-45deg);
 }
 
-/* 便签模式下：标题缩小、居中，四周留白 */
+/* 便签模式下：标题缩小、居中，四周留白 — Apple 风格 */
 .sticky-mode header {
   padding: 10px 12px 6px;
   margin-bottom: 0;
   /* 【v2.14.0】便签模式：标题栏可拖拽移动窗口 */
   cursor: move;
   -webkit-app-region: drag;
-  /* 【v2.14.0】便签模式：淡色背景区分普通模式 */
-  background: rgba(74, 144, 217, 0.06);
-  border-bottom: 1px solid rgba(74, 144, 217, 0.15);
+  /* Apple 风格：极淡背景 */
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 0.5px solid var(--card-border);
 }
 .sticky-mode header h1 {
   font-size: 16px;
@@ -2234,19 +2232,19 @@ body.sticky-mode {
   overflow-y: auto;
 }
 
-/* 美化滚动条——平时淡隐，悬停时细条显示（通用，普通模式 + 便签模式共用） */
+/* 美化滚动条 — Apple 风格极简细条 */
 .list-area::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 .list-area::-webkit-scrollbar-track {
   background: transparent;
 }
 .list-area::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
 }
 .list-area:hover::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.25);
 }
 
 /* 便签模式下：四周留白，透气舒适（底部留更多空白，有呼吸感） */
