@@ -71,7 +71,7 @@ function createWindow(isToolbar) {
     title: 'ToDoList',
     icon: getIconPath(),
     autoHideMenuBar: true,        // 隐藏菜单栏
-    backgroundColor: '#c9a0dc',   // 与页面渐变起始色一致，避免白屏
+    backgroundColor: '#F2F2F7',   // 与页面渐变起始色一致，避免白屏
     webPreferences: {
       contextIsolation: true,     // 上下文隔离（安全）
       nodeIntegration: false,     // 禁用 Node 集成（安全）
@@ -513,7 +513,7 @@ function toggleStickyMode(enable) {
       title: 'ToDoList',
       icon: getIconPath(),
       autoHideMenuBar: true,
-      backgroundColor: '#c9a0dc',
+      backgroundColor: '#F2F2F7',
       type: 'toolbar',  // 关键：toolbar 类型不受 Windows+D 影响
       webPreferences: {
         contextIsolation: true,
@@ -568,7 +568,7 @@ function toggleStickyMode(enable) {
       title: 'ToDoList',
       icon: getIconPath(),
       autoHideMenuBar: true,
-      backgroundColor: '#c9a0dc',
+      backgroundColor: '#F2F2F7',
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
