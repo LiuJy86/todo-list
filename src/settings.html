@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设置 - ToDoList</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body class="settings-body">
+
+  <div class="settings-container">
+
+    <!-- 设置页面标题 -->
+    <header class="settings-header">
+      <h1>⚙️ 设置</h1>
+    </header>
+
+    <!-- 设置内容区 -->
+    <main class="settings-main">
+
+      <!-- 常规设置 -->
+      <section class="settings-section">
+        <h2 class="section-title">常规</h2>
+
+        <!-- 开机自启动 -->
+        <div class="settings-item">
+          <div class="settings-item-info">
+            <span class="settings-item-label">开机自启动</span>
+            <span class="settings-item-desc">开机后自动启动应用</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="autoStart">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <!-- 启动时隐藏到托盘 -->
+        <div class="settings-item">
+          <div class="settings-item-info">
+            <span class="settings-item-label">启动时隐藏</span>
+            <span class="settings-item-desc">启动后不显示窗口，静默到托盘</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="startHidden">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- 快捷键设置 -->
+      <section class="settings-section">
+        <h2 class="section-title">快捷键</h2>
+
+        <!-- 显示/隐藏窗口 -->
+        <div class="settings-item">
+          <div class="settings-item-info">
+            <span class="settings-item-label">显示/隐藏窗口</span>
+            <span class="settings-item-desc">快速呼出或隐藏主窗口</span>
+          </div>
+          <div class="shortcut-input-wrap">
+            <input type="text" id="shortcutToggleWindow" class="shortcut-input" readonly placeholder="点击后按键">
+            <button class="shortcut-edit-btn" data-action="toggle-window">修改</button>
+          </div>
+        </div>
+
+        <!-- 切换便签模式 -->
+        <div class="settings-item">
+          <div class="settings-item-info">
+            <span class="settings-item-label">切换便签模式</span>
+            <span class="settings-item-desc">在普通窗口和桌面便签间切换</span>
+          </div>
+          <div class="shortcut-input-wrap">
+            <input type="text" id="shortcutToggleSticky" class="shortcut-input" readonly placeholder="点击后按键">
+            <button class="shortcut-edit-btn" data-action="toggle-sticky">修改</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 更新设置 -->
+      <section class="settings-section">
+        <h2 class="section-title">更新</h2>
+
+        <!-- 当前版本 -->
+        <div class="settings-item">
+          <div class="settings-item-info">
+            <span class="settings-item-label">当前版本</span>
+            <span class="settings-item-desc" id="versionInfo">v2.17.0</span>
+          </div>
+        </div>
+
+        <!-- 检查更新 -->
+        <div class="settings-item">
+          <div class="settings-item-info">
+            <span class="settings-item-label">检查更新</span>
+            <span class="settings-item-desc" id="updateStatus">点击检查是否有新版本</span>
+          </div>
+          <button id="checkUpdateBtn" class="action-btn">检查更新</button>
+        </div>
+      </section>
+
+      <!-- 关于 -->
+      <section class="settings-section">
+        <h2 class="section-title">关于</h2>
+
+        <!-- GitHub 仓库 -->
+        <div class="settings-item">
+          <div class="settings-item-info">
+            <span class="settings-item-label">GitHub 仓库</span>
+            <span class="settings-item-desc">查看源代码和文档</span>
+          </div>
+          <button id="openGithubBtn" class="action-btn">打开</button>
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

@@ -28,5 +28,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 【v2.14.0】退出便签模式（渲染进程 → 主进程）
   exitStickyMode: function () {
     ipcRenderer.send('exit-sticky-mode');
+  },
+
+  // ============================================
+  // 设置相关 API（v2.18.0）
+  // ============================================
+
+  // 设置开机自启动
+  setAutoStart: function (enabled) {
+    ipcRenderer.send('set-auto-start', enabled);
+  },
+
+  // 注册/修改快捷键
+  // action: 'toggle-window' | 'toggle-sticky'
+  // shortcut: 如 'Alt+F'
+  // callback: 注册结果回调
+  registerShortcut: function (action, shortcut, callback) {
+    // 用 invoke 等待主进程返回结果
+    ipcRenderer.invoke('register-shortcut', action, shortcut).then(function (result) {
+      if (callback) callback(result);
+    });
+  },
+
+  // 打开外部链接（通过系统默认浏览器）
+  openExternal: function (url) {
+    ipcRenderer.send('open-external', url);
   }
 });

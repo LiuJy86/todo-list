@@ -4,6 +4,43 @@
 
 ---
 
+## [v2.18.0] - 2026-08-24
+
+### 新增 (Added) — 桌面端设置功能
+
+1. **设置窗口**
+   - 新增独立设置窗口，从托盘菜单「⚙️ 设置」进入
+   - 包含常规、快捷键、更新、关于四个区块
+   - 文件：`src/settings.html`、`src/settings.css`、`src/settings.js`
+
+2. **开机自启动**
+   - 开关控制是否开机自动启动应用
+   - 设置持久化到 `%APPDATA%/ToDoList/settings.json`
+   - 文件：`electron/main.js`（`applySavedSettings`、`set-auto-start` IPC）
+
+3. **快捷键自定义**
+   - 支持修改「显示/隐藏窗口」和「切换便签模式」快捷键
+   - 默认：`Alt+F`（显示/隐藏）、`Alt+G`（便签模式）
+   - 修改后立即生效，重启后保持
+   - 冲突检测：被占用时提示并恢复原值
+   - 文件：`electron/main.js`（`updateShortcut`、`registerGlobalShortcuts`）
+
+4. **检查更新**
+   - 通过 GitHub API 检查最新版本
+   - 有新版本时提示并跳转 Releases 页面
+   - 网络异常友好提示（超时、断网等）
+   - 文件：`src/settings.js`（`initUpdateSection`、`compareVersions`）
+
+### 核心文件
+
+- `electron/main.js`：设置窗口创建、快捷键管理、开机自启动、配置文件读写
+- `electron/preload.js`：暴露 `setAutoStart`、`registerShortcut`、`openExternal` API
+- `src/settings.html`：设置页面结构
+- `src/settings.js`：设置页面逻辑（localStorage、快捷键捕获、检查更新）
+- `src/settings.css`：设置页面样式
+
+---
+
 ## [v2.19.0] - 2026-08-24
 
 ### 优化 (Improved) — Apple 极简白昼 UI 风格

@@ -2,6 +2,44 @@
 // 负责创建窗口、系统托盘、应用生命周期管理
 const { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain, globalShortcut } = require('electron');
 const path = require('path');
+const fs = require('fs');
+
+// ============================================
+// 设置文件管理（主进程读写，零依赖）
+// ============================================
+// 设置文件路径：%APPDATA%/ToDoList/settings.json
+function getSettingsPath() {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+// 读取主进程侧的设置（用于开机自启动等需要主进程读取的配置）
+function loadMainSettings() {
+  const filePath = getSettingsPath();
+  try {
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error('读取设置文件失败:', e.message);
+  }
+  return {};
+}
+
+// 保存主进程侧的设置
+function saveMainSettings(settings) {
+  const filePath = getSettingsPath();
+  try {
+    // 确保目录存在（递归创建）
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('保存设置文件失败:', e.message);
+  }
+}
 
 let mainWindow = null;   // 主窗口
 let tray = null;          // 系统托盘
@@ -78,6 +116,146 @@ function createWindow(isToolbar) {
 
 }
 
+// ============================================
+// 设置窗口
+// ============================================
+let settingsWindow = null;
+
+function createSettingsWindow() {
+  // 如果设置窗口已存在，直接聚焦
+  if (settingsWindow) {
+    settingsWindow.focus();
+    return;
+  }
+
+  settingsWindow = new BrowserWindow({
+    width: 480,
+    height: 620,
+    title: '设置',
+    icon: getIconPath(),
+    autoHideMenuBar: true,
+    backgroundColor: '#f5f0ff',
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    parent: mainWindow,         // 父窗口（可选）
+    modal: false,               // 非模态，不阻塞主窗口
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+
+  settingsWindow.loadFile(path.join(__dirname, '..', 'src', 'settings.html'));
+
+  // 关闭时清理引用
+  settingsWindow.on('closed', () => {
+    settingsWindow = null;
+  });
+}
+
+// ============================================
+// 全局快捷键管理
+// ============================================
+// 存储当前注册的快捷键
+const registeredShortcuts = {
+  'toggle-window': 'Alt+F',
+  'toggle-sticky': 'Alt+G'
+};
+
+// 启动时读取保存的设置并应用
+function applySavedSettings() {
+  const mainSettings = loadMainSettings();
+  // 应用开机自启动设置
+  if (mainSettings.autoStart !== undefined) {
+    app.setLoginItemSettings({
+      openAtLogin: mainSettings.autoStart,
+      openAsHidden: mainSettings.startHidden || false
+    });
+  }
+}
+
+// 注册所有全局快捷键
+// 优先使用配置文件中的自定义快捷键，没有则用默认值
+function registerGlobalShortcuts() {
+  // 读取保存的快捷键设置
+  const mainSettings = loadMainSettings();
+  const savedShortcuts = mainSettings.shortcuts || {};
+
+  // 合并：自定义设置覆盖默认值
+  const shortcuts = {
+    'toggle-window': savedShortcuts['toggle-window'] || registeredShortcuts['toggle-window'],
+    'toggle-sticky': savedShortcuts['toggle-sticky'] || registeredShortcuts['toggle-sticky']
+  };
+
+  // 显示/隐藏窗口
+  const ret1 = globalShortcut.register(shortcuts['toggle-window'], () => {
+    toggleWindowVisibility();
+  });
+  if (!ret1) {
+    console.error('显示/隐藏窗口 快捷键注册失败:', shortcuts['toggle-window']);
+  }
+
+  // 切换便签模式
+  const ret2 = globalShortcut.register(shortcuts['toggle-sticky'], () => {
+    toggleStickyMode(!isStickyMode);
+  });
+  if (!ret2) {
+    console.error('切换便签模式 快捷键注册失败:', shortcuts['toggle-sticky']);
+  }
+}
+
+// 切换窗口可见性（供快捷键调用）
+function toggleWindowVisibility() {
+  if (!mainWindow) return;
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
+  } else {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
+
+// 重新注册某个快捷键（用户修改后调用）
+function updateShortcut(action, newShortcut) {
+  const oldShortcut = registeredShortcuts[action];
+
+  // 先注销旧的
+  if (oldShortcut) {
+    globalShortcut.unregister(oldShortcut);
+  }
+
+  // 尝试注册新的
+  const success = globalShortcut.register(newShortcut, () => {
+    if (action === 'toggle-window') {
+      toggleWindowVisibility();
+    } else if (action === 'toggle-sticky') {
+      toggleStickyMode(!isStickyMode);
+    }
+  });
+
+  if (success) {
+    registeredShortcuts[action] = newShortcut;
+    // 同步写入配置文件，确保重启后依然生效
+    const mainSettings = loadMainSettings();
+    if (!mainSettings.shortcuts) mainSettings.shortcuts = {};
+    mainSettings.shortcuts[action] = newShortcut;
+    saveMainSettings(mainSettings);
+    return { success: true, previousShortcut: oldShortcut };
+  } else {
+    // 注册失败，恢复旧的
+    globalShortcut.register(oldShortcut, () => {
+      if (action === 'toggle-window') {
+        toggleWindowVisibility();
+      } else if (action === 'toggle-sticky') {
+        toggleStickyMode(!isStickyMode);
+      }
+    });
+    return { success: false, previousShortcut: oldShortcut };
+  }
+}
+
 // 创建系统托盘
 function createTray() {
   // 托盘图标（Windows 下 GIF 不可直接用，这里用 nativeImage 尝试加载）
@@ -119,6 +297,13 @@ function createTray() {
       checked: false,
       click: (menuItem) => {
         toggleStickyMode(menuItem.checked);
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '⚙️ 设置',
+      click: () => {
+        createSettingsWindow();
       }
     },
     { type: 'separator' },
@@ -186,26 +371,14 @@ if (!gotLock) {
 
   // 应用就绪
   app.whenReady().then(() => {
+    // 启动时读取保存的设置并应用
+    applySavedSettings();
+
     createWindow();
     createTray();
 
-    // 注册全局快捷键 Alt+F：显示/隐藏主窗口
-    // 全局快捷键即使窗口不在前台也能触发，适合快速呼出
-    const ret = globalShortcut.register('Alt+F', () => {
-      if (!mainWindow) return;
-      if (mainWindow.isVisible()) {
-        // 当前可见 → 隐藏到托盘
-        mainWindow.hide();
-      } else {
-        // 当前隐藏 → 显示并聚焦
-        mainWindow.show();
-        mainWindow.focus();
-      }
-    });
-
-    if (!ret) {
-      console.error('Alt+F 快捷键注册失败，可能已被其他程序占用');
-    }
+    // 注册全局快捷键
+    registerGlobalShortcuts();
 
     // macOS 下激活应用时重建窗口
     app.on('activate', () => {
@@ -228,6 +401,34 @@ app.on('before-quit', () => {
     tray.destroy();
     tray = null;
   }
+});
+
+// ============================================
+// 设置相关 IPC 处理（v2.18.0）
+// ============================================
+
+// 设置开机自启动
+ipcMain.on('set-auto-start', function (_, enabled) {
+  // 立即生效（保留用户设置的 startHidden 偏好）
+  const mainSettings = loadMainSettings();
+  app.setLoginItemSettings({
+    openAtLogin: enabled,
+    openAsHidden: mainSettings.startHidden || false
+  });
+  // 持久化到配置文件，下次启动时读取
+  mainSettings.autoStart = enabled;
+  saveMainSettings(mainSettings);
+});
+
+// 注册/修改快捷键（invoke 方式，返回结果给渲染进程）
+ipcMain.handle('register-shortcut', function (_, action, newShortcut) {
+  const result = updateShortcut(action, newShortcut);
+  return result;
+});
+
+// 打开外部链接
+ipcMain.on('open-external', function (_, url) {
+  shell.openExternal(url);
 });
 
 // 处理窗口置顶切换

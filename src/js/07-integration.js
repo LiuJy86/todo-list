@@ -132,18 +132,21 @@ function updateStickyTitle() {
       // 【v2.14.0】折叠时更新标题（显示完成进度）
       updateStickyTitle();
     } else {
-      // 展开：先显示内容，再调整窗口高度
+      // 展开：先把窗口放大到最大高度 → 移除折叠 class → 测量真实高度 → 收缩到合适值
       document.body.classList.remove('sticky-collapsed');
-      // 先恢复到一个较小高度，让内容显示出来
+      // 先放大到最大高度，让内容完全展开（避免 scrollHeight 因窗口太小而测量不准）
       if (window.electronAPI && window.electronAPI.resizeWindow) {
-        window.electronAPI.resizeWindow(fixedWidth, 80);
+        window.electronAPI.resizeWindow(fixedWidth, 600);
       }
       collapseBtn.textContent = '▼';
       collapseBtn.title = '折叠窗口';
-      // 【v2.14.0】展开时更新标题（显示待办计数）
       updateStickyTitle();
-      // 等 CSS 动画展开后，根据内容自适应高度
-      setTimeout(adjustStickyWindowHeight, 350);
+      // 等一帧让浏览器完成布局计算，然后测量真实高度并收缩到合适值
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          adjustStickyWindowHeight();
+        });
+      });
     }
   });
 })();
