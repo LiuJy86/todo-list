@@ -22,18 +22,27 @@ jobs:
 
       - name: 转换图标为 ICNS 格式
         run: |
+          # 安装 ImageMagick（支持 ICO 格式）
+          brew install imagemagick
+          # 从 ICO 提取最大尺寸 PNG
+          convert electron/favicon.ico -thumbnail 1024x1024 icon_1024.png
+          # 创建 iconset 目录
           mkdir -p icon.iconset
-          sips -Z 512 electron/favicon.ico --out icon.iconset/icon_512x512.png
-          sips -Z 512 electron/favicon.ico --out icon.iconset/icon_256x256@2x.png
-          sips -Z 256 electron/favicon.ico --out icon.iconset/icon_256x256.png
-          sips -Z 256 electron/favicon.ico --out icon.iconset/icon_128x128@2x.png
-          sips -Z 128 electron/favicon.ico --out icon.iconset/icon_128x128.png
-          sips -Z 64 electron/favicon.ico --out icon.iconset/icon_32x32@2x.png
-          sips -Z 32 electron/favicon.ico --out icon.iconset/icon_32x32.png
-          sips -Z 32 electron/favicon.ico --out icon.iconset/icon_16x16@2x.png
-          sips -Z 16 electron/favicon.ico --out icon.iconset/icon_16x16.png
+          # 生成各种尺寸
+          sips -Z 1024 icon_1024.png --out icon.iconset/icon_512x512@2x.png
+          sips -Z 512 icon_1024.png --out icon.iconset/icon_512x512.png
+          sips -Z 512 icon_1024.png --out icon.iconset/icon_256x256@2x.png
+          sips -Z 256 icon_1024.png --out icon.iconset/icon_256x256.png
+          sips -Z 256 icon_1024.png --out icon.iconset/icon_128x128@2x.png
+          sips -Z 128 icon_1024.png --out icon.iconset/icon_128x128.png
+          sips -Z 64 icon_1024.png --out icon.iconset/icon_32x32@2x.png
+          sips -Z 32 icon_1024.png --out icon.iconset/icon_32x32.png
+          sips -Z 32 icon_1024.png --out icon.iconset/icon_16x16@2x.png
+          sips -Z 16 icon_1024.png --out icon.iconset/icon_16x16.png
+          # 转换为 ICNS
           iconutil -c icns icon.iconset -o electron/icon.icns
-          rm -rf icon.iconset
+          # 清理临时文件
+          rm -rf icon.iconset icon_1024.png
           echo "ICNS 图标生成完成"
 
       - name: 构建 macOS 安装包
