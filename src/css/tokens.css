@@ -1,0 +1,94 @@
+/* ============================================
+   CSS 变量 (设计令牌) — Apple 极简白昼风格
+   所有魔法数字集中在此，便于统一维护
+   ============================================ */
+:root {
+  /* 背景：iOS 系统灰 */
+  --bg-primary: #F2F2F7;
+  --bg-secondary: #FFFFFF;
+
+  /* 卡片：纯白 + 微妙阴影 */
+  --card-bg: #FFFFFF;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --card-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --card-border: rgba(0, 0, 0, 0.08);
+
+  /* 文字：Apple 标准色阶 */
+  --text-primary: #1C1C1E;
+  --text-secondary: #3A3A3C;
+  --text-muted: #8E8E93;
+
+  /* 强调色：iOS 系统蓝 */
+  --accent-color: #007AFF;
+  --accent-hover: #0066D6;
+  --accent-light: rgba(0, 122, 255, 0.1);
+
+  /* 功能色 */
+  --delete-color: #FF3B30;
+  --delete-hover: #D70015;
+  --success-color: #34C759;
+  --warning-color: #FF9500;
+
+  --border-color: rgba(0, 0, 0, 0.1);
+  --input-bg: #FFFFFF;
+
+  /* 圆角：Apple 风格精致小圆角 */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+
+  /* 间距：4 倍数系统 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+
+  /* 动画：Apple 标准缓动曲线 */
+  --transition-fast: 0.15s cubic-bezier(0.42, 0, 0.58, 1);
+  --transition-smooth: 0.3s cubic-bezier(0.42, 0, 0.58, 1);
+  --transition-spring: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* 提醒徽章颜色（按紧迫度分级，Apple 风格低饱和） */
+  --reminder-far: #8E8E93;       /* 远期：灰色 */
+  --reminder-soon: #007AFF;      /* 接近：系统蓝 */
+  --reminder-urgent: #FF9500;    /* 紧迫：橙色 */
+  --reminder-overdue: #FF3B30;   /* 已过期：红色 */
+
+  /* ===== 魔法数字常量化（v2.22.0 新增） ===== */
+
+  /* 桌宠尺寸与位置 */
+  --pet-width: 140px;
+  --pet-height: 160px;
+  --pet-margin: 20px;
+  --pet-bottom-offset: 24px;
+  --pet-bubble-margin: 16px;
+
+  /* 便签模式 */
+  --sticky-default-width: 480px;
+  --sticky-default-height: 760px;
+  --sticky-min-width: 200px;
+  --sticky-min-height: 80px;
+  --sticky-max-height: 600px;
+  --sticky-header-height: 40px;
+  --sticky-breath-space: 8px;
+  --sticky-height-threshold: 8px;
+
+  /* 输入区 */
+  --input-flash-red: #e74c3c;
+  --input-success-green: #2ecc71;
+
+  /* 时间选择器 */
+  --popover-anim-duration: 0.18s;
+  --dp-fade-duration: 0.2s;
+
+  /* 日报弹窗 */
+  --report-max-width: 420px;
+
+  /* 层级管理 */
+  --z-pet: 10;
+  --z-popover: 100;
+  --z-modal: 1000;
+  --z-toast: 2000;
+}

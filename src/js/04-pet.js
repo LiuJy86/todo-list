@@ -382,7 +382,16 @@
   pet.addEventListener('mousedown', onDragStart);
   pet.addEventListener('touchstart', onDragStart, { passive: false });
 
-  // ---------- 9.6 点击交互 ----------
+  // ---------- 9.6 点击/双击交互 ----------
+
+  // 双击史迪奇查看日报
+  pet.addEventListener('dblclick', function (e) {
+    e.stopPropagation();
+    if (isDragging) return;
+    if (window.showDailyReport) {
+      window.showDailyReport();
+    }
+  });
 
   // 史迪奇随机气泡文案池（中二 + 乐天派 + 暖心）
   const bubbleMessages = [
@@ -942,88 +951,111 @@
   }
 
   // ===== 日报功能 =====
-  // 生成今日日报内容
+  // 生成今日日报数据
   function generateDailyReport() {
-    // 通过闭包访问全局 todos 数组（window.todos 可能未定义）
-    const todos = window.todos || window.getAllTodos ? window.getAllTodos() : [];
+    const todos = window.todos || (window.getAllTodos ? window.getAllTodos() : []);
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
     const todayEnd = todayStart + 86400000;
 
-    // 筛选今日完成的事项（完成时间在今日范围内）
+    // 筛选今日完成的事项
     const completedToday = todos.filter(function (t) {
       return t.done && t.completedAt && t.completedAt >= todayStart && t.completedAt < todayEnd;
     });
-    // 未完成事项
     const pendingCount = todos.filter(function (t) { return !t.done; }).length;
-    // 总事项数
     const totalCount = todos.length;
-    // 完成率
     const completionRate = totalCount > 0 ? Math.round((completedToday.length / totalCount) * 100) : 0;
 
-    // 构造日报文本
-    let report = '📊 今日日报\n\n';
-    report += '🗓️ ' + (today.getMonth() + 1) + '月' + today.getDate() + '日\n';
-    report += '━━━━━━━━━━━━━━\n';
-    report += '✅ 已完成：' + completedToday.length + ' 项\n';
-    report += '📝 待办中：' + pendingCount + ' 项\n';
-    report += '📈 完成率：' + completionRate + '%\n';
-    if (completedToday.length > 0) {
-      report += '\n🏆 今日成就：\n';
-      completedToday.forEach(function (t, i) {
-        report += '  ' + (i + 1) + '. ' + t.text + '\n';
-      });
-    }
-    report += '\n━━━━━━━━━━━━━━\n';
-    // 暖心结语
-    if (completionRate >= 80) {
-      report += '太厉害了！今天的你超棒！🌟';
+    // 结语（简洁自然）
+    let message;
+    if (totalCount === 0) {
+      message = '今天还没有添加待办，明天开始吧';
+    } else if (completionRate >= 80) {
+      message = '今日效率出色，继续保持这个节奏';
     } else if (completionRate >= 50) {
-      report += '不错哦，继续保持！💪';
+      message = '完成了大半，明天再接再厉';
     } else if (completedToday.length > 0) {
-      report += '完成了 ' + completedToday.length + ' 项，明天继续加油！';
+      message = '今日完成了 ' + completedToday.length + ' 项，还有提升空间';
     } else {
-      report += '今天还没有完成事项，明天是新的一天！';
+      message = '今日暂无完成事项，明天是新的开始';
     }
-    return report;
+
+    return {
+      date: (today.getMonth() + 1) + '月' + today.getDate() + '日',
+      completed: completedToday.length,
+      pending: pendingCount,
+      total: totalCount,
+      rate: completionRate,
+      achievements: completedToday.map(function (t) { return t.text; }),
+      message: message
+    };
   }
 
-  // 显示日报弹窗
+  // 显示日报弹窗（Apple 风格 - 简洁版）
   function showDailyReport() {
-    // 如果已有日报弹窗，不重复创建
     if (document.getElementById('dailyReportModal')) return;
 
-    const report = generateDailyReport();
-    // 创建弹窗容器
+    const data = generateDailyReport();
+
+    // 成就列表
+    let achievementsHtml = '';
+    if (data.achievements.length > 0) {
+      achievementsHtml = '<div class="dr-section">' +
+        '<div class="dr-section-label">今日完成</div>' +
+        '<div class="dr-achievements">' +
+        data.achievements.slice(0, 6).map(function (text) {
+          return '<div class="dr-achievement">' +
+            '<span class="dr-check-icon"></span>' +
+            '<span class="dr-achievement-text">' + text + '</span>' +
+            '</div>';
+        }).join('') +
+        (data.achievements.length > 6 ? '<div class="dr-achievement-more">+' + (data.achievements.length - 6) + ' 项</div>' : '') +
+        '</div></div>';
+    }
+
     const modal = document.createElement('div');
     modal.id = 'dailyReportModal';
     modal.className = 'daily-report-modal';
     modal.innerHTML =
-      '<div class="daily-report-overlay"></div>' +
-      '<div class="daily-report-card">' +
-        '<div class="daily-report-header">' +
-          '<span class="daily-report-title">📊 今日日报</span>' +
-          '<button class="daily-report-close" id="dailyReportClose">×</button>' +
+      '<div class="dr-overlay"></div>' +
+      '<div class="dr-card">' +
+        '<div class="dr-content">' +
+          // 日期标签
+          '<div class="dr-date-label">' + data.date + '</div>' +
+          // 大标题
+          '<div class="dr-headline">' + data.rate + '%</div>' +
+          '<div class="dr-subtitle">今日完成率</div>' +
+          // 统计行
+          '<div class="dr-summary">' +
+            '<div class="dr-summary-item">' +
+              '<span class="dr-summary-num dr-green">' + data.completed + '</span>' +
+              '<span class="dr-summary-text">已完成</span>' +
+            '</div>' +
+            '<div class="dr-summary-item">' +
+              '<span class="dr-summary-num dr-orange">' + data.pending + '</span>' +
+              '<span class="dr-summary-text">待办中</span>' +
+            '</div>' +
+            '<div class="dr-summary-item">' +
+              '<span class="dr-summary-num">' + data.total + '</span>' +
+              '<span class="dr-summary-text">总计</span>' +
+            '</div>' +
+          '</div>' +
+          // 成就列表
+          achievementsHtml +
+          // 结语
+          '<div class="dr-message">' + data.message + '</div>' +
         '</div>' +
-        '<pre class="daily-report-body">' + report + '</pre>' +
-        '<div class="daily-report-footer">' +
-          '<button class="daily-report-btn" id="dailyReportOk">知道了</button>' +
+        // 按钮
+        '<div class="dr-footer">' +
+          '<button class="dr-btn" id="dailyReportOk">完成</button>' +
         '</div>' +
       '</div>';
     document.body.appendChild(modal);
 
     // 关闭弹窗
-    function closeReport() {
-      modal.remove();
-    }
-    document.getElementById('dailyReportClose').addEventListener('click', closeReport);
+    function closeReport() { modal.remove(); }
+    modal.querySelector('.dr-overlay').addEventListener('click', closeReport);
     document.getElementById('dailyReportOk').addEventListener('click', closeReport);
-    modal.querySelector('.daily-report-overlay').addEventListener('click', closeReport);
-
-    // 史迪奇反馈
-    if (window.petMood) {
-      window.petMood.happy();
-    }
   }
 
   // 暴露全局接口

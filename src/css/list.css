@@ -1,0 +1,518 @@
+/* ============================================
+   列表区与待办项样式
+   - 列表容器 (#todoList)
+   - 单条待办项 (.todo-item)
+   - 复选框、文本、展开按钮
+   - 提醒徽章（紧迫度分级）
+   - 完成次数、停止循环、删除按钮
+   - 已完成状态、到点提醒高亮
+   - 空状态、收纳区、提醒提示条
+   ============================================ */
+
+/* ===== 列表区 ===== */
+#todoList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 单条待办事项 — Apple 风格 */
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  background: var(--card-bg);
+  padding: 12px var(--spacing-lg);
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  transition: all var(--transition-fast);
+  position: relative;  /* 用于已提醒 ::before 铃铛定位 */
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.todo-item:hover {
+  box-shadow: var(--card-shadow-hover);
+  z-index: var(--z-popover);
+}
+
+/* 自定义复选框 — Apple 风格圆形 */
+.todo-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.todo-checkbox:hover {
+  border-color: var(--accent-color);
+}
+
+.todo-checkbox:checked {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.todo-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* 待办事项文本：自动换行 + 超长时折叠 */
+.todo-text {
+  flex: 1;
+  font-size: 15px;
+  color: var(--text-primary);
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.5;
+  transition: all var(--transition-fast);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.todo-text.expanded {
+  -webkit-line-clamp: unset;
+  display: block;
+  overflow: visible;
+}
+
+.todo-expand-btn {
+  display: none;
+  font-size: 12px;
+  color: var(--accent-color);
+  cursor: pointer;
+  padding-left: var(--spacing-xs);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.todo-expand-btn:hover {
+  text-decoration: underline;
+}
+
+.todo-item.has-long-text .todo-expand-btn {
+  display: inline;
+}
+
+/* 双击编辑：原地输入框 */
+.todo-edit-input {
+  width: 100%;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: rgba(102, 126, 234, 0.08);
+  border: 2px solid var(--accent-color);
+  border-radius: 6px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.todo-edit-input:focus {
+  background: rgba(102, 126, 234, 0.12);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+/* ===== 提醒徽章：紧贴事项文本右侧，按紧迫度变色 ===== */
+.reminder-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px var(--spacing-sm);
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-right: var(--spacing-sm);
+  transition: all var(--transition-fast);
+  letter-spacing: 0.3px;
+}
+
+/* 远期（> 1 天）：灰色 */
+.reminder-badge-far {
+  color: var(--reminder-far);
+  background: rgba(142, 142, 147, 0.12);
+}
+
+/* 接近（≤ 1 天，> 1 小时）：系统蓝 */
+.reminder-badge-soon {
+  color: var(--reminder-soon);
+  background: rgba(0, 122, 255, 0.1);
+}
+
+/* 紧迫（≤ 1 小时）：橙色 */
+.reminder-badge-urgent {
+  color: #fff;
+  background: var(--reminder-urgent);
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.8; }
+}
+
+/* 已过期：红色 + 删除线 */
+.reminder-badge-overdue {
+  color: var(--reminder-overdue);
+  background: rgba(255, 59, 48, 0.1);
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+/* 循环徽章装饰 */
+.reminder-badge-cycle {
+  position: relative;
+  padding-right: 12px;
+}
+
+.reminder-badge-cycle::after {
+  content: '🔄';
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  line-height: 1;
+}
+
+/* 完成次数徽章 */
+.completion-count {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--spacing-sm);
+  background: linear-gradient(135deg, #34c759, #28a745);
+  color: #fff;
+  margin-left: var(--spacing-xs);
+  flex-shrink: 0;
+  animation: count-pop 0.3s ease-out;
+}
+
+@keyframes count-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 停止循环按钮 */
+.stop-cycle-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 50%;
+  color: var(--delete-color);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.stop-cycle-btn:hover {
+  background: var(--delete-color);
+  color: #fff;
+  transform: scale(1.1);
+}
+
+/* 带 tooltip 的待办项 */
+.todo-item.has-tooltip,
+.todo-timeline.has-tooltip {
+  cursor: help;
+}
+
+/* JS 动态 tooltip */
+.js-tooltip {
+  position: fixed;
+  padding: var(--spacing-sm) 12px;
+  background: rgba(28, 28, 30, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  border-radius: var(--spacing-sm);
+  white-space: pre-line;
+  z-index: var(--z-toast);
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  max-width: 280px;
+}
+
+/* 删除按钮 — Apple 风格 */
+.delete-btn {
+  width: auto;
+  min-width: 50px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--delete-color);
+  background: rgba(255, 59, 48, 0.1);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  opacity: 0.9;
+}
+
+.delete-btn:hover {
+  background: var(--delete-color);
+  color: #fff;
+  opacity: 1;
+}
+
+/* ===== 已完成状态的视觉区分 ===== */
+.todo-item.completed {
+  opacity: 0.6;
+}
+
+.todo-item.completed .todo-text {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.todo-item.completed .todo-checkbox:checked {
+  background: var(--text-muted);
+  border-color: var(--text-muted);
+}
+
+/* ===== 到点提醒高亮 ===== */
+.todo-item.reminding {
+  border-color: var(--reminder-overdue);
+  background: rgba(255, 59, 48, 0.04);
+  box-shadow: 0 0 0 1px var(--reminder-overdue);
+  animation: reminder-pulse 2s ease-in-out infinite;
+}
+
+@keyframes reminder-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px var(--reminder-overdue); }
+  50%      { box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.3); }
+}
+
+/* 已提醒过的待办：左上角小铃铛标识 */
+.todo-item.reminded::before {
+  content: '🔔';
+  position: absolute;
+  left: -6px;
+  top: -8px;
+  font-size: 14px;
+  filter: grayscale(0.3);
+  pointer-events: none;
+}
+
+/* 桌面端（Electron）：隐藏提醒提示条 */
+body.electron .reminder-notice {
+  display: none !important;
+}
+
+/* ===== 提醒功能限制提示条 ===== */
+.reminder-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: #b8741a;
+  padding: 6px var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  background: rgba(255, 167, 38, 0.12);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 167, 38, 0.35);
+  letter-spacing: 0.2px;
+  line-height: 1.4;
+}
+
+.reminder-notice-text {
+  flex: 1 1 auto;
+  text-align: center;
+  min-width: 0;
+}
+
+.sound-test-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  background: linear-gradient(135deg, #7c6fce, #5c4fc0);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 6px rgba(92, 79, 192, 0.18);
+  line-height: 1;
+}
+
+.sound-test-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(92, 79, 192, 0.3);
+  background: linear-gradient(135deg, #8c7fd8, #6a5cd1);
+}
+
+.sound-test-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(92, 79, 192, 0.25);
+}
+
+.sound-test-btn.playing {
+  background: linear-gradient(135deg, #34c759, #28a745);
+  box-shadow: 0 2px 10px rgba(40, 167, 69, 0.35);
+  animation: soundPulse 0.5s ease-in-out 1;
+}
+
+@keyframes soundPulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@media (max-width: 480px) {
+  .reminder-notice {
+    justify-content: center;
+  }
+  .reminder-notice-text {
+    flex-basis: 100%;
+    text-align: center;
+  }
+  .sound-test-btn {
+    flex: 0 0 auto;
+  }
+}
+
+/* ===== 空状态提示 ===== */
+#todoList:empty::before {
+  content: '暂无待办事项，添加一个开始吧 ✨';
+  display: block;
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-secondary);
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  opacity: 0.85;
+}
+
+/* ===== 收纳区样式 ===== */
+.collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: 10px var(--spacing-lg);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-color);
+  background: rgba(102, 126, 234, 0.12);
+  border: 1.5px solid rgba(102, 126, 234, 0.5);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-top: var(--spacing-sm);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.12);
+}
+
+.collapse-btn:hover {
+  background: rgba(102, 126, 234, 0.22);
+  border-color: rgba(102, 126, 234, 0.7);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.22);
+}
+
+.collapse-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.15);
+}
+
+.collapse-btn .arrow {
+  transition: transform var(--transition-smooth);
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.collapse-btn.expanded .arrow {
+  transform: rotate(180deg);
+}
+
+.collapse-btn-pending {
+  color: #4f6bd8;
+  background: rgba(102, 126, 234, 0.18);
+  border-color: rgba(102, 126, 234, 0.6);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.16);
+}
+
+.collapse-btn-pending:hover {
+  background: rgba(102, 126, 234, 0.28);
+  border-color: rgba(102, 126, 234, 0.8);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.26);
+}
+
+.collapse-btn-pending strong,
+.collapse-btn strong {
+  color: var(--accent-color);
+  font-weight: 800;
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+}
+
+.collapsed-list {
+  list-style: none;
+  display: none;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  overflow: hidden;
+  animation: slideDown 0.3s ease-out;
+}
+
+.collapsed-list.show {
+  display: flex;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+  }
+}

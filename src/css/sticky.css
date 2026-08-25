@@ -1,0 +1,276 @@
+/* ============================================
+   便签模式样式
+   当 body 有 .sticky-mode class 时生效
+   - 便签模式下的元素显隐
+   - 头部按钮组（置顶/折叠/添加）
+   - 便签模式主区域过渡动画
+   - 便签模式输入区
+   - 便签模式列表项、收纳按钮
+   ============================================ */
+
+/* 便签模式下：隐藏输入区、桌宠、提醒条、指南按钮、GitHub 按钮 */
+.sticky-mode .input-area,
+.sticky-mode .stitch-pet,
+.sticky-mode .reminder-notice,
+.sticky-mode .guide-fab,
+.sticky-mode .github-fab {
+  display: none !important;
+}
+
+/* 头部布局 */
+header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 头部按钮组 */
+.header-btns {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+
+.pin-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.2s, transform 0.2s, background 0.2s;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.pin-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.pin-btn.active {
+  opacity: 1;
+  background: rgba(74, 144, 217, 0.15);
+  color: #4a90d9;
+}
+
+#pinBtn.active {
+  color: var(--input-flash-red);
+  transform: rotate(-45deg);
+}
+
+/* 便签模式：main 区域过渡效果 */
+.sticky-mode main {
+  transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease;
+  max-height: 1000px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+/* 便签模式折叠后 */
+.sticky-mode.sticky-collapsed main {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  overflow: hidden !important;
+}
+
+.sticky-mode.sticky-collapsed .reminder-notice,
+.sticky-mode.sticky-collapsed .stitch-pet,
+.sticky-mode.sticky-collapsed .guide-fab,
+.sticky-mode.sticky-collapsed .github-fab {
+  display: none !important;
+}
+
+.sticky-mode.sticky-collapsed header {
+  padding: var(--spacing-sm) 0;
+  margin: 0;
+}
+
+.sticky-mode {
+  min-height: auto !important;
+}
+
+/* 便签模式：隐藏外层滚动条 */
+html.sticky-mode,
+body.sticky-mode {
+  overflow: hidden;
+}
+
+/* 便签模式：标题栏 */
+.sticky-mode header {
+  padding: 10px 12px 6px;
+  margin-bottom: 0;
+  cursor: move;
+  -webkit-app-region: drag;
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 0.5px solid var(--card-border);
+}
+
+.sticky-mode header h1 {
+  font-size: 13px;
+  text-align: center;
+  margin: 0;
+  padding: 5px 12px;
+  border-radius: 12px;
+  gap: 10px;
+}
+
+/* 便签模式：进度胶囊 */
+.sticky-progress {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.sticky-mode .sticky-progress {
+  display: inline-flex;
+}
+
+.sticky-progress-bar {
+  width: 48px;
+  height: 5px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.sticky-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--success-color), #30D158);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.sticky-progress-text {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--success-color);
+  min-width: 28px;
+}
+
+.sticky-mode .header-btns {
+  -webkit-app-region: no-drag;
+}
+
+/* 便签模式指示器 */
+.sticky-indicator {
+  display: none;
+}
+
+.sticky-mode .sticky-indicator {
+  display: inline;
+}
+
+/* 列表区内部滚动 */
+.list-area {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.list-area::-webkit-scrollbar {
+  display: none;
+}
+
+/* 便签模式：覆盖普通模式固定高度 */
+.sticky-mode main {
+  height: auto;
+  display: block;
+}
+
+.sticky-mode .list-area {
+  overflow-y: visible;
+  max-height: none;
+  flex: none;
+  min-height: auto;
+}
+
+.sticky-mode.is-overflow .list-area {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+/* 便签模式：四周留白 */
+.sticky-mode main {
+  padding: 12px 12px 36px 12px;
+}
+
+/* 便签模式按钮显示规则 */
+.sticky-mode #stickyCollapseBtn,
+.sticky-mode #stickyAddToggleBtn {
+  display: inline-flex !important;
+}
+
+/* ===== 便签模式展开的输入区 ===== */
+.sticky-input-area {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0 14px;
+  background: linear-gradient(180deg, rgba(74, 144, 217, 0.04), transparent);
+  border-bottom: 1px solid rgba(74, 144, 217, 0.12);
+  transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease;
+}
+
+.sticky-input-area.show {
+  max-height: 80px;
+  opacity: 1;
+  padding: 10px 14px;
+}
+
+#stickyInput {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid rgba(74, 144, 217, 0.25);
+  border-radius: var(--spacing-sm);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  background: #fff;
+}
+
+#stickyInput:focus {
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.12);
+}
+
+#stickyInput::placeholder {
+  color: #aab4c0;
+}
+
+#stickyInput.success-flash {
+  animation: success-pulse 0.4s ease-out;
+}
+
+/* 便签模式：待办项更紧凑 */
+.sticky-mode .todo-item {
+  padding: 6px var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.sticky-mode .todo-text {
+  font-size: 14px;
+}
+
+.sticky-mode .collapse-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+  font-size: 12px;
+}

@@ -400,6 +400,52 @@ def main():
                 f"display text={display_text}",
             )
 
+        # ---------- 11.1 开始时间折叠/展开 ----------
+        # 重新打开日期选择器
+        datetime_trigger.click()
+        page.wait_for_timeout(500)
+
+        if popover.count() > 0 and popover.is_visible():
+            # 验证开始时间区域默认折叠（检查 display 样式）
+            start_display_default = page.evaluate("getComputedStyle(document.querySelector('#dpStartOptions')).display")
+            start_options_collapsed = start_display_default == "none"
+            shot(page, "16a_start_time_collapsed")
+            log(
+                "11.1 开始时间区域默认折叠",
+                start_options_collapsed,
+                f"start options display={start_display_default}",
+            )
+
+            # 点击开始时间开关展开
+            start_toggle_label = page.locator("label.dp-toggle:has(#dpStartToggle)")
+            if start_toggle_label.count() > 0:
+                start_toggle_label.click()
+                page.wait_for_timeout(300)
+
+                # 验证开始时间区域已展开
+                start_display_expanded = page.evaluate("getComputedStyle(document.querySelector('#dpStartOptions')).display")
+                start_options_expanded = start_display_expanded == "block"
+                shot(page, "16a2_start_time_expanded")
+                log(
+                    "11.1.1 点击开关后开始时间区域展开",
+                    start_options_expanded,
+                    f"start options display={start_display_expanded}",
+                )
+
+                # 再次点击开关折叠
+                start_toggle_label.click()
+                page.wait_for_timeout(300)
+
+                # 验证开始时间区域已折叠
+                start_display_collapsed = page.evaluate("getComputedStyle(document.querySelector('#dpStartOptions')).display")
+                start_options_collapsed_again = start_display_collapsed == "none"
+                shot(page, "16a3_start_time_collapsed_again")
+                log(
+                    "11.1.2 再次点击开关后开始时间区域折叠",
+                    start_options_collapsed_again,
+                    f"start options display={start_display_collapsed}",
+                )
+
         # ---------- 11.2 结束时间设置 ----------
         # 重新打开日期选择器
         datetime_trigger.click()

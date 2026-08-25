@@ -27,15 +27,43 @@ let todos = [];
 // v2.1.0 起从 sessionStorage 升级为 localStorage，让数据跨会话保留以支持提醒功能
 const STORAGE_KEY = 'todos';
 
-// 收纳状态：已完成项超过此数量则自动收纳
+// 暴露 todos 访问器（供日报等功能使用）
+window.getAllTodos = function () { return todos; };
+window.getTodoCount = function () { return todos.length; };
+
+// ===== 魔法数字常量集中管理（v2.22.0） =====
+
+// 收纳状态：已完成项超过此数量则自动收纳（当前未使用，保留供未来扩展）
 const VISIBLE_COMPLETED_LIMIT = 3;
+
+// 输入框反馈动画时长（毫秒）
+const INPUT_FLASH_DURATION = 300;
+const INPUT_SUCCESS_DURATION = 400;
+
+// 删除动画时长（毫秒）
+const DELETE_ANIM_DURATION = 300;
+
+// 双击检测间隔（毫秒）
+const DOUBLE_CLICK_INTERVAL = 400;
+
+// 便签模式窗口参数
+const STICKY_DEFAULT_WIDTH = 480;
+const STICKY_DEFAULT_HEIGHT = 760;
+const STICKY_MIN_HEIGHT = 80;
+const STICKY_MAX_HEIGHT = 600;
+const STICKY_BREATH_SPACE = 8;
+const STICKY_HEIGHT_THRESHOLD = 8;
+
+// 提醒时间阈值（毫秒）
+const MS_PER_MINUTE = 60000;
+const MS_PER_HOUR = 3600000;
+const MS_PER_DAY = 86400000;
+
 // 展开/收起状态（只用于已完成收纳）
 let isExpanded = false;
 
-
-// 【新增】便签模式折叠状态（默认展开）
+// 便签模式折叠状态（默认展开）
 let stickyCollapsed = false;
-let stickyWidthBeforeCollapse = 480; // 折叠前记住的宽度
 
 
 // ---------- 1.1 存储相关：保存与读取 ----------

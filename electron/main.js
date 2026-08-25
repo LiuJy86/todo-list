@@ -45,20 +45,20 @@ let mainWindow = null;   // 主窗口
 let tray = null;          // 系统托盘
 let isQuitting = false;   // 是否真正退出（区分关闭到托盘和退出）
 
+// ============================================
+// 史迪仔桌面提醒窗口（v2.22.0）
+// ============================================
+let reminderWindow = null;        // 提醒窗口引用
+const reminderTimers = new Map(); // 待办ID → setTimeout 引用
+
 // 便签模式状态
 let isStickyMode = false;           // 当前是否处于便签模式
 let stickyPosition = null;          // 记住便签位置 {x, y}
 let stickyMenu = null;              // 缓存托盘菜单引用
 
-// 应用图标：优先用 electron/icon.ico，其次 electron/build/icon.ico，最后回退到 src/img 下的 GIF
+// 应用图标
 function getIconPath() {
-  const rootIco = path.join(__dirname, 'icon.ico');
-  const buildIco = path.join(__dirname, 'build', 'icon.ico');
-  const gifPath = path.join(__dirname, '..', 'src', 'img', '史迪奇1.gif');
-  const fs = require('fs');
-  if (fs.existsSync(rootIco)) return rootIco;
-  if (fs.existsSync(buildIco)) return buildIco;
-  return gifPath;
+  return path.join(__dirname, 'icon.png');
 }
 
 // 创建主窗口（isToolbar: 是否用 toolbar 类型，便签模式使用）
@@ -257,6 +257,121 @@ function updateShortcut(action, newShortcut) {
   }
 }
 
+// ============================================
+// 史迪仔桌面提醒窗口（v2.22.0）
+// ============================================
+
+/**
+ * 创建史迪仔提醒窗口
+ * @param {Object} todo - 待办事项数据 { id, text, notes, priority }
+ */
+function createReminderWindow(todo) {
+  // 如果提醒窗口已存在，先关闭旧的
+  if (reminderWindow) {
+    reminderWindow.destroy();
+    reminderWindow = null;
+  }
+
+  const { screen } = require('electron');
+  const display = screen.getPrimaryDisplay();
+  const { width: screenW, height: screenH } = display.workArea;
+
+  // 创建透明、无边框、置顶窗口
+  reminderWindow = new BrowserWindow({
+    width: 320,
+    height: 400,
+    x: screenW - 340,           // 右侧留 20px 边距
+    y: screenH - 420,           // 底部留 20px 边距
+    frame: false,               // 无边框
+    transparent: true,          // 透明背景
+    alwaysOnTop: true,          // 始终置顶
+    skipTaskbar: true,          // 不在任务栏显示
+    resizable: false,           // 不可调整大小
+    focusable: true,            // 可获取焦点
+    hasShadow: false,           // 无阴影（透明窗口）
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+
+  // 加载提醒页面，传递待办数据
+  const todoData = encodeURIComponent(JSON.stringify(todo));
+  reminderWindow.loadFile(
+    path.join(__dirname, '..', 'src', 'reminder.html'),
+    { query: { todo: todoData } }
+  );
+
+  // 窗口关闭时清理引用
+  reminderWindow.on('closed', () => {
+    reminderWindow = null;
+  });
+
+  console.log('[史迪仔提醒] 已弹出提醒窗口:', todo.text || todo.title);
+}
+
+/**
+ * 为待办事项设置提醒定时器
+ * @param {Object} todo - 待办事项 { id, text, reminderTime, ... }
+ */
+function setReminderTimer(todo) {
+  // 清除该待办已有的定时器
+  clearReminderTimer(todo.id);
+
+  // 支持 remindAt (旧格式) 和 reminders 数组 (新格式)
+  let triggerTime = null;
+
+  if (todo.remindAt) {
+    // 旧格式：直接使用 remindAt
+    triggerTime = todo.remindAt;
+  } else if (Array.isArray(todo.reminders) && todo.reminders.length > 0) {
+    // 新格式：取第一个未提醒的 start 类型提醒点
+    const startReminder = todo.reminders.find(function (r) {
+      return r.type === 'start' && !r.reminded;
+    });
+    if (startReminder) {
+      triggerTime = startReminder.at;
+    }
+  }
+
+  if (!triggerTime) return;
+
+  const now = Date.now();
+  const delay = triggerTime - now;
+
+  // 如果时间已过（延迟 <= 0），立即触发
+  if (delay <= 0) {
+    createReminderWindow(todo);
+    return;
+  }
+
+  // 设置定时器
+  const timerId = setTimeout(function () {
+    createReminderWindow(todo);
+    reminderTimers.delete(todo.id + ':window');
+  }, delay);
+
+  // 保存引用
+  reminderTimers.set(todo.id + ':window', timerId);
+
+  console.log('[史迪仔提醒] 已设置定时器:', todo.text || todo.title,
+    '→', new Date(triggerTime).toLocaleString());
+}
+
+/**
+ * 清除待办事项的提醒定时器
+ * @param {string|number} todoId - 待办事项 ID
+ */
+function clearReminderTimer(todoId) {
+  const timerId = reminderTimers.get(todoId + ':window');
+  if (timerId) {
+    clearTimeout(timerId);
+    reminderTimers.delete(todoId + ':window');
+    console.log('[史迪仔提醒] 已取消定时器: todoId=' + todoId);
+  }
+}
+
 // 创建系统托盘
 function createTray() {
   // 托盘图标（Windows 下 GIF 不可直接用，这里用 nativeImage 尝试加载）
@@ -408,6 +523,61 @@ app.on('before-quit', () => {
 // 设置相关 IPC 处理（v2.18.0）
 // ============================================
 
+// ============================================
+// 史迪仔桌面提醒 IPC 处理（v2.22.0）
+// ============================================
+
+// 设置提醒定时器（渲染进程 → 主进程）
+ipcMain.on('set-reminder-window', function (_, todo) {
+  setReminderTimer(todo);
+});
+
+// 取消提醒定时器
+ipcMain.on('cancel-reminder-window', function (_, todoId) {
+  clearReminderTimer(todoId);
+});
+
+// 稍后提醒（延迟 N 分钟）
+ipcMain.on('snooze-reminder', function (_, todo, minutes) {
+  // 先清除原有定时器
+  clearReminderTimer(todo.id);
+  // 设置新的触发时间
+  const newTodo = Object.assign({}, todo);
+  if (newTodo.remindAt) {
+    newTodo.remindAt = Date.now() + minutes * 60000;
+  }
+  if (Array.isArray(newTodo.reminders) && newTodo.reminders.length > 0) {
+    newTodo.reminders.forEach(function (r) {
+      if (r.type === 'start') {
+        r.at = Date.now() + minutes * 60000;
+        r.reminded = false;
+      }
+    });
+  }
+  setReminderTimer(newTodo);
+});
+
+// 关闭提醒窗口
+ipcMain.on('close-reminder-window', function () {
+  if (reminderWindow) {
+    reminderWindow.destroy();
+    reminderWindow = null;
+  }
+});
+
+// 完成待办（从提醒窗口触发）
+ipcMain.on('complete-todo-from-reminder', function (_, todoId) {
+  // 通知主窗口标记完成
+  if (mainWindow) {
+    mainWindow.webContents.send('complete-todo', todoId);
+  }
+  // 关闭提醒窗口
+  if (reminderWindow) {
+    reminderWindow.destroy();
+    reminderWindow = null;
+  }
+});
+
 // 设置开机自启动
 ipcMain.on('set-auto-start', function (_, enabled) {
   // 立即生效（保留用户设置的 startHidden 偏好）
@@ -474,6 +644,13 @@ ipcMain.on('exit-sticky-mode', function () {
       });
       if (stickyItem) stickyItem.checked = false;
     }
+  }
+});
+
+// 从操作指南页面返回主页面
+ipcMain.on('load-main-page', function () {
+  if (mainWindow) {
+    mainWindow.loadFile('src/index.html');
   }
 });
 

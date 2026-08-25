@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>史迪仔提醒</title>
+  <link rel="stylesheet" href="css/reminder.css">
+</head>
+<body>
+  <div id="reminder-container" class="reminder-container">
+    <!-- 文字气泡 -->
+    <div id="speech-bubble" class="speech-bubble">
+      <span id="reminder-icon">⏰</span>
+      <span id="reminder-text">该开会了！</span>
+    </div>
+
+    <!-- 史迪仔图片 -->
+    <div id="stitch-wrapper" class="stitch-wrapper">
+      <img id="stitch-img" src="img/史迪奇1.gif" alt="史迪仔">
+    </div>
+
+    <!-- 待办详情 -->
+    <div id="todo-details" class="todo-details">
+      <div id="todo-title" class="todo-title">待办事项</div>
+      <div id="todo-notes" class="todo-notes"></div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div id="action-buttons" class="action-buttons">
+      <button id="btn-dismiss" class="btn btn-primary">知道了</button>
+      <button id="btn-snooze" class="btn btn-secondary">稍后 5 分钟</button>
+      <button id="btn-complete" class="btn btn-success">完成</button>
+    </div>
+  </div>
+
+  <script src="js/reminder-window.js"></script>
+</body>
+</html>

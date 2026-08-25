@@ -157,7 +157,6 @@ function render() {
 // 便签模式窗口高度自适应：有多少待办，窗口就有多大
 // 使用防抖 + 阈值判断，避免连续微小变化导致窗口持续缩小
 let lastAppliedHeight = 0; // 上次应用的高度，用于判断是否需要更新
-const HEIGHT_THRESHOLD = 8; // 高度变化小于 8px 时不调整，避免无限缩小
 
 function adjustStickyWindowHeight() {
   // 只在便签模式且未折叠时调整
@@ -177,22 +176,19 @@ function adjustStickyWindowHeight() {
       const headerHeight = header ? header.offsetHeight : 40;
 
       // 总高度 = header + main（已含 padding），再加少量呼吸空间
-      const BREATH_SPACE = 8;
-      const contentHeight = headerHeight + mainHeight + BREATH_SPACE;
+      const contentHeight = headerHeight + mainHeight + STICKY_BREATH_SPACE;
 
       // 计算目标高度，设置上下限
-      const MIN_HEIGHT = 80;      // 最小高度：只显示标题栏
-      const MAX_HEIGHT = 600;     // 最大高度：防止窗口过高，超出部分滚动
-      const rawHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, contentHeight));
+      const rawHeight = Math.max(STICKY_MIN_HEIGHT, Math.min(STICKY_MAX_HEIGHT, contentHeight));
 
       // 取整到整数像素，避免亚像素渲染导致的微小差异
       const targetHeight = Math.round(rawHeight);
 
       // 宽度固定为进入便签模式时记录的宽度，折叠/展开时不变化
-      const fixedWidth = window.stickyModeWidth || 480;
+      const fixedWidth = window.stickyModeWidth || STICKY_DEFAULT_WIDTH;
 
       // 如果高度变化小于阈值，不调整（防止窗口持续微小变化）
-      if (lastAppliedHeight > 0 && Math.abs(targetHeight - lastAppliedHeight) < HEIGHT_THRESHOLD) {
+      if (lastAppliedHeight > 0 && Math.abs(targetHeight - lastAppliedHeight) < STICKY_HEIGHT_THRESHOLD) {
         // 但仍需检查是否溢出（内容动态变化时）
         const isOverflow = contentHeight > MAX_HEIGHT;
         const hasClass = document.body.classList.contains('is-overflow');
@@ -201,7 +197,7 @@ function adjustStickyWindowHeight() {
       lastAppliedHeight = targetHeight;
 
       // 内容超出最大高度时，添加 is-overflow 类启用列表区域滚动
-      if (contentHeight > MAX_HEIGHT) {
+      if (contentHeight > STICKY_MAX_HEIGHT) {
         document.body.classList.add('is-overflow');
       } else {
         document.body.classList.remove('is-overflow');
@@ -334,7 +330,7 @@ function createTodoElement(todo) {
     tooltipParts.push('🏁 结束：' + endDateStr);
   }
   if (hasBefore && hasEnd) {
-    const beforeMins = Math.round((endReminder.at - beforeReminder.at) / 60000);
+    const beforeMins = Math.round((endReminder.at - beforeReminder.at) / MS_PER_MINUTE);
     tooltipParts.push('⏰ 结束前 ' + beforeMins + ' 分钟提醒');
   }
   if (todo.recurrence && todo.recurrence.enabled) {
@@ -640,8 +636,8 @@ function updateReminderBadge(li, todo) {
     // 仅有开始时间
     if (startR.reminded || diff <= 0) {
       badgeText = formatReminderText(startR.at) + ' 已过';
-    } else if (diff <= 3600000) {
-      const mins = Math.max(1, Math.round(diff / 60000));
+    } else if (diff <= MS_PER_HOUR) {
+      const mins = Math.max(1, Math.round(diff / MS_PER_MINUTE));
       badgeText = '还有 ' + mins + ' 分钟';
     } else {
       badgeText = formatReminderText(startR.at);
@@ -650,8 +646,8 @@ function updateReminderBadge(li, todo) {
     // 仅有结束时间
     if (endR.reminded || diff <= 0) {
       badgeText = formatReminderText(endR.at) + ' 已过';
-    } else if (diff <= 3600000) {
-      const mins = Math.max(1, Math.round(diff / 60000));
+    } else if (diff <= MS_PER_HOUR) {
+      const mins = Math.max(1, Math.round(diff / MS_PER_MINUTE));
       badgeText = '还有 ' + mins + ' 分钟';
     } else {
       badgeText = formatReminderText(endR.at);
@@ -663,9 +659,9 @@ function updateReminderBadge(li, todo) {
   // 颜色状态
   if (activeReminded || diff <= 0) {
     badge.classList.add('reminder-badge-overdue');
-  } else if (diff > 86400000) {
+  } else if (diff > MS_PER_DAY) {
     badge.classList.add('reminder-badge-far');
-  } else if (diff > 3600000) {
+  } else if (diff > MS_PER_HOUR) {
     badge.classList.add('reminder-badge-soon');
   } else {
     badge.classList.add('reminder-badge-urgent');

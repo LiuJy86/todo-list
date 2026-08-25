@@ -40,7 +40,7 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
       document.documentElement.classList.add('sticky-mode');
       // 记录进入便签模式时的宽度（使用 clientWidth，不含滚动条）
       // 注意：不用 window.innerWidth，因为它会随滚动条出现/变化
-      window.stickyModeWidth = document.documentElement.clientWidth || 480;
+      window.stickyModeWidth = document.documentElement.clientWidth || STICKY_DEFAULT_WIDTH;
       // 便签模式：显示折叠按钮和「+」按钮
       var collapseBtn = document.getElementById('stickyCollapseBtn');
       if (collapseBtn) collapseBtn.style.display = 'inline-block';
@@ -110,7 +110,7 @@ function updateStickyTitle() {
     stickyCollapsed = !stickyCollapsed;
     var addToggleBtn = document.getElementById('stickyAddToggleBtn');
     // 使用进入便签模式时记录的固定宽度，折叠/展开时宽度不变
-    const fixedWidth = window.stickyModeWidth || 480;
+    const fixedWidth = window.stickyModeWidth || STICKY_DEFAULT_WIDTH;
     if (stickyCollapsed) {
       // 折叠：先收起输入区，再隐藏内容 + 缩窄窗口（与 CSS 动画同步）
       lastAppliedHeight = 0; // 重置高度记录，下次展开时重新计算
@@ -128,7 +128,7 @@ function updateStickyTitle() {
       // 添加折叠 class（CSS 动画：max-height → 0, opacity → 0）
       document.body.classList.add('sticky-collapsed');
       if (window.electronAPI && window.electronAPI.resizeWindow) {
-        window.electronAPI.resizeWindow(fixedWidth, 80);
+        window.electronAPI.resizeWindow(fixedWidth, STICKY_MIN_HEIGHT);
       }
       collapseBtn.textContent = '▲';
       collapseBtn.title = '展开窗口';
@@ -139,7 +139,7 @@ function updateStickyTitle() {
       document.body.classList.remove('sticky-collapsed');
       // 先放大到最大高度，让内容完全展开（避免 scrollHeight 因窗口太小而测量不准）
       if (window.electronAPI && window.electronAPI.resizeWindow) {
-        window.electronAPI.resizeWindow(fixedWidth, 600);
+        window.electronAPI.resizeWindow(fixedWidth, STICKY_MAX_HEIGHT);
       }
       collapseBtn.textContent = '▼';
       collapseBtn.title = '折叠窗口';
@@ -163,7 +163,6 @@ function updateStickyTitle() {
 
   // 双击回车检测：记录上次按回车的时间
   var lastEnterTime = 0;
-  var DOUBLE_ENTER_INTERVAL = 400; // 400 毫秒内连按两次回车视为「双击」
 
   // 收起输入区（动画结束后清除 inline display，避免与 CSS 动画冲突）
   function collapseInput() {
@@ -206,7 +205,7 @@ function updateStickyTitle() {
     stickyInput.classList.add('success-flash');
     setTimeout(function () {
       stickyInput.classList.remove('success-flash');
-    }, 400);
+    }, INPUT_SUCCESS_DURATION);
     // 【v2.14.0】更新标题（待办计数变化）
     updateStickyTitle();
     // 清空输入框并保持聚焦
@@ -231,11 +230,11 @@ function updateStickyTitle() {
     }
   });
 
-  // 按回车键：单击添加，双击（400ms 内）收起输入区
+  // 按回车键：单击添加，双击收起输入区
   stickyInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
       var now = Date.now();
-      var isDoubleEnter = (now - lastEnterTime) < DOUBLE_ENTER_INTERVAL;
+      var isDoubleEnter = (now - lastEnterTime) < DOUBLE_CLICK_INTERVAL;
       lastEnterTime = now;
 
       if (isDoubleEnter) {
@@ -256,11 +255,10 @@ function updateStickyTitle() {
 // 【v2.14.0】便签模式：双击 Esc 退出便签模式
 (function () {
   var lastEscTime = 0;
-  var DOUBLE_ESC_INTERVAL = 400; // 400 毫秒内按两次 Esc 视为「双击」
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && document.body.classList.contains('sticky-mode')) {
       var now = Date.now();
-      if (now - lastEscTime < DOUBLE_ESC_INTERVAL) {
+      if (now - lastEscTime < DOUBLE_CLICK_INTERVAL) {
         // 双击 Esc → 退出便签模式
         if (window.electronAPI && window.electronAPI.exitStickyMode) {
           window.electronAPI.exitStickyMode();
@@ -530,3 +528,20 @@ Object.defineProperty(window, 'todos', {
   configurable: true
 });
 window.getAllTodos = function () { return todos; };
+
+// ============================================
+// 【v2.22.0】史迪仔桌面提醒窗口 - 主窗口监听
+// ============================================
+
+// 监听从提醒窗口发来的"完成待办"请求
+if (window.electronAPI && window.electronAPI.onCompleteTodo) {
+  window.electronAPI.onCompleteTodo(function (todoId) {
+    console.log('[史迪仔提醒] 收到完成待办请求:', todoId);
+    // 找到对应的待办并切换完成状态
+    var todo = todos.find(function (t) { return t.id === todoId; });
+    if (todo && !todo.done) {
+      // 使用包装函数触发完成逻辑（含桌宠反馈）
+      wrappedToggleTodo(todoId);
+    }
+  });
+}

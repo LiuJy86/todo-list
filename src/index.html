@@ -5,8 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ToDoList</title>
-  <!-- 引入样式表，负责页面外观 -->
-  <link rel="stylesheet" href="style.css?v=24">
+  <!-- 引入样式表（模块化拆分，便于维护） -->
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
@@ -53,8 +53,8 @@
       >
       <!-- 日期时间选择器（自定义 Popover 浮层，替代原生 datetime-local） -->
       <div class="datetime-picker" id="datetimePicker">
-        <div class="datetime-trigger" id="datetimeTrigger" title="点击选择提醒时间">
-          <span class="datetime-display" id="datetimeDisplay">选择提醒时间（可选）</span>
+        <div class="datetime-trigger" id="datetimeTrigger" title="待办管理">
+          <span class="datetime-display" id="datetimeDisplay">待办管理（可选）</span>
           <span class="datetime-icon">📅</span>
         </div>
         <!-- Popover 浮层（两列布局） -->
@@ -62,31 +62,39 @@
           <!-- 左列：开始时间 + 结束时间 + 结束前提醒 -->
           <div class="dp-col dp-col-left">
             <!-- 开始时间区 -->
-            <div class="dp-section">
-              <div class="dp-label">📅 开始时间</div>
-              <div class="dp-preset-row" id="dpDatePresets">
-                <button type="button" class="dp-preset" data-date="today">今天</button>
-                <button type="button" class="dp-preset" data-date="tomorrow">明天</button>
-                <button type="button" class="dp-preset" data-date="dayAfter">后天</button>
-                <button type="button" class="dp-preset" data-date="nextWeek">下周一</button>
+            <div class="dp-section dp-start-section">
+              <div class="dp-label-row">
+                <span class="dp-label">📅 开始时间</span>
+                <label class="dp-toggle">
+                  <input type="checkbox" id="dpStartToggle">
+                  <span class="dp-toggle-slider"></span>
+                </label>
               </div>
-              <!-- 日期输入：点击可直接输入月/日 -->
-              <div class="dp-date-input-row">
-                <input type="number" id="dpMonthInput" class="dp-date-input" min="1" max="12" placeholder="月">
-                <span class="dp-date-sep">/</span>
-                <input type="number" id="dpDayInput" class="dp-date-input" min="1" max="31" placeholder="日">
-              </div>
-              <!-- 时间输入：点击可直接输入时/分 -->
-              <div class="dp-time-input-row">
-                <input type="number" id="dpHourInput" class="dp-time-input" min="0" max="23" placeholder="时">
-                <span class="dp-time-sep">:</span>
-                <input type="number" id="dpMinuteInput" class="dp-time-input" min="0" max="59" placeholder="分">
-              </div>
-              <div class="dp-preset-row dp-time-presets" id="dpTimePresets">
-                <button type="button" class="dp-preset" data-time="now" id="dpNowBtn">现在</button>
-                <button type="button" class="dp-preset" data-time="morning">8:00</button>
-                <button type="button" class="dp-preset" data-time="noon">12:00</button>
-                <button type="button" class="dp-preset" data-time="evening">20:00</button>
+              <div class="dp-start-options" id="dpStartOptions" style="display:none;">
+                <div class="dp-preset-row" id="dpDatePresets">
+                  <button type="button" class="dp-preset" data-date="today">今天</button>
+                  <button type="button" class="dp-preset" data-date="tomorrow">明天</button>
+                  <button type="button" class="dp-preset" data-date="dayAfter">后天</button>
+                  <button type="button" class="dp-preset" data-date="nextWeek">下周一</button>
+                </div>
+                <!-- 日期输入：点击可直接输入月/日 -->
+                <div class="dp-date-input-row">
+                  <input type="number" id="dpMonthInput" class="dp-date-input" min="1" max="12" placeholder="月">
+                  <span class="dp-date-sep">/</span>
+                  <input type="number" id="dpDayInput" class="dp-date-input" min="1" max="31" placeholder="日">
+                </div>
+                <!-- 时间输入：点击可直接输入时/分 -->
+                <div class="dp-time-input-row">
+                  <input type="number" id="dpHourInput" class="dp-time-input" min="0" max="23" placeholder="时">
+                  <span class="dp-time-sep">:</span>
+                  <input type="number" id="dpMinuteInput" class="dp-time-input" min="0" max="59" placeholder="分">
+                </div>
+                <div class="dp-preset-row dp-time-presets" id="dpTimePresets">
+                  <button type="button" class="dp-preset" data-time="now" id="dpNowBtn">现在</button>
+                  <button type="button" class="dp-preset" data-time="morning">8:00</button>
+                  <button type="button" class="dp-preset" data-time="noon">12:00</button>
+                  <button type="button" class="dp-preset" data-time="evening">20:00</button>
+                </div>
               </div>
             </div>
             <!-- 结束时间区 -->
@@ -218,23 +226,13 @@
 
   </main>
 
-  <!-- 操作指南悬浮入口（右下角，与左下角的桌宠恢复按钮对称） -->
-  <a href="user_guide.html" class="guide-fab" title="查看操作指南" aria-label="查看操作指南">📖</a>
-
-  <!-- GitHub 仓库悬浮入口（右下角，位于指南按钮上方） -->
-  <a href="https://github.com/LiuJy86/todo-list" target="_blank" rel="noopener noreferrer" class="github-fab" title="访问 GitHub 仓库" aria-label="访问 GitHub 仓库">
-    <!-- GitHub 图标（SVG，离线可用，无需网络字体） -->
-    <svg viewBox="0 0 16 16" width="24" height="24" aria-hidden="true" fill="currentColor">
-      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0016 8c0-4.42-3.58-8-8-8z"/>
-    </svg>
-  </a>
-
   <!-- 引入脚本（按依赖顺序加载）：数据层 → 渲染 → CRUD → 功能模块 → 整合层 -->
   <script src="js/01-data.js"></script>
   <script src="js/02-render.js"></script>
   <script src="js/03-crud.js"></script>
   <script src="js/04-pet.js"></script>
   <script src="js/05-datetime.js"></script>
+  <script src="js/lunar-data.js"></script>
   <script src="js/06-reminder.js"></script>
   <script src="js/07-integration.js"></script>
 </body>

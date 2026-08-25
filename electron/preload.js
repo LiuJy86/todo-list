@@ -58,5 +58,53 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 获取当前应用版本号（从 package.json 读取）
   getVersion: function () {
     return ipcRenderer.invoke('get-app-version');
+  },
+
+  // ============================================
+  // 史迪仔桌面提醒 API（v2.22.0）
+  // ============================================
+
+  // 设置提醒定时器
+  setReminderWindow: function (todo) {
+    ipcRenderer.send('set-reminder-window', todo);
+  },
+
+  // 取消提醒定时器
+  cancelReminderWindow: function (todoId) {
+    ipcRenderer.send('cancel-reminder-window', todoId);
+  },
+
+  // 稍后提醒（延迟 N 分钟）
+  snoozeReminder: function (todo, minutes) {
+    ipcRenderer.send('snooze-reminder', todo, minutes);
+  },
+
+  // 关闭提醒窗口
+  closeReminder: function () {
+    ipcRenderer.send('close-reminder-window');
+  },
+
+  // 从提醒窗口完成待办
+  completeTodoFromReminder: function (todoId) {
+    ipcRenderer.send('complete-todo-from-reminder', todoId);
+  },
+
+  // 监听提醒触发（主进程 → 渲染进程）
+  onReminderTriggered: function (callback) {
+    ipcRenderer.on('reminder-triggered', function (event, todoId) {
+      callback(todoId);
+    });
+  },
+
+  // 监听完成待办请求（从提醒窗口 → 主窗口）
+  onCompleteTodo: function (callback) {
+    ipcRenderer.on('complete-todo', function (event, todoId) {
+      callback(todoId);
+    });
+  },
+
+  // 加载主页面（从操作指南返回）
+  loadMainPage: function () {
+    ipcRenderer.send('load-main-page');
   }
 });

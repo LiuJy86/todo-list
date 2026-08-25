@@ -29,37 +29,11 @@
 
   // ---------- 11.3 自然语言解析 ----------
 
-  // ===== 农历数据表（1900-2100年）=====
-  // 每个条目用 20 位二进制编码一年的农历信息：
-  //   位 0-3：闰月月份（0=无闰月，1-12=闰几月）
-  //   位 4-15：12个月，每位表示该月天数（1=30天，0=29天）
-  //   位 16：闰月天数（1=30天，0=29天）
-  const lunarInfo = [
-    0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
-    0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255, 0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977,
-    0x04970, 0x0a4b0, 0x0b4b5, 0x06a50, 0x06d40, 0x1ab54, 0x02b60, 0x09570, 0x052f2, 0x04970,
-    0x06566, 0x0d4a0, 0x0ea50, 0x06e95, 0x05ad0, 0x02b60, 0x186e3, 0x092e0, 0x1c8d7, 0x0c950,
-    0x0d4a0, 0x1d8a6, 0x0b550, 0x056a0, 0x1a5b4, 0x025d0, 0x092d0, 0x0d2b2, 0x0a950, 0x0b557,
-    0x06ca0, 0x0b550, 0x15355, 0x04da0, 0x0a5d0, 0x14573, 0x052d0, 0x0a9a8, 0x0e950, 0x06aa0,
-    0x0aea6, 0x0ab50, 0x04b60, 0x0aae4, 0x0a570, 0x05260, 0x0f263, 0x0d950, 0x05b57, 0x056a0,
-    0x096d0, 0x04dd5, 0x04ad0, 0x0a4d0, 0x0d4d4, 0x0d250, 0x0d558, 0x0b540, 0x0b5a0, 0x195a6,
-    0x095b0, 0x049b0, 0x0a974, 0x0a4b0, 0x0b27a, 0x06a50, 0x06d40, 0x0af46, 0x0ab60, 0x09570,
-    0x04af5, 0x04970, 0x064b0, 0x074a3, 0x0ea50, 0x06b58, 0x05ac0, 0x0ab60, 0x096d5, 0x092e0,
-    0x0c960, 0x0d954, 0x0d4a0, 0x0da50, 0x07552, 0x056a0, 0x0abb7, 0x025d0, 0x092d0, 0x0cab5,
-    0x0a950, 0x0b4a0, 0x0baa4, 0x0ad50, 0x055d9, 0x04ba0, 0x0a5b0, 0x15176, 0x052b0, 0x0a930,
-    0x07954, 0x06aa0, 0x0ad50, 0x05b52, 0x04b60, 0x0a6e6, 0x0a4e0, 0x0d260, 0x0ea65, 0x0d530,
-    0x05aa0, 0x076a3, 0x096d0, 0x04afb, 0x04ad0, 0x0a4d0, 0x1d0b6, 0x0d250, 0x0d520, 0x0dd45,
-    0x0b5a0, 0x056d0, 0x055b2, 0x049b0, 0x0a577, 0x0a4b0, 0x0aa50, 0x1b255, 0x06d20, 0x0ada0,
-    0x14b63, 0x09370, 0x049f8, 0x04970, 0x064b0, 0x168a6, 0x0ea50, 0x06b20, 0x1a6c4, 0x0aae0,
-    0x0a2e0, 0x0d2e3, 0x0c960, 0x0d557, 0x0d4a0, 0x0da50, 0x05d55, 0x056a0, 0x0a6d0, 0x055d4,
-    0x052d0, 0x0a9b8, 0x0a950, 0x0b4a0, 0x0b6a6, 0x0ad50, 0x055a0, 0x0aba4, 0x0a5b0, 0x052b0,
-    0x0b273, 0x06930, 0x07337, 0x06aa0, 0x0ad50, 0x14b55, 0x04b60, 0x0a570, 0x054e4, 0x0d160,
-    0x0e968, 0x0d520, 0x0daa0, 0x16aa6, 0x056d0, 0x04ae0, 0x0a9d4, 0x0a2d0, 0x0d150, 0x0f252,
-    0x0d520
-  ];
-
-  // 农历 1900 年正月初一对应的阳历日期：1900-01-31
-  const LUNAR_BASE_DATE = new Date(1900, 0, 31);
+  // ===== 农历数据（1900-2100年）=====
+  // 数据已外置到 lunar-data.js，通过 window.lunarData 加载
+  // 编码规则：位 0-3 闰月月份；位 4-15 12个月天数；位 16 闰月天数
+  const lunarInfo = window.lunarData.info;
+  const LUNAR_BASE_DATE = new Date(window.lunarData.baseSolarDate);
 
   // 获取某农历年的闰月月份（0=无闰月）
   function getLunarLeapMonth(year) {
@@ -951,6 +925,11 @@
 
   // 取消某条事项的所有定时器（删除/完成时调用）
   function cancelReminder(id) {
+    // 【v2.22.0】同时取消独立提醒窗口的定时器
+    if (window.electronAPI && window.electronAPI.cancelReminderWindow) {
+      window.electronAPI.cancelReminderWindow(id);
+    }
+
     if (!Array.isArray(todos.find(function (t) { return t.id === id; }) || {}).reminders) {
       // 兼容：直接清除可能存在的定时器
       var keys = [];
@@ -1031,7 +1010,7 @@
       } else if (type === 'before') {
         // 计算结束前分钟数
         var endItem = todo.reminders.find(function (r) { return r.type === 'end'; });
-        var beforeMins = endItem ? Math.round((endItem.at - reminderItem.at) / 60000) : 0;
+        var beforeMins = endItem ? Math.round((endItem.at - reminderItem.at) / MS_PER_MINUTE) : 0;
         msg = '「' + todo.text + '」还有 ' + beforeMins + ' 分钟截止！';
       }
       window.petMood.toast(msg, 'warning');
@@ -1040,12 +1019,27 @@
     // 5) 取消该类型的定时器
     reminderTimers.delete(todo.id + ':' + type);
 
-    // 6) 循环提醒：推进到下一个周期并重新调度（仅 start 类型）
+    // 6) 【v2.22.0】弹出史迪仔桌面提醒窗口（独立透明窗口）
+    if (window.electronAPI && window.electronAPI.snoozeReminder) {
+      // 构造兼容的待办对象传递给主进程
+      var windowTodo = {
+        id: todo.id,
+        text: todo.text,
+        notes: todo.notes || '',
+        priority: todo.priority || 1,
+        remindAt: reminderItem.at,
+        reminders: todo.reminders,
+        recurrence: todo.recurrence
+      };
+      window.electronAPI.setReminderWindow(windowTodo);
+    }
+
+    // 7) 循环提醒：推进到下一个周期并重新调度（仅 start 类型）
     if (type === 'start' && todo.recurrence && todo.recurrence.enabled && !todo.done) {
       advanceCycle(todo);
     }
 
-    // 7) 重新渲染
+    // 8) 重新渲染
     render();
   }
 
@@ -1102,17 +1096,20 @@
 
   // ---------- 11.6 兜底定时器 ----------
 
-  // 60 秒兜底检查：用于后台标签页（浏览器会降频 setTimeout，60 秒兜底确保不漏）
-  setInterval(checkMissedReminders, 60000);
+  // 兜底检查间隔：用于后台标签页（浏览器会降频 setTimeout，确保不漏）
+  var MISSED_REMINDER_INTERVAL = 60000;  // 60 秒
 
-  // 30 秒刷新所有徽章文案（仅改 textContent，不调用 render，避免反复写 localStorage）
-  // 让"还有 N 分钟"倒计时每 30 秒更新一次
+  // 徽章刷新间隔：让"还有 N 分钟"倒计时定期更新（仅改 textContent，不调用 render）
+  var BADGE_REFRESH_INTERVAL = 30000;    // 30 秒
+
+  setInterval(checkMissedReminders, MISSED_REMINDER_INTERVAL);
+
   setInterval(function () {
     nodeCache.forEach(function (li, id) {
       const todo = todos.find(function (t) { return t.id === id; });
       if (todo) updateReminderBadge(li, todo);
     });
-  }, 30000);
+  }, BADGE_REFRESH_INTERVAL);
 
 
   // ---------- 11.7 页面可见性联动 ----------

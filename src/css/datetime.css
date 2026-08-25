@@ -1,0 +1,316 @@
+/* ============================================
+   日期时间选择器补充样式
+   - 时间轴可视化（列表项内）
+   - 循环提醒开关、自定义循环、循环次数
+   - 操作按钮（清空/确认）
+   - 添加按钮 (#addBtn)
+   ============================================ */
+
+/* ===== 时间轴可视化（列表项内） — Apple 风格 ===== */
+.todo-timeline {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: 6px;
+  padding: 2px 0;
+}
+
+.todo-timeline-bar {
+  position: relative;
+  flex: 1;
+  height: 3px;
+  background: linear-gradient(90deg, var(--reminder-soon), var(--reminder-overdue));
+  border-radius: 1.5px;
+  min-width: 40px;
+}
+
+.todo-timeline-dot {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.todo-timeline-dot.start {
+  left: 0%;
+  background: var(--reminder-soon);
+}
+
+.todo-timeline-dot.end {
+  left: 100%;
+  background: var(--reminder-overdue);
+}
+
+.todo-timeline-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-wheel-sep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #aaa;
+  flex-shrink: 0;
+  user-select: none;
+  padding: 0 1px;
+}
+
+/* 隐藏滚轮滚动条 */
+.dp-wheel-col::-webkit-scrollbar {
+  display: none;
+}
+
+.dp-wheel-col {
+  scrollbar-width: none;
+}
+
+.dp-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.dp-time-select {
+  width: 56px;
+  padding: var(--spacing-xs) 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  outline: none;
+  color: var(--text-primary);
+  background: #fff;
+  font-family: inherit;
+}
+
+.dp-time-select:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+/* 循环提醒开关 */
+.dp-cycle-section {
+  margin-bottom: var(--spacing-xs);
+}
+
+.dp-toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.dp-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.dp-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(120, 120, 128, 0.16);
+  border-radius: 12px;
+  transition: background 0.25s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.dp-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 2px;
+  top: 2px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.25s cubic-bezier(0.42, 0, 0.58, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.dp-toggle input:checked + .dp-toggle-slider {
+  background: var(--success-color);
+}
+
+.dp-toggle input:checked + .dp-toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.dp-cycle-options {
+  margin-top: 6px;
+}
+
+.dp-custom-cycle {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-top: 6px;
+}
+
+.dp-cycle-input {
+  width: 60px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  outline: none;
+  text-align: center;
+}
+
+.dp-cycle-input:focus {
+  border-color: var(--accent-color);
+}
+
+.dp-cycle-unit {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  outline: none;
+  background: #fff;
+}
+
+.dp-cycle-unit:focus {
+  border-color: var(--accent-color);
+}
+
+/* 循环次数输入 */
+.dp-cycle-count-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-top: 6px;
+  padding: var(--spacing-xs) 6px;
+  background: rgba(102, 126, 234, 0.06);
+  border-radius: 6px;
+}
+
+.dp-cycle-count-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.dp-cycle-count-input {
+  width: 48px;
+  padding: 3px 6px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  outline: none;
+  text-align: center;
+  background: #fff;
+}
+
+.dp-cycle-count-input:focus {
+  border-color: var(--accent-color);
+}
+
+.dp-cycle-count-input::placeholder {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.dp-cycle-count-unit {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 操作按钮 */
+.dp-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  padding-top: var(--spacing-sm);
+  margin-top: auto;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dp-btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.dp-btn-clear {
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.dp-btn-clear:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.dp-btn-confirm {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-color) 0%, #764ba2 100%);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+}
+
+.dp-btn-confirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+}
+
+/* 窄屏适配 */
+@media (max-width: 600px) {
+  .datetime-picker {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: none;
+  }
+  .datetime-trigger {
+    min-width: 0;
+    max-width: none;
+  }
+  .datetime-popover {
+    left: 0;
+    right: 0;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+/* 添加按钮 */
+#addBtn {
+  width: auto;
+  min-width: 80px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent-color);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+#addBtn:hover {
+  background: var(--accent-hover);
+}
+
+#addBtn:active {
+  transform: scale(0.96);
+  opacity: 0.9;
+}

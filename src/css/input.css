@@ -1,0 +1,422 @@
+/* ============================================
+   输入区与日期时间选择器
+   - 文本输入框 (#todoInput)
+   - 自定义日期时间选择器 (.datetime-picker)
+   - 滚轮选择器、时间预设、结束时间、结束前提醒
+   ============================================ */
+
+/* ===== 输入区 — Apple 风格 ===== */
+.input-area {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-sm);
+  box-shadow: var(--card-shadow);
+  border: 0.5px solid var(--card-border);
+  /* 改为两行布局：第一行文本框占满，第二行 datetime-local + 按钮 */
+  flex-wrap: wrap;
+  align-items: center;
+  /* 确保 popover 浮层能覆盖下方列表项 */
+  position: relative;
+  z-index: var(--z-popover);
+}
+
+#todoInput {
+  flex: 1 1 100%;  /* 占满第一行 */
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: 16px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: all var(--transition-smooth);
+}
+
+#todoInput::placeholder {
+  color: var(--text-muted);
+}
+
+#todoInput:focus {
+  background: var(--bg-secondary);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 4px var(--accent-light);
+}
+
+/* 日期时间选择器 */
+.datetime-picker {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 180px;
+  max-width: 300px;
+}
+
+.datetime-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-sm);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: all var(--transition-smooth);
+  cursor: pointer;
+  font-family: inherit;
+  min-width: 180px;
+  max-width: 300px;
+}
+
+.datetime-trigger:hover {
+  background: var(--bg-secondary);
+}
+
+.datetime-trigger.active,
+.datetime-trigger:focus {
+  background: var(--bg-secondary);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 4px var(--accent-light);
+}
+
+.datetime-display {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.datetime-display.placeholder {
+  color: var(--text-muted);
+}
+
+.datetime-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* Popover 浮层 — Apple 风格 */
+.datetime-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: auto;
+  width: 420px;
+  background: #fff;
+  border: 0.5px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12);
+  padding: 14px;
+  z-index: var(--z-modal);
+  display: none;
+  animation: popoverIn var(--popover-anim-duration) cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.datetime-popover.open {
+  display: flex;
+  gap: 14px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.dp-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dp-col-left {
+  flex: 1.2;  /* 日期时间列稍宽 */
+}
+
+.dp-col-right {
+  flex: 1;     /* 循环 + 按钮列 */
+  border-left: 1px solid rgba(0, 0, 0, 0.05);
+  padding-left: 14px;
+}
+
+@keyframes popoverIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Popover 内分区 */
+.dp-section {
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dp-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: var(--spacing-xs);
+  padding-bottom: var(--spacing-xs);
+}
+
+.dp-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.dp-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+
+.dp-label-row .dp-label {
+  margin-bottom: 0;
+}
+
+.dp-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+}
+
+.dp-preset {
+  padding: var(--spacing-xs) 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 0.5px solid var(--card-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.dp-preset:hover {
+  background: var(--accent-light);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.dp-preset.active {
+  background: var(--accent-color);
+  color: #fff;
+  border-color: var(--accent-color);
+}
+
+/* ========== 滚轮选择器 — 小而美 ========== */
+.dp-date-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.dp-year-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-color);
+  min-width: 42px;
+  text-align: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: #fafbff;
+  border-radius: var(--radius-md);
+  letter-spacing: 0.5px;
+  box-shadow: inset 0 0 0 1px rgba(102, 126, 234, 0.08);
+}
+
+.dp-wheel-picker {
+  display: flex;
+  gap: 0;
+  height: 42px;
+  background: #fafbff;
+  border: none;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(102, 126, 234, 0.08);
+  flex: 1;
+  min-width: 0;
+}
+
+.dp-wheel-col {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  min-width: 0;
+}
+
+.dp-wheel-list {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+  transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  padding: 14px 0;
+}
+
+.dp-wheel-item {
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: #bbb;
+  cursor: pointer;
+  transition: color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+  user-select: none;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+}
+
+.dp-wheel-item.selected {
+  color: var(--accent-color);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.dp-wheel-item.near {
+  color: #999;
+  opacity: 0.45;
+}
+
+.dp-wheel-item.far {
+  color: #ccc;
+  opacity: 0.15;
+}
+
+.dp-wheel-highlight {
+  position: absolute;
+  left: var(--spacing-xs);
+  right: var(--spacing-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  height: 18px;
+  background: rgba(102, 126, 234, 0.06);
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: inset 0 0 0 1px rgba(102, 126, 234, 0.15);
+}
+
+.dp-wheel-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    rgba(250, 251, 255, 1) 0%,
+    rgba(250, 251, 255, 0.95) 18%,
+    rgba(250, 251, 255, 0.4) 40%,
+    transparent 50%,
+    rgba(250, 251, 255, 0.4) 60%,
+    rgba(250, 251, 255, 0.95) 82%,
+    rgba(250, 251, 255, 1) 100%
+  );
+}
+
+/* 时间预设按钮 */
+.dp-time-presets {
+  margin-top: 6px;
+  margin-bottom: 0;
+  justify-content: flex-start;
+}
+
+.dp-time-presets .dp-preset {
+  padding: 2px var(--spacing-sm);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+/* 时间输入行 */
+.dp-time-input-row,
+.dp-date-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.dp-time-input,
+.dp-date-input,
+.dp-before-input {
+  width: 48px;
+  height: 28px;
+  text-align: center;
+  border: 0.5px solid var(--card-border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  background: var(--bg-primary);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.dp-time-input:focus,
+.dp-date-input:focus,
+.dp-before-input:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-light);
+  background: var(--bg-secondary);
+}
+
+.dp-time-sep,
+.dp-date-sep {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* ===== 结束时间区 ===== */
+.dp-end-section,
+.dp-before-section {
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px dashed rgba(74, 144, 217, 0.2);
+}
+
+.dp-end-options,
+.dp-before-options {
+  margin-top: 6px;
+  animation: dpFadeIn var(--dp-fade-duration) ease;
+}
+
+.dp-before-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.dp-before-unit {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.dp-before-presets {
+  justify-content: flex-start;
+}
+
+.dp-before-presets .dp-preset {
+  padding: 2px var(--spacing-sm);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+@keyframes dpFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

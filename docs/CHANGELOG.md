@@ -4,6 +4,52 @@
 
 ---
 
+## [v2.22.0] - 2026-08-25
+
+### 优化 (Improved) — 日报功能与 UI
+
+1. **日报 UI 重设计**
+   - 去掉进度圆环，改用大数字完成率显示，更简洁直观
+   - Apple 风格毛玻璃弹窗，干净清爽
+   - 结语文案优化，更自然专业
+   - 文件：`src/js/04-pet.js`、`src/css/report.css`
+
+2. **日报数据修复**
+   - `01-data.js` 新增 `window.getAllTodos()` 和 `window.getTodoCount()` 暴露数据
+   - 修复日报显示 0% 的问题
+   - 文件：`src/js/01-data.js`
+
+3. **应用图标更新**
+   - 使用 `electron/icon.png` 作为应用图标
+   - 简化 `main.js` 中 `getIconPath()` 逻辑，移除旧 .ico 和 GIF 回退
+   - 删除 `electron/icon.ico`
+   - 文件：`package.json`、`electron/main.js`
+
+4. **操作指南返回按钮修复**
+   - 返回按钮从 `<a>` 改为 `<button>`，通过 Electron API 加载主页
+   - 新增 `loadMainPage` API 和 `load-main-page` IPC 处理
+   - 修复按钮点击区域被 `-webkit-app-region: drag` 拦截的问题
+   - 文件：`src/user_guide.html`、`electron/preload.js`、`electron/main.js`
+
+5. **Header 标题区域优化**
+   - 增加 header 内边距（24px 上 / 20px 下）
+   - 标题与副标题间距增加到 14px
+   - 副标题添加 8px 左间距，与主标题保持呼吸感
+   - 文件：`src/css/base.css`
+
+### 核心文件
+
+- `src/js/01-data.js`：新增 `getAllTodos`、`getTodoCount` 全局访问器
+- `src/js/04-pet.js`：日报 UI 重写，Apple 风格简洁设计
+- `src/css/report.css`：日报弹窗样式重写
+- `src/css/base.css`：Header 标题间距优化
+- `src/user_guide.html`：返回按钮修复
+- `electron/main.js`：图标逻辑简化、新增 `load-main-page` IPC
+- `electron/preload.js`：新增 `loadMainPage` API
+- `package.json`：图标路径更新
+
+---
+
 ## [v2.21.0] - 2026-08-24
 
 ### 优化 (Improved) — 标题设计与视觉层次

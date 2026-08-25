@@ -1,0 +1,171 @@
+/* ============================================
+   全局基础样式
+   - 重置盒模型
+   - 页面整体布局（body、滚动条隐藏）
+   - 页面头部（header、副标题、FAB 按钮）
+   - 主体内容区（main）
+   ============================================ */
+
+/* ===== 全局重置 ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ===== 页面整体样式 — Apple 极简白昼 ===== */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg-primary);
+  min-height: 100vh;
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* 隐藏外层滚动条，只保留列表区域内部滚动 */
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ============================================
+   全局隐藏滚动条（所有页面统一）
+   body 和 html 双管齐下，覆盖所有场景
+   ============================================ */
+html {
+  scrollbar-width: none;         /* Firefox */
+  -ms-overflow-style: none;      /* IE/Edge */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;                 /* Chrome/Safari/Edge */
+}
+
+/* ===== 页面头部 — Apple 胶囊徽章风格 ===== */
+header {
+  text-align: center;
+  padding: 24px var(--spacing-md) 20px;
+  background: var(--bg-secondary);
+  border-bottom: 0.5px solid var(--card-border);
+  /* 隐藏原生标题栏后，header 作为可拖拽区域移动窗口 */
+  -webkit-app-region: drag;
+}
+
+header h1 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-color);
+  letter-spacing: -0.2px;
+  background: rgba(0, 122, 255, 0.08);
+  border-radius: 16px;
+  padding: 7px var(--spacing-lg);
+}
+
+/* 副标题 — Apple 风格淡色说明文字，与标题保持呼吸感 */
+.header-subtitle {
+  margin: 14px 0 0;
+  padding-left: 8px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+/* 便签模式：隐藏副标题，保持紧凑 */
+.sticky-mode .header-subtitle {
+  display: none;
+}
+
+/* 头部按钮组（置顶/折叠/添加） */
+.header-btns {
+  display: flex;
+  gap: var(--spacing-xs);
+  justify-content: center;
+  margin-top: var(--spacing-sm);
+}
+
+/* 操作指南悬浮入口（右下角 FAB） */
+.guide-fab {
+  position: fixed;
+  right: var(--pet-bottom-offset);
+  bottom: var(--pet-bottom-offset);
+  z-index: calc(var(--z-modal) - 2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
+  text-decoration: none;
+  color: #fff;
+  background: var(--accent-color);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  line-height: 1;
+  user-select: none;
+}
+.guide-fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 122, 255, 0.4);
+  background: var(--accent-hover);
+}
+.guide-fab:active { transform: scale(0.95); }
+
+/* GitHub 仓库悬浮入口（位于 .guide-fab 上方） */
+.github-fab {
+  position: fixed;
+  right: var(--pet-bottom-offset);
+  bottom: 84px;
+  z-index: calc(var(--z-modal) - 2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  color: #fff;
+  background: var(--text-primary);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  line-height: 1;
+  user-select: none;
+}
+.github-fab svg { display: block; }
+.github-fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  background: #2C2C2E;
+}
+.github-fab:active { transform: scale(0.95); }
+
+/* 窄屏适配 */
+@media (max-width: 480px) {
+  .guide-fab,
+  .github-fab {
+    width: 46px;
+    height: 46px;
+    right: var(--spacing-lg);
+  }
+  .guide-fab { bottom: var(--spacing-lg); }
+  .github-fab { bottom: 74px; }
+  .github-fab svg { width: 20px; height: 20px; }
+}
+
+/* ===== 主体内容区 ===== */
+main {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md) var(--spacing-xl);
+  /* body 不滚动，由 main 撑开、list-area 内部滚动 */
+  height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+}

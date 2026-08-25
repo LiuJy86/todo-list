@@ -11,10 +11,10 @@ function addTodo(remindAt, endRemindAt, endRemindBefore, recurrence) {
   // 2) 空内容不添加：让输入框边框闪红一下作为提示
   if (text === '') {
     todoInput.style.borderColor = '#e74c3c';  // 红色边框
-    // 300 毫秒后恢复默认边框色（清空 inline 样式，回到 CSS 控制）
+    // 闪红后恢复默认边框色（清空 inline 样式，回到 CSS 控制）
     setTimeout(function () {
       todoInput.style.borderColor = '';
-    }, 300);
+    }, INPUT_FLASH_DURATION);
     return;  // 直接返回，不执行后续添加逻辑
   }
 
@@ -53,7 +53,7 @@ function addTodo(remindAt, endRemindAt, endRemindBefore, recurrence) {
   todoInput.classList.add('success-flash');
   setTimeout(function () {
     todoInput.classList.remove('success-flash');
-  }, 400);
+  }, INPUT_SUCCESS_DURATION);
 
   // 7) 返回新增的事项对象，供调用方调度提醒
   return newTodo;
@@ -180,10 +180,10 @@ function deleteTodo(id) {
   if (node) {
     // 添加删除动画 class
     node.classList.add('removing');
-    // 动画结束后再执行实际删除（300ms 与 CSS 动画时长一致）
+    // 动画结束后再执行实际删除（与 CSS 动画时长一致）
     setTimeout(function () {
       performDelete(id);
-    }, 300);
+    }, DELETE_ANIM_DURATION);
   } else {
     // 节点不存在，直接删除
     performDelete(id);

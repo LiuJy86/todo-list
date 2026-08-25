@@ -1,0 +1,216 @@
+/* ============================================
+   日报弹窗与气泡类型
+   - 对话气泡类型（success/info/warning/error）
+   - 日报弹窗（Apple 风格）
+   ============================================ */
+
+/* ===== 对话气泡类型 ===== */
+.pet-bubble.type-success {
+  border-color: rgba(78, 205, 196, 0.7);
+  background: linear-gradient(135deg, #fff, #f0fffe);
+}
+
+.pet-bubble.type-info {
+  border-color: rgba(102, 126, 234, 0.7);
+  background: linear-gradient(135deg, #fff, #f5f6ff);
+}
+
+.pet-bubble.type-warning {
+  border-color: rgba(255, 167, 38, 0.7);
+  background: linear-gradient(135deg, #fff, #fff8f0);
+}
+
+.pet-bubble.type-error {
+  border-color: rgba(255, 107, 107, 0.7);
+  background: linear-gradient(135deg, #fff, #fff5f5);
+}
+
+/* ===== 日报弹窗 — Apple 风格 ===== */
+.daily-report-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: drFadeIn 0.2s ease;
+}
+@keyframes drFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dr-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.dr-card {
+  position: relative;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.2), 0 0 0 0.5px rgba(0,0,0,0.04);
+  width: 300px;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: drSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes drSlideUp {
+  from { transform: translateY(24px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* 内容区域 */
+.dr-content {
+  padding: 24px 20px 8px;
+}
+
+/* 日期标签 */
+.dr-date-label {
+  font-size: 12px;
+  color: #8E8E93;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  margin-bottom: 8px;
+}
+
+/* 大数字 */
+.dr-headline {
+  font-size: 56px;
+  font-weight: 200;
+  color: #1C1C1E;
+  letter-spacing: -2px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.dr-subtitle {
+  font-size: 13px;
+  color: #8E8E93;
+  margin-bottom: 24px;
+}
+
+/* 统计摘要 */
+.dr-summary {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+}
+.dr-summary-item {
+  flex: 1;
+  text-align: center;
+}
+.dr-summary-num {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1C1C1E;
+}
+.dr-summary-text {
+  display: block;
+  font-size: 10px;
+  color: #8E8E93;
+  margin-top: 2px;
+  font-weight: 500;
+}
+.dr-green { color: #34C759; }
+.dr-orange { color: #FF9500; }
+
+/* 分隔 */
+.dr-section {
+  border-top: 0.5px solid rgba(0,0,0,0.08);
+  padding-top: 16px;
+  margin-bottom: 16px;
+}
+.dr-section-label {
+  font-size: 11px;
+  color: #8E8E93;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 10px;
+}
+
+/* 成就列表 */
+.dr-achievements {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.dr-achievement {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  font-size: 13px;
+  color: #3C3C43;
+  border-bottom: 0.5px solid rgba(0,0,0,0.05);
+}
+.dr-achievement:last-child {
+  border-bottom: none;
+}
+.dr-check-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #34C759;
+  flex-shrink: 0;
+  position: relative;
+}
+.dr-check-icon::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+.dr-achievement-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dr-achievement-more {
+  font-size: 12px;
+  color: #8E8E93;
+  padding: 6px 0 2px;
+}
+
+/* 结语 */
+.dr-message {
+  font-size: 13px;
+  color: #636366;
+  text-align: center;
+  line-height: 1.5;
+  padding: 4px 0 8px;
+}
+
+/* 底部按钮 */
+.dr-footer {
+  padding: 8px 20px 20px;
+}
+.dr-btn {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 9px;
+  background: #007AFF;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.dr-btn:hover {
+  background: #0066D6;
+}
+.dr-btn:active {
+  background: #005BB5;
+}

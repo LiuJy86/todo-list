@@ -28,19 +28,44 @@
       align-items: center;
       justify-content: space-between;
       margin-bottom: 24px;
-      padding-bottom: 16px;
+      padding-bottom: 20px;
       border-bottom: 1px solid var(--border-color);
+      gap: 12px; /* 标题和按钮之间的最小间距 */
+      -webkit-app-region: no-drag;
+    }
+    .back-btn {
+      -webkit-app-region: no-drag;
     }
     .guide-header h1 { margin: 0; font-size: 24px; color: var(--text-primary); }
     .back-btn {
-      padding: 8px 16px;
+      padding: 10px 20px;
       border: none;
       background: linear-gradient(135deg, #667eea 0%, #5c4fc0 100%);
       color: #fff;
       border-radius: 999px;
-      font-size: 13px;
+      font-size: 14px;
       cursor: pointer;
       text-decoration: none;
+      /* 最小触摸目标尺寸 44px，便于点击 */
+      min-width: 44px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      /* 防止便签模式下被 flex 容器压缩 */
+      flex-shrink: 0;
+    }
+    /* 便签模式：返回按钮进一步加大，提升小窗口下的触达面积 */
+    .sticky-mode .back-btn {
+      padding: 12px 24px;
+      font-size: 15px;
+      min-width: 48px;
+      min-height: 48px;
+      -webkit-app-region: no-drag;
+    }
+    /* 便签模式：标题适度缩小，给按钮留出更多空间 */
+    .sticky-mode .guide-header h1 {
+      font-size: 18px;
     }
 
     .guide-philosophy {
@@ -132,7 +157,7 @@
 
     <div class="guide-header">
       <h1>📖 操作指南</h1>
-      <a href="index.html" class="back-btn">← 返回</a>
+      <button class="back-btn" id="backBtn">← 返回</button>
     </div>
 
     <!-- 理念 -->
@@ -271,5 +296,16 @@
     </section>
 
   </div>
+  <script>
+    document.getElementById('backBtn').addEventListener('click', function () {
+      if (window.electronAPI && window.electronAPI.loadMainPage) {
+        window.electronAPI.loadMainPage();
+      } else if (history.length > 1) {
+        history.back();
+      } else {
+        window.location.href = 'index.html';
+      }
+    });
+  </script>
 </body>
 </html>

@@ -31,6 +31,8 @@ const datetimePickerModule = (function () {
   const endDayInput = document.getElementById('dpEndDayInput');
   const endHourInput = document.getElementById('dpEndHourInput');
   const endMinuteInput = document.getElementById('dpEndMinuteInput');
+  const startToggle = document.getElementById('dpStartToggle');
+  const startOptions = document.getElementById('dpStartOptions');
   const endToggle = document.getElementById('dpEndToggle');
   const endOptions = document.getElementById('dpEndOptions');
   const beforeToggle = document.getElementById('dpBeforeToggle');
@@ -430,6 +432,9 @@ const datetimePickerModule = (function () {
     if (minuteInput) minuteInput.value = '';
     if (monthInput) monthInput.value = '';
     if (dayInput) dayInput.value = '';
+    // 重置开始时间
+    if (startToggle) startToggle.checked = false;
+    if (startOptions) startOptions.style.display = 'none';
     // 重置结束时间
     if (endToggle) endToggle.checked = false;
     if (endOptions) endOptions.style.display = 'none';
@@ -459,6 +464,9 @@ const datetimePickerModule = (function () {
       // 同步到日期和时间输入框
       setDateInputs(currentDate);
       updateTimeInputs();
+      // 展开开始时间区域
+      if (startToggle) startToggle.checked = true;
+      if (startOptions) startOptions.style.display = 'block';
     }
     // 同步结束时间
     if (endTimestamp) {
@@ -564,6 +572,39 @@ const datetimePickerModule = (function () {
     if (dayInput) {
       dayInput.addEventListener('change', onDateInputChange);
       dayInput.addEventListener('blur', onDateInputChange);
+    }
+
+    // 开始时间开关
+    if (startToggle) {
+      startToggle.addEventListener('change', function () {
+        if (startToggle.checked) {
+          startOptions.style.display = 'block';
+        } else {
+          startOptions.style.display = 'none';
+          // 清除开始时间
+          currentDate = null;
+          currentHour = 8;
+          currentMinute = 0;
+          activeDatePreset = null;
+          activeTimePreset = null;
+          if (monthInput) monthInput.value = '';
+          if (dayInput) dayInput.value = '';
+          if (hourInput) hourInput.value = '';
+          if (minuteInput) minuteInput.value = '';
+          // 取消预设高亮
+          if (datePresetRow) {
+            datePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
+              b.classList.remove('active');
+            });
+          }
+          if (timePresetRow) {
+            timePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
+              b.classList.remove('active');
+            });
+          }
+          updateDisplay();
+        }
+      });
     }
 
     // 结束时间开关
