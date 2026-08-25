@@ -411,18 +411,12 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: '⚙️ 设置',
+      label: '设置',
       click: () => {
         createSettingsWindow();
       }
     },
     { type: 'separator' },
-    {
-      label: '访问 GitHub 仓库',
-      click: () => {
-        shell.openExternal('https://github.com/LiuJy86/todo-list');
-      }
-    },
     {
       label: '查看操作指南',
       click: () => {

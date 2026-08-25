@@ -896,7 +896,7 @@
   setTimeout(function () {
     // 先更新边缘状态，确保气泡位置正确
     updatePetEdgeClass();
-    const msg = '嘿！你听说过「景逸大人」这个名字吗？';
+    const msg = '嘿！';
     petBubble.textContent = msg;
     petBubble.classList.add('show');
 
@@ -909,7 +909,7 @@
 
       // 0.5 秒后显示第二句
       setTimeout(function () {
-        const msg2 = '传说啊，他是世界上顶好顶好的人~ ✨';
+        const msg2 = '还好吗 ✨';
         petBubble.textContent = msg2;
         petBubble.classList.add('show');
 
