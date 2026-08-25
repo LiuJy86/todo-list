@@ -152,6 +152,31 @@
   margin-right: var(--spacing-sm);
   transition: all var(--transition-fast);
   letter-spacing: 0.3px;
+  cursor: pointer;
+  position: relative;
+}
+
+/* 徽章 hover：提示可双击编辑 */
+.reminder-badge:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  filter: brightness(1.05);
+}
+
+/* 徽章 hover 时显示编辑图标 */
+.reminder-badge::after {
+  content: '✏️';
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  font-size: 10px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.reminder-badge:hover::after {
+  opacity: 1;
 }
 
 /* 远期（> 1 天）：灰色 */
@@ -249,7 +274,14 @@
 /* 带 tooltip 的待办项 */
 .todo-item.has-tooltip,
 .todo-timeline.has-tooltip {
-  cursor: help;
+  cursor: pointer;
+}
+
+/* 时间轴 hover 效果 */
+.todo-timeline:hover {
+  opacity: 0.8;
+  transform: scale(1.02);
+  transition: all 0.2s ease;
 }
 
 /* JS 动态 tooltip */

@@ -67,14 +67,18 @@
     reminderText.textContent = getReminderText(todo);
 
     // 设置待办标题（兼容 text 和 title 字段）
-    todoTitle.textContent = todo.text || todo.title || '待办事项';
+    if (todoTitle) {
+      todoTitle.textContent = todo.text || todo.title || '待办事项';
+    }
 
     // 设置备注（如果有）
-    if (todo.notes) {
-      todoNotes.textContent = todo.notes;
-      todoNotes.style.display = 'block';
-    } else {
-      todoNotes.style.display = 'none';
+    if (todoNotes) {
+      if (todo.notes) {
+        todoNotes.textContent = todo.notes;
+        todoNotes.style.display = 'block';
+      } else {
+        todoNotes.style.display = 'none';
+      }
     }
 
     // 根据优先级选择不同史迪仔表情
@@ -90,7 +94,7 @@
     const texts = [
       `该${title}了！`,
       `别忘了：${title}`,
-      `⏰ ${title} 时间到！`,
+      `${title} 时间到！`,
       `嘿！该${title}啦～`,
     ];
     // 根据 todo.id 选择一个固定的文案
@@ -153,29 +157,39 @@
   // 绑定按钮事件
   // ============================================
   function bindEvents(todo) {
+    console.log('[史迪仔提醒] 绑定按钮事件, electronAPI:', !!window.electronAPI);
+
     // "知道了"按钮 - 关闭窗口
     document.getElementById('btn-dismiss').addEventListener('click', function () {
+      console.log('[史迪仔提醒] 点击：知道了');
       dismissWithAnimation();
     });
 
     // "稍后提醒"按钮 - 延迟 5 分钟
     document.getElementById('btn-snooze').addEventListener('click', function () {
+      console.log('[史迪仔提醒] 点击：稍后提醒');
       if (window.electronAPI) {
         window.electronAPI.snoozeReminder(todo, 5);
+      } else {
+        console.error('[史迪仔提醒] electronAPI 不可用');
       }
       dismissWithAnimation();
     });
 
     // "完成"按钮 - 标记待办完成
     document.getElementById('btn-complete').addEventListener('click', function () {
+      console.log('[史迪仔提醒] 点击：完成');
       if (window.electronAPI) {
         window.electronAPI.completeTodoFromReminder(todo.id);
+      } else {
+        console.error('[史迪仔提醒] electronAPI 不可用');
       }
       dismissWithAnimation();
     });
 
     // 点击史迪仔也可以关闭
     document.getElementById('stitch-wrapper').addEventListener('click', function () {
+      console.log('[史迪仔提醒] 点击：史迪仔');
       dismissWithAnimation();
     });
   }

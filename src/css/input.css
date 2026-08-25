@@ -121,6 +121,11 @@
   gap: 14px;
   max-height: 80vh;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.datetime-popover.open::-webkit-scrollbar {
+  display: none;
 }
 
 .dp-col {

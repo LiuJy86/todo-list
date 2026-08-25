@@ -389,6 +389,60 @@ function createTodoElement(todo) {
     if ((hasStart || hasEnd) && !(hasStart && hasEnd)) {
       const badge = document.createElement('span');
       badge.className = 'reminder-badge';
+      // 单击徽章修改时间
+      badge.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        if (todo.done) return; // 已完成事项不允许编辑
+        if (!window.datetimePickerModule) return;
+        const startAt = getReminderAt(todo, 'start');
+        const endAt = getReminderAt(todo, 'end');
+        const beforeMin = (function () {
+          const r = getReminder(todo, 'before');
+          return r ? Math.round((endAt - r.at) / 60000) : 0;
+        })();
+        window.datetimePickerModule.editTime({
+          startTimestamp: startAt,
+          endTimestamp: endAt,
+          beforeMinutes: beforeMin,
+          recurrence: todo.recurrence,
+          anchor: badge,
+          onConfirm: function (newStart, newEnd, newBefore, newRecurrence) {
+            console.log('[编辑时间] 原时间:', startAt, endAt, '新时间:', newStart, newEnd, newBefore);
+            // 更新提醒时间
+            if (startAt) {
+              const r = getReminder(todo, 'start');
+              if (r) r.at = newStart;
+            } else if (newStart) {
+              todo.reminders.push({ type: 'start', at: newStart, reminded: false });
+            }
+            // 更新结束时间
+            if (endAt) {
+              const r = getReminder(todo, 'end');
+              if (r && newEnd) {
+                r.at = newEnd;
+              } else if (r && !newEnd) {
+                todo.reminders = todo.reminders.filter(function (x) { return x.type !== 'end'; });
+              }
+            } else if (newEnd) {
+              todo.reminders.push({ type: 'end', at: newEnd, reminded: false });
+            }
+            // 更新结束前提醒
+            todo.reminders = todo.reminders.filter(function (x) { return x.type !== 'before'; });
+            if (newEnd && newBefore > 0) {
+              todo.reminders.push({ type: 'before', at: newEnd - newBefore * 60000, reminded: false });
+            }
+            // 更新循环设置
+            todo.recurrence = newRecurrence || null;
+            console.log('[编辑时间] 更新后:', JSON.stringify(todo.reminders));
+            save();
+            render();
+          },
+          onCancel: function () { /* 取消不做任何事 */ }
+        });
+      });
+      // 提示可编辑
+      badge.title = '双击修改时间';
       li.appendChild(badge);
 
       // 循环徽章装饰
@@ -451,6 +505,43 @@ function createTodoElement(todo) {
       timeline.setAttribute('data-tooltip', tooltipText);
       timeline.classList.add('has-tooltip');
       attachTooltip(timeline, tooltipText);
+      // 单击时间轴修改时间
+      timeline.style.cursor = 'pointer';
+      timeline.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        if (todo.done) return;
+        if (!window.datetimePickerModule) return;
+        const startAt = getReminderAt(todo, 'start');
+        const endAt = getReminderAt(todo, 'end');
+        const beforeMin = (function () {
+          const r = getReminder(todo, 'before');
+          return r ? Math.round((endAt - r.at) / 60000) : 0;
+        })();
+        window.datetimePickerModule.editTime({
+          startTimestamp: startAt,
+          endTimestamp: endAt,
+          beforeMinutes: beforeMin,
+          recurrence: todo.recurrence,
+          anchor: timeline,
+          onConfirm: function (newStart, newEnd, newBefore, newRecurrence) {
+            console.log('[时间轴编辑] 新时间:', newStart, newEnd, '原:', startAt, endAt);
+            const startR = getReminder(todo, 'start');
+            const endR = getReminder(todo, 'end');
+            if (startR) startR.at = newStart;
+            if (endR) endR.at = newEnd;
+            todo.reminders = todo.reminders.filter(function (x) { return x.type !== 'before'; });
+            if (newEnd && newBefore > 0) {
+              todo.reminders.push({ type: 'before', at: newEnd - newBefore * 60000, reminded: false });
+            }
+            todo.recurrence = newRecurrence || null;
+            console.log('[时间轴编辑] 更新后:', JSON.stringify(todo.reminders));
+            save();
+            render();
+          },
+          onCancel: function () {}
+        });
+      });
       li.appendChild(timeline);
     }
   } else {
@@ -573,6 +664,25 @@ function updateItemState(li, todo) {
   }
   // 刷新提醒徽章的文案与颜色（按距离提醒时间变色）
   updateReminderBadge(li, todo);
+  // 刷新时间轴标签（时间被修改后同步显示）
+  updateTimelineLabel(li, todo);
+}
+
+// 更新时间轴标签文本
+function updateTimelineLabel(li, todo) {
+  const timeline = li.querySelector('.todo-timeline');
+  if (!timeline) return;
+  const startR = todo.reminders && todo.reminders.find(function (r) { return r.type === 'start'; });
+  const endR = todo.reminders && todo.reminders.find(function (r) { return r.type === 'end'; });
+  if (!startR || !endR) return;
+  const label = timeline.querySelector('.todo-timeline-label');
+  if (label) {
+    label.textContent = formatTimeShort(startR.at) + ' - ' + formatTimeShort(endR.at);
+  }
+  // 更新 tooltip
+  const tooltipText = '📅 ' + formatReminderText(startR.at) + '\n🏁 ' + formatReminderText(endR.at);
+  timeline.setAttribute('data-tooltip', tooltipText);
+  attachTooltip(timeline, tooltipText);
 }
 
 

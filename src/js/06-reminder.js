@@ -996,25 +996,8 @@
       }, duration);
     }
 
-    // 4) 史迪奇弹气泡
-    if (window.petMood) {
-      window.petMood.excited();
-      var msg;
-      if (type === 'start') {
-        var cycleMsg = todo.recurrence && todo.recurrence.enabled
-          ? '循环提醒：该开始「' + todo.text + '」啦！（已完成 ' + (todo.completionCount || 0) + ' 次）'
-          : '该开始「' + todo.text + '」啦！';
-        msg = cycleMsg;
-      } else if (type === 'end') {
-        msg = '「' + todo.text + '」截止时间到了！';
-      } else if (type === 'before') {
-        // 计算结束前分钟数
-        var endItem = todo.reminders.find(function (r) { return r.type === 'end'; });
-        var beforeMins = endItem ? Math.round((endItem.at - reminderItem.at) / MS_PER_MINUTE) : 0;
-        msg = '「' + todo.text + '」还有 ' + beforeMins + ' 分钟截止！';
-      }
-      window.petMood.toast(msg, 'warning');
-    }
+    // 4) 史迪奇弹气泡 → v2.22.0 起改为独立弹窗提醒，不再弹主窗口气泡
+    // （提醒弹窗已包含史迪仔图片 + 待办详情 + 操作按钮，无需重复在主窗口显示）
 
     // 5) 取消该类型的定时器
     reminderTimers.delete(todo.id + ':' + type);
@@ -1149,6 +1132,7 @@
     getRecurrence: datetimePickerModule.getRecurrence,
     syncFromTimestamp: datetimePickerModule.syncFromTimestamp,
     clearAll: datetimePickerModule.clearAll,
+    editTime: datetimePickerModule.editTime,
     formatRecurrenceShort: datetimePickerModule.formatRecurrenceShort,
     formatRecurrenceLong: datetimePickerModule.formatRecurrenceLong
   };

@@ -2142,17 +2142,20 @@ body.sticky-mode {
   display: inline-flex;
 }
 .sticky-progress-bar {
-  width: 48px;
-  height: 5px;
-  background: rgba(0, 0, 0, 0.08);
-  border-radius: 3px;
-  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 6px;
 }
-.sticky-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #34C759, #30D158);
-  border-radius: 3px;
-  transition: width 0.3s ease;
+.sticky-progress-block {
+  width: 3px;
+  height: 6px;
+  border-radius: 1.5px;
+  background: rgba(0, 0, 0, 0.1);
+  transition: background 0.3s ease;
+}
+.sticky-progress-block.filled {
+  background: linear-gradient(180deg, #34C759, #30D158);
 }
 .sticky-progress-text {
   font-size: 10px;

@@ -81,10 +81,16 @@ function updateStickyTitle() {
   var total = todos.length;
   var done = todos.filter(function (t) { return t.done; }).length;
   if (document.body.classList.contains('sticky-mode')) {
-    // 便签模式：显示进度胶囊
+    // 便签模式：显示进度胶囊（色块样式）
     var percent = total > 0 ? Math.round((done / total) * 100) : 0;
+    var blocks = 10;
+    var filledBlocks = Math.round((percent / 100) * blocks);
+    var blockHtml = '';
+    for (var i = 0; i < blocks; i++) {
+      blockHtml += '<span class="sticky-progress-block' + (i < filledBlocks ? ' filled' : '') + '"></span>';
+    }
     var progressHtml = '<span class="sticky-progress">' +
-      '<span class="sticky-progress-bar"><span class="sticky-progress-fill" style="width:' + percent + '%"></span></span>' +
+      '<span class="sticky-progress-bar">' + blockHtml + '</span>' +
       '<span class="sticky-progress-text">' + percent + '%</span>' +
       '</span>';
     if (total === 0) {

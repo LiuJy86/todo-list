@@ -325,6 +325,9 @@ const datetimePickerModule = (function () {
     return currentRecurrence;
   }
 
+  // 编辑模式回调（外部设置）
+  let editModeCallback = null;
+
   // 打开 popover
   function open() {
     datetimePopover.classList.add('open');
@@ -344,6 +347,113 @@ const datetimePickerModule = (function () {
   function close() {
     datetimePopover.classList.remove('open');
     datetimeTrigger.classList.remove('active');
+    // 恢复默认定位
+    datetimePopover.style.cssText = '';
+    // 编辑模式下触发取消回调
+    if (editModeCallback) {
+      const cb = editModeCallback;
+      editModeCallback = null;
+      if (cb.onCancel) cb.onCancel();
+    }
+  }
+
+  // 编辑模式：打开时间选择器用于修改已有时间
+  // options: { startTimestamp, endTimestamp, beforeMinutes, recurrence, onConfirm, onCancel, anchor }
+  function editTime(options) {
+    const { startTimestamp, endTimestamp, beforeMinutes, recurrence, onConfirm, onCancel, anchor } = options || {};
+
+    // 重置状态（不触发事件，避免 clearAll 中的 toggle 变化干扰）
+    clearAllSilent();
+
+    // 填充现有时间
+    if (startTimestamp || endTimestamp) {
+      syncFromTimestamp(startTimestamp || null, recurrence || null, endTimestamp || null, beforeMinutes || 0);
+    }
+
+    // 存储回调
+    editModeCallback = { onConfirm, onCancel };
+
+    // 打开弹窗
+    datetimePopover.classList.add('open');
+    datetimeTrigger.classList.add('active');
+
+    // 根据锚点元素定位弹窗（如徽章/时间轴）
+    if (anchor) {
+      positionPopover(anchor);
+    }
+  }
+
+  // 静默清除（不触发 toggle 事件）
+  function clearAllSilent() {
+    currentDate = null;
+    currentHour = 8;
+    currentMinute = 0;
+    currentEndDate = null;
+    currentEndHour = 9;
+    currentEndMinute = 0;
+    endRemindBefore = 0;
+    currentRecurrence = null;
+    activeDatePreset = null;
+    activeTimePreset = null;
+    activeCyclePreset = null;
+    datetimeDisplay.textContent = '选择提醒时间（可选）';
+    datetimeDisplay.classList.add('placeholder');
+    if (datePresetRow) datePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+    if (timePresetRow) timePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+    if (cyclePresetRow) cyclePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+    if (cycleToggle) cycleToggle.checked = false;
+    if (cycleOptions) cycleOptions.style.display = 'none';
+    if (customCycle) customCycle.style.display = 'none';
+    if (cycleCountInput) cycleCountInput.value = '';
+    if (hourInput) hourInput.value = '';
+    if (minuteInput) minuteInput.value = '';
+    if (monthInput) monthInput.value = '';
+    if (dayInput) dayInput.value = '';
+    if (startToggle) startToggle.checked = false;
+    if (startOptions) startOptions.style.display = 'none';
+    if (endToggle) endToggle.checked = false;
+    if (endOptions) endOptions.style.display = 'none';
+    if (beforeToggle) beforeToggle.checked = false;
+    if (beforeOptions) beforeOptions.style.display = 'none';
+    if (beforeInput) beforeInput.value = '';
+  }
+
+  // 根据锚点元素定位弹窗（智能避让屏幕边缘，超出时滚动）
+  function positionPopover(anchor) {
+    const rect = anchor.getBoundingClientRect();
+    const popoverWidth = Math.min(360, window.innerWidth - 20);
+    const gap = 6;
+    const windowH = window.innerHeight;
+    const windowW = window.innerWidth;
+
+    // 计算左侧位置（居中于锚点，超出屏幕则调整）
+    let left = rect.left + (rect.width / 2) - (popoverWidth / 2);
+    if (left + popoverWidth > windowW - 8) left = windowW - popoverWidth - 8;
+    if (left < 8) left = 8;
+
+    // 计算可用空间
+    const spaceBelow = windowH - rect.bottom - gap;
+    const spaceAbove = rect.top - gap;
+
+    let top, maxHeight;
+
+    // 优先放在下方，空间不足则放上方
+    if (spaceBelow >= 200 || spaceBelow >= spaceAbove) {
+      top = rect.bottom + gap;
+      maxHeight = Math.min(spaceBelow, 360);
+    } else {
+      maxHeight = Math.min(spaceAbove, 360);
+      top = rect.top - maxHeight - gap;
+      if (top < 8) {
+        top = 8;
+        maxHeight = rect.top - gap - 8;
+      }
+    }
+
+    // 确保 maxHeight 至少 150px
+    if (maxHeight < 150) maxHeight = Math.min(360, windowH - 20);
+
+    datetimePopover.style.cssText = 'position:fixed;top:' + top + 'px;left:' + left + 'px;right:auto;width:' + popoverWidth + 'px;max-height:' + maxHeight + 'px;overflow-y:auto;z-index:99999;';
   }
 
   // 选择日期预设
@@ -425,9 +535,9 @@ const datetimePickerModule = (function () {
     cycleToggle.checked = false;
     cycleOptions.style.display = 'none';
     customCycle.style.display = 'none';
-    cycleCountInput.value = ''; // 清空循环次数
-    hourSelect.value = '08';
-    minuteSelect.value = '00';
+    if (cycleCountInput) cycleCountInput.value = ''; // 清空循环次数
+    if (hourSelect) hourSelect.value = '08';
+    if (minuteSelect) minuteSelect.value = '00';
     if (hourInput) hourInput.value = '';
     if (minuteInput) minuteInput.value = '';
     if (monthInput) monthInput.value = '';
@@ -751,8 +861,21 @@ const datetimePickerModule = (function () {
       clearAll();
     });
 
-    // 确定按钮：关闭 popover（实际提交在 wrappedAddTodo 中处理）
+    // 确定按钮：编辑模式下回调，否则正常关闭
     confirmBtn.addEventListener('click', function () {
+      if (editModeCallback) {
+        // 编辑模式：返回时间戳给回调
+        const cb = editModeCallback;
+        editModeCallback = null;
+        const startTs = getTimestamp();
+        const endTs = getEndTimestamp();
+        const beforeMin = getEndRemindBefore();
+        close();
+        if (cb.onConfirm) {
+          cb.onConfirm(startTs, endTs, beforeMin, getRecurrence());
+        }
+        return;
+      }
       if (!currentDate) {
         // 没有选日期，关闭不做任何事
         close();
@@ -779,6 +902,7 @@ const datetimePickerModule = (function () {
     getRecurrence: getRecurrence,
     syncFromTimestamp: syncFromTimestamp,
     clearAll: clearAll,
+    editTime: editTime,
     formatRecurrenceShort: formatRecurrenceShort,
     formatRecurrenceLong: formatRecurrenceLong
   };

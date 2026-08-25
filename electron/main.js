@@ -303,9 +303,12 @@ function createReminderWindow(todo) {
     { query: { todo: todoData } }
   );
 
-  // 窗口关闭时清理引用
+  // 窗口关闭时清理引用，并把焦点交回主窗口
   reminderWindow.on('closed', () => {
     reminderWindow = null;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.focus();
+    }
   });
 
   console.log('[史迪仔提醒] 已弹出提醒窗口:', todo.text || todo.title);
@@ -530,6 +533,7 @@ ipcMain.on('cancel-reminder-window', function (_, todoId) {
 
 // 稍后提醒（延迟 N 分钟）
 ipcMain.on('snooze-reminder', function (_, todo, minutes) {
+  console.log('[主进程] 稍后提醒:', todo && todo.text, minutes, '分钟');
   // 先清除原有定时器
   clearReminderTimer(todo.id);
   // 设置新的触发时间
@@ -550,6 +554,7 @@ ipcMain.on('snooze-reminder', function (_, todo, minutes) {
 
 // 关闭提醒窗口
 ipcMain.on('close-reminder-window', function () {
+  console.log('[主进程] 关闭提醒窗口');
   if (reminderWindow) {
     reminderWindow.destroy();
     reminderWindow = null;
@@ -558,6 +563,7 @@ ipcMain.on('close-reminder-window', function () {
 
 // 完成待办（从提醒窗口触发）
 ipcMain.on('complete-todo-from-reminder', function (_, todoId) {
+  console.log('[主进程] 完成待办:', todoId);
   // 通知主窗口标记完成
   if (mainWindow) {
     mainWindow.webContents.send('complete-todo', todoId);

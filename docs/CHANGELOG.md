@@ -107,6 +107,72 @@
 
 ---
 
+## [v2.23.0] - 2026-08-25
+
+### 新增 (Added) — 待办时间快捷编辑
+
+1. **单击徽章/时间轴修改时间**
+   - 单击提醒徽章或时间轴即可打开时间选择器修改提醒时间
+   - 自动填充当前开始/结束时间、循环设置
+   - 弹窗智能定位在元素下方，空间不足时自动调整
+   - 文件：`src/js/02-render.js`、`src/js/05-datetime.js`
+
+### 优化 (Improved)
+
+1. **全局滚动条统一隐藏**
+   - 所有页面（设置、提醒、日报）滚动条隐藏与主页一致
+   - 日报弹窗 `.dr-card` 添加滚动条隐藏规则
+   - 提醒窗口 `reminder.css` 补全全局滚动条隐藏
+   - 文件：`src/css/reminder.css`、`src/css/report.css`
+
+2. **便签模式进度条分段色块化**
+   - 进度条由连续填充改为 10 个离散色块
+   - 每完成约 10% 点亮一个绿色块，进度一目了然
+   - 已填充：绿色渐变 `#34C759 → #30D158`
+   - 文件：`src/js/07-integration.js`、`src/style.css`、`src/css/sticky.css`
+
+3. **时间选择器智能定位**
+   - 新增 `positionPopover()` 函数，根据锚点元素动态定位
+   - 自动避让屏幕边缘，超出窗口时内容可滚动
+   - 最大高度自适应窗口空间，最小保证 150px
+   - 文件：`src/js/05-datetime.js`、`src/css/input.css`
+
+4. **时间轴标签实时刷新**
+   - 新增 `updateTimelineLabel()` 函数
+   - 修改时间后时间轴标签和 tooltip 同步更新
+   - 文件：`src/js/02-render.js`
+
+5. **徽章可编辑视觉提示**
+   - 鼠标悬停徽章时放大 + 阴影 + ✏️ 图标提示
+   - 时间轴 cursor 变为 pointer
+   - 文件：`src/css/list.css`
+
+### 修复 (Fixed)
+
+1. **时间选择器 clearAll 空值报错**
+   - `hourSelect`/`minuteSelect` 在 DOM 中不存在导致报错
+   - 添加空值保护，使用 `clearAllSilent()` 避免触发 toggle 事件
+   - 文件：`src/js/05-datetime.js`
+
+2. **window.datetimePickerModule 未暴露 editTime 方法**
+   - `06-reminder.js` 中暴露的模块对象缺少 `editTime`
+   - 补全方法暴露，修复双击徽章无响应问题
+   - 文件：`src/js/06-reminder.js`
+
+### 核心文件
+
+- `src/js/02-render.js`：徽章/时间轴单击事件、时间轴标签刷新
+- `src/js/05-datetime.js`：新增 `editTime()`、`positionPopover()`、`clearAllSilent()`
+- `src/js/06-reminder.js`：补全 `editTime` 方法暴露
+- `src/js/07-integration.js`：进度条分段色块化
+- `src/css/list.css`：徽章/时间轴 hover 样式
+- `src/css/reminder.css`：全局滚动条隐藏
+- `src/css/report.css`：日报弹窗滚动条隐藏
+- `src/css/input.css`：弹窗滚动样式
+- `src/style.css` / `src/css/sticky.css`：进度块样式
+
+---
+
 ## [v2.21.0] - 2026-08-24
 
 ### 优化 (Improved) — 标题设计与视觉层次
