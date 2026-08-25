@@ -37,15 +37,38 @@
    - 副标题添加 8px 左间距，与主标题保持呼吸感
    - 文件：`src/css/base.css`
 
+### 新增 (Added) — 史迪仔桌面提醒功能
+
+1. **独立提醒窗口**
+   - 提醒触发时弹出独立透明窗口（`src/reminder.html`）
+   - 支持稍后提醒、完成待办、关闭窗口操作
+   - 文件：`src/reminder.html`、`src/js/reminder-window.js`
+
+2. **提醒 API（v2.22.0）**
+   - `setReminderWindow`：设置提醒定时器
+   - `cancelReminderWindow`：取消提醒定时器
+   - `snoozeReminder`：稍后提醒（延迟 N 分钟）
+   - `closeReminder`：关闭提醒窗口
+   - `completeTodoFromReminder`：从提醒窗口完成待办
+   - 文件：`electron/preload.js`、`electron/main.js`
+
+3. **农历数据外置**
+   - 农历数据从 `06-reminder.js` 外置到 `src/js/lunar-data.js`
+   - 减少主文件体积，提高加载效率
+   - 文件：`src/js/lunar-data.js`、`src/js/lunar-data.json`
+
 ### 核心文件
 
 - `src/js/01-data.js`：新增 `getAllTodos`、`getTodoCount` 全局访问器
 - `src/js/04-pet.js`：日报 UI 重写，Apple 风格简洁设计
+- `src/js/06-reminder.js`：农历数据外置、独立提醒窗口集成
+- `src/js/reminder-window.js`：独立提醒窗口逻辑（新文件）
+- `src/reminder.html`：独立提醒窗口页面（新文件）
 - `src/css/report.css`：日报弹窗样式重写
 - `src/css/base.css`：Header 标题间距优化
 - `src/user_guide.html`：返回按钮修复
-- `electron/main.js`：图标逻辑简化、新增 `load-main-page` IPC
-- `electron/preload.js`：新增 `loadMainPage` API
+- `electron/main.js`：图标逻辑简化、新增 `load-main-page` IPC、提醒窗口 IPC
+- `electron/preload.js`：新增 `loadMainPage` API、提醒相关 API
 - `package.json`：图标路径更新
 
 ---
