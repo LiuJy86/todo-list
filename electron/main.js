@@ -408,15 +408,6 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: '🗒 便签模式',
-      type: 'checkbox',
-      checked: false,
-      click: (menuItem) => {
-        toggleStickyMode(menuItem.checked);
-      }
-    },
-    { type: 'separator' },
-    {
       label: '⚙️ 设置',
       click: () => {
         createSettingsWindow();
@@ -637,13 +628,6 @@ ipcMain.on('resize-window', function (_, width, height, resizable) {
 ipcMain.on('exit-sticky-mode', function () {
   if (isStickyMode) {
     toggleStickyMode(false);
-    // 同步托盘菜单的便签模式复选框状态
-    if (stickyMenu) {
-      var stickyItem = stickyMenu.items.find(function (item) {
-        return item.label === '🗒 便签模式';
-      });
-      if (stickyItem) stickyItem.checked = false;
-    }
   }
 });
 

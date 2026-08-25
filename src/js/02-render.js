@@ -124,6 +124,28 @@ function render() {
   if (emptyState) {
     if (todos.length === 0) {
       emptyState.style.display = 'block';
+      // 【v2.22.0】便签模式下调整空状态内容
+      var isSticky = document.body.classList.contains('sticky-mode');
+      var titleEl = emptyState.querySelector('.empty-title');
+      var hintEl = emptyState.querySelector('.empty-hint');
+      var examplesEl = emptyState.querySelector('.empty-examples');
+      if (isSticky) {
+        if (titleEl) titleEl.textContent = '便签模式 · 轻量提醒';
+        // 读取用户实际设置的快捷键，写死 Alt+G 在自定义快捷键后会出错
+        var stickyShortcut = 'Alt+G';
+        try {
+          var settings = JSON.parse(localStorage.getItem('settings') || '{}');
+          if (settings.shortcuts && settings.shortcuts['toggle-sticky']) {
+            stickyShortcut = settings.shortcuts['toggle-sticky'];
+          }
+        } catch (e) { /* 读取失败时使用默认值 */ }
+        if (hintEl) hintEl.textContent = '仅支持简单待办，需管理请退出便签模式（快捷键 ' + stickyShortcut + '）';
+        if (examplesEl) examplesEl.style.display = 'none';
+      } else {
+        if (titleEl) titleEl.textContent = '还没有待办事项';
+        if (hintEl) hintEl.textContent = '在上方输入框添加你的第一个任务吧！';
+        if (examplesEl) examplesEl.style.display = 'flex';
+      }
     } else {
       emptyState.style.display = 'none';
     }

@@ -274,3 +274,22 @@ body.sticky-mode {
   margin-bottom: var(--spacing-xs);
   font-size: 12px;
 }
+
+/* ===== 便签模式：空状态优化 ===== */
+.sticky-mode .empty-state {
+  padding: 24px 16px;
+}
+
+.sticky-mode .empty-state .empty-icon {
+  font-size: 36px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.sticky-mode .empty-state .empty-title {
+  font-size: 15px;
+}
+
+.sticky-mode .empty-state .empty-hint {
+  font-size: 12px;
+  margin-bottom: 0;
+}
