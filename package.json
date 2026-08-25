@@ -51,6 +51,11 @@
       ],
       "icon": "electron/icon.png"
     },
+    "mac": {
+      "target": "dmg",
+      "icon": "electron/icon.icns",
+      "category": "public.app-category.productivity"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,

@@ -1,0 +1,49 @@
+name: Build macOS
+
+on:
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 转换图标为 ICNS 格式
+        run: |
+          mkdir -p icon.iconset
+          sips -Z 512 electron/favicon.ico --out icon.iconset/icon_512x512.png
+          sips -Z 512 electron/favicon.ico --out icon.iconset/icon_256x256@2x.png
+          sips -Z 256 electron/favicon.ico --out icon.iconset/icon_256x256.png
+          sips -Z 256 electron/favicon.ico --out icon.iconset/icon_128x128@2x.png
+          sips -Z 128 electron/favicon.ico --out icon.iconset/icon_128x128.png
+          sips -Z 64 electron/favicon.ico --out icon.iconset/icon_32x32@2x.png
+          sips -Z 32 electron/favicon.ico --out icon.iconset/icon_32x32.png
+          sips -Z 32 electron/favicon.ico --out icon.iconset/icon_16x16@2x.png
+          sips -Z 16 electron/favicon.ico --out icon.iconset/icon_16x16.png
+          iconutil -c icns icon.iconset -o electron/icon.icns
+          rm -rf icon.iconset
+          echo "ICNS 图标生成完成"
+
+      - name: 构建 macOS 安装包
+        run: npx electron-builder --mac --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist/*.dmg
+          retention-days: 30
