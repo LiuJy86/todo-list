@@ -167,6 +167,11 @@ function render() {
   // 保存数据
   save();
 
+  // 【优化】DOM 变化后使桌宠避障缓存失效
+  if (typeof invalidateAvoidRects === 'function') {
+    invalidateAvoidRects();
+  }
+
   // 【v2.14.0】便签模式：每次渲染后更新标题（待办计数 / 完成进度）
   if (typeof updateStickyTitle === 'function') {
     updateStickyTitle();
@@ -212,7 +217,7 @@ function adjustStickyWindowHeight() {
       // 如果高度变化小于阈值，不调整（防止窗口持续微小变化）
       if (lastAppliedHeight > 0 && Math.abs(targetHeight - lastAppliedHeight) < STICKY_HEIGHT_THRESHOLD) {
         // 但仍需检查是否溢出（内容动态变化时）
-        const isOverflow = contentHeight > MAX_HEIGHT;
+        const isOverflow = contentHeight > STICKY_MAX_HEIGHT;
         const hasClass = document.body.classList.contains('is-overflow');
         if (isOverflow === hasClass) return; // 状态没变，跳过
       }
@@ -642,7 +647,19 @@ function attachTooltip(element, text) {
 
   element.addEventListener('mouseenter', showTooltip);
   element.addEventListener('mouseleave', hideTooltip);
-  element.addEventListener('DOMNodeRemoved', hideTooltip);
+
+  // 使用 MutationObserver 替代已废弃的 DOMNodeRemoved 事件
+  // 当元素从 DOM 中移除时自动清理 tooltip，避免残留
+  var cleanupObserver = new MutationObserver(function (mutations) {
+    if (!document.contains(element)) {
+      hideTooltip();
+      cleanupObserver.disconnect();
+    }
+  });
+  // 监听 document.body 的子节点变化（tooltip 的父元素通常是 body）
+  if (element.parentNode) {
+    cleanupObserver.observe(element.parentNode, { childList: true, subtree: true });
+  }
 }
 
 

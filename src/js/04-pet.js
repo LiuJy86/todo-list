@@ -56,7 +56,20 @@
   // ---------- 9.3.1 避开功能按钮 ----------
   // 收集页面上需要避开的交互元素：按钮、输入框、待办项、收纳按钮等
   // 返回它们的视口矩形数组（含位置和尺寸）
+  // 【优化】缓存避障矩形，避免拖拽时每帧重复 querySelectorAll
+  let cachedAvoidRects = null;
+  let avoidRectsDirty = true;  // 标记缓存是否失效
+
+  function invalidateAvoidRects() {
+    avoidRectsDirty = true;
+  }
+
   function getAvoidRects() {
+    // 缓存有效且未失效时直接返回，避免重复 DOM 查询
+    if (!avoidRectsDirty && cachedAvoidRects) {
+      return cachedAvoidRects;
+    }
+
     const rects = [];
     // 选择器：所有按钮、输入框、待办项、收纳按钮、链接、输入区域
     const avoidSelectors = 'button, input, .input-area, .todo-item, .collapse-btn, .collapsed-list, a, [role="button"]';
@@ -79,35 +92,15 @@
         margin: 16
       });
     });
+
+    cachedAvoidRects = rects;
+    avoidRectsDirty = false;
     return rects;
   }
 
-  // 检查给定的桌宠左下角坐标是否与按钮矩形相交
-  // 桌宠使用 left/bottom 定位，需要换算为左上角坐标
-  function isPositionColliding(posX, posY, rects) {
-    // 桌宠左上角坐标：x = posX, y = viewportHeight - posY - PET_HEIGHT
-    const petLeft = posX;
-    const petTop = window.innerHeight - posY - PET_HEIGHT;
-    const petRight = petLeft + PET_WIDTH;
-    const petBottom = petTop + PET_HEIGHT;
-
-    for (let i = 0; i < rects.length; i++) {
-      const r = rects[i];
-      const m = r.margin || 0;
-      if (
-        petRight > r.left - m &&
-        petLeft < r.right + m &&
-        petBottom > r.top - m &&
-        petTop < r.bottom + m
-      ) {
-        return true;  // 发生碰撞
-      }
-    }
-    return false;
-  }
-
-  // 检查给定的矩形是否与按钮矩形相交（用于气泡碰撞检测）
-  function isPositionCollidingRect(petRect, rects) {
+  // 通用碰撞检测：检查 petRect 是否与 rects 中的矩形相交
+  // 统一了原 isPositionColliding 和 isPositionCollidingRect 两个重复函数
+  function isRectColliding(petRect, rects) {
     for (let i = 0; i < rects.length; i++) {
       const r = rects[i];
       const m = r.margin || 0;
@@ -121,6 +114,23 @@
       }
     }
     return false;
+  }
+
+  // 检查给定的桌宠左下角坐标是否与按钮矩形相交
+  // 桌宠使用 left/bottom 定位，需要换算为左上角坐标
+  function isPositionColliding(posX, posY, rects) {
+    const petRect = {
+      left: posX,
+      top: window.innerHeight - posY - PET_HEIGHT,
+      right: posX + PET_WIDTH,
+      bottom: window.innerHeight - posY
+    };
+    return isRectColliding(petRect, rects);
+  }
+
+  // 检查给定的矩形是否与按钮矩形相交（用于气泡碰撞检测）
+  function isPositionCollidingRect(petRect, rects) {
+    return isRectColliding(petRect, rects);
   }
 
   // 给定一个目标位置，若与按钮相交则尝试微调到附近不冲突的位置
@@ -465,6 +475,7 @@
     isHidden = true;
     stopRandomMovement();
     stopGifRotation();  // 隐藏时停止 GIF 轮播
+    stopTrail();        // 隐藏时停止拖尾定时器
     pet.classList.add('hidden');
 
     setTimeout(function () {
@@ -577,9 +588,11 @@
     if (document.hidden) {
       stopRandomMovement();
       stopGifRotation();  // 页面不可见时停止轮播，节省资源
+      stopTrail();        // 页面不可见时停止拖尾
     } else if (!isHidden) {
       startRandomMovement();
       startGifRotation();  // 页面恢复可见时重启轮播
+      startTrail();        // 页面恢复可见时重启拖尾
     }
   });
 
@@ -640,24 +653,45 @@
   // 初始化时检查一次
   updatePetVisibility();
 
-  // ---------- 9.9 空闲互动 ----------
+  // ---------- 9.9 空闲互动（合并原 inactivity + idle 双系统）----------
+  // 统一的用户活动追踪：用户操作时重置，空闲时随机冒气泡/搭话
+  // 替代原来两套独立的 resetInactivityTimer + resetIdleTimer
 
-  function resetInactivityTimer() {
+  function onUserActivity() {
+    // 重置空闲计时器
     if (inactivityTimer) clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(function () {
-      if (!isDragging && !isHidden && !pet.classList.contains('walking')) {
-        if (Math.random() < 0.3) {
-          showBubble();
-        }
-      }
-      resetInactivityTimer();
-    }, 15000 + Math.random() * 10000);
+    scheduleNextInactivityBubble();
   }
 
-  document.addEventListener('mousemove', resetInactivityTimer);
-  document.addEventListener('keydown', resetInactivityTimer);
-  document.addEventListener('click', resetInactivityTimer);
-  resetInactivityTimer();
+  function scheduleNextInactivityBubble() {
+    // 15-25 秒随机间隔，与原来 inactivity 逻辑一致
+    const delay = 15000 + Math.random() * 10000;
+    inactivityTimer = setTimeout(function () {
+      if (!isDragging && !isHidden && !pet.classList.contains('walking')) {
+        // 30% 概率随机气泡，70% 概率主动搭话（合并原 idle 功能）
+        if (Math.random() < 0.3) {
+          showBubble();
+        } else if (Math.random() < 0.5) {
+          // 约 35% 的总概率主动搭话
+          const idleMsgs = [
+            '怎么不理我了？是不是在偷偷休息？',
+            '待办在等你哦，别偷懒~',
+            '本大人有点无聊了，快来和我互动一下！',
+            '发呆也是一种休息，我懂的~',
+            '有什么我能帮你的吗？'
+          ];
+          window.petMood.toast(idleMsgs[Math.floor(Math.random() * idleMsgs.length)], 'info');
+        }
+      }
+      scheduleNextInactivityBubble();  // 递归调度下一次
+    }, delay);
+  }
+
+  // 统一监听用户操作（原来分散在两处，现合并为一处）
+  ['mousemove', 'keydown', 'click', 'touchstart'].forEach(function (evt) {
+    document.addEventListener(evt, onUserActivity, { passive: true });
+  });
+  onUserActivity();
 
   // ---------- 9.10 情绪状态机 ----------
 
@@ -788,16 +822,23 @@
     if (trailTimer) return;
     const colors = ['#FFD700', '#FF6B6B', '#667eea', '#4ECDC4', '#FFE66D', '#FF8C42'];
     trailTimer = setInterval(function () {
-      if (pet.classList.contains('walking')) {
-        const trail = document.createElement('div');
-        trail.className = 'pet-trail';
-        trail.style.background = colors[Math.floor(Math.random() * colors.length)];
-        trail.style.left = (40 + Math.random() * 20) + '%';
-        trail.style.bottom = '0px';
-        petParticles.appendChild(trail);
-        setTimeout(function () { trail.remove(); }, 800);
-      }
+      // 桌宠隐藏或未行走时跳过，避免无意义的 DOM 操作
+      if (isHidden || !pet.classList.contains('walking')) return;
+      const trail = document.createElement('div');
+      trail.className = 'pet-trail';
+      trail.style.background = colors[Math.floor(Math.random() * colors.length)];
+      trail.style.left = (40 + Math.random() * 20) + '%';
+      trail.style.bottom = '0px';
+      petParticles.appendChild(trail);
+      setTimeout(function () { trail.remove(); }, 800);
     }, 150);
+  }
+
+  function stopTrail() {
+    if (trailTimer) {
+      clearInterval(trailTimer);
+      trailTimer = null;
+    }
   }
 
   // ---------- 9.12 暴露全局接口 ----------
@@ -858,28 +899,7 @@
     }
   }, 2000);
 
-  // 空闲检测：用户 30 秒无操作，史迪奇主动搭话
-  let idleTimer = null;
-  function resetIdleTimer() {
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = setTimeout(function () {
-      if (!isHidden && window.petMood) {
-        const idleMsgs = [
-          '怎么不理我了？是不是在偷偷休息？',
-          '待办在等你哦，别偷懒~',
-          '本大人有点无聊了，快来和我互动一下！',
-          '发呆也是一种休息，我懂的~',
-          '有什么我能帮你的吗？'
-        ];
-        window.petMood.toast(idleMsgs[Math.floor(Math.random() * idleMsgs.length)], 'info');
-      }
-    }, 30000); // 30 秒无操作触发
-  }
-  // 监听用户操作，重置空闲计时
-  ['click', 'keydown', 'mousemove', 'touchstart'].forEach(function (evt) {
-    document.addEventListener(evt, resetIdleTimer, { passive: true });
-  });
-  resetIdleTimer();
+  // 【已合并至 9.9 节的 onUserActivity 统一空闲检测系统】
 
   // 随机气泡：每 15-30 秒随机冒一个气泡
   function scheduleRandomBubble() {

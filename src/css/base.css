@@ -146,6 +146,216 @@ header h1 {
 }
 .github-fab:active { transform: scale(0.95); }
 
+/* ============================================
+   用户引导覆盖层 (v2.24.0)
+   ============================================ */
+#onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  pointer-events: none;
+}
+
+/* 高亮框 — 使用 fixed 定位避免被遮挡 */
+.onboarding-highlight {
+  position: fixed;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  z-index: 100000;
+}
+
+/* 高亮框脉冲动画（等待操作时） */
+.onboarding-highlight-pulse {
+  animation: onboarding-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes onboarding-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 0 4px rgba(0, 122, 255, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 0 12px rgba(0, 122, 255, 0.2);
+  }
+}
+
+/* 高亮框成功状态（操作完成时） */
+.onboarding-highlight-success {
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 0 8px rgba(52, 199, 89, 0.5) !important;
+  transition: all 0.3s ease;
+}
+
+/* 引导激活时，时间选择器弹窗需要显示在引导层之上 */
+body:has(#onboarding-overlay) .datetime-popover.open {
+  z-index: 100003 !important;
+}
+
+/* 辅助高亮框（关联操作） */
+.onboarding-highlight-secondary {
+  position: fixed;
+  border-radius: 8px;
+  border: 3px dashed rgba(0, 122, 255, 0.7);
+  pointer-events: none;
+  z-index: 100001;
+  animation: onboarding-pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes onboarding-pulse-border {
+  0%, 100% { border-color: rgba(0, 122, 255, 0.7); }
+  50% { border-color: rgba(0, 122, 255, 0.3); }
+}
+
+/* 说明卡片 - 使用 fixed 定位避免被遮挡，增强视觉层次 */
+.onboarding-card {
+  position: fixed;
+  width: 300px;
+  padding: 20px 22px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 16px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(0, 122, 255, 0.3);
+  pointer-events: auto;
+  z-index: 100002;
+  animation: onboarding-card-in 0.3s ease;
+}
+
+@keyframes onboarding-card-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 居中卡片（无高亮元素时使用） */
+.onboarding-card-centered {
+  top: 50% !important;
+  left: 50% !important;
+  bottom: auto !important;
+  right: auto !important;
+  transform: translate(-50%, -50%) !important;
+  position: fixed !important;
+}
+
+/* 步骤徽章 */
+.onboarding-step-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #007aff;
+  background: rgba(0, 122, 255, 0.1);
+  border-radius: 999px;
+}
+
+/* 卡片标题 */
+.onboarding-card-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+/* 卡片说明 */
+.onboarding-card-desc {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #6e6e73;
+  white-space: pre-line;
+}
+
+/* 交互状态提示 */
+.onboarding-card-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 8px 12px;
+  background: rgba(0, 122, 255, 0.1);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #007aff;
+  transition: all 0.3s ease;
+}
+
+.onboarding-card-status.completed {
+  background: rgba(52, 199, 89, 0.1);
+  color: #34c759;
+}
+
+.onboarding-status-icon {
+  font-size: 16px;
+}
+
+/* 底部 */
+.onboarding-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+/* 进度点 */
+.onboarding-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.onboarding-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d1d1d6;
+  transition: all 0.3s ease;
+}
+
+.onboarding-dot.active {
+  background: #007aff;
+  width: 18px;
+  border-radius: 3px;
+}
+
+.onboarding-dot.completed {
+  background: #34c759;
+}
+
+/* 按钮组 */
+.onboarding-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.onboarding-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.onboarding-btn-skip {
+  background: transparent;
+  color: #8e8e93;
+}
+.onboarding-btn-skip:hover {
+  background: #f2f2f7;
+  color: #636366;
+}
+
+.onboarding-btn-next {
+  background: #007aff;
+  color: #fff;
+}
+.onboarding-btn-next:hover {
+  background: #0066d6;
+}
+.onboarding-btn-next:active {
+  transform: scale(0.96);
+}
+
 /* 窄屏适配 */
 @media (max-width: 480px) {
   .guide-fab,

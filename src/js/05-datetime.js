@@ -383,39 +383,10 @@ const datetimePickerModule = (function () {
     }
   }
 
-  // 静默清除（不触发 toggle 事件）
+  // 静默清除（不触发 toggle 事件、不关闭弹窗）
+  // 合并自原 clearAllSilent，通过参数控制是否关闭弹窗
   function clearAllSilent() {
-    currentDate = null;
-    currentHour = 8;
-    currentMinute = 0;
-    currentEndDate = null;
-    currentEndHour = 9;
-    currentEndMinute = 0;
-    endRemindBefore = 0;
-    currentRecurrence = null;
-    activeDatePreset = null;
-    activeTimePreset = null;
-    activeCyclePreset = null;
-    datetimeDisplay.textContent = '选择提醒时间（可选）';
-    datetimeDisplay.classList.add('placeholder');
-    if (datePresetRow) datePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
-    if (timePresetRow) timePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
-    if (cyclePresetRow) cyclePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
-    if (cycleToggle) cycleToggle.checked = false;
-    if (cycleOptions) cycleOptions.style.display = 'none';
-    if (customCycle) customCycle.style.display = 'none';
-    if (cycleCountInput) cycleCountInput.value = '';
-    if (hourInput) hourInput.value = '';
-    if (minuteInput) minuteInput.value = '';
-    if (monthInput) monthInput.value = '';
-    if (dayInput) dayInput.value = '';
-    if (startToggle) startToggle.checked = false;
-    if (startOptions) startOptions.style.display = 'none';
-    if (endToggle) endToggle.checked = false;
-    if (endOptions) endOptions.style.display = 'none';
-    if (beforeToggle) beforeToggle.checked = false;
-    if (beforeOptions) beforeOptions.style.display = 'none';
-    if (beforeInput) beforeInput.value = '';
+    _resetAllState();
   }
 
   // 根据锚点元素定位弹窗（智能避让屏幕边缘，超出时滚动）
@@ -512,8 +483,8 @@ const datetimePickerModule = (function () {
     activeCyclePreset = preset;
   }
 
-  // 清除所有选择
-  function clearAll() {
+  // 内部共享：重置所有状态（clearAll 和 clearAllSilent 共用）
+  function _resetAllState() {
     currentDate = null;
     currentHour = 8;
     currentMinute = 0;
@@ -528,14 +499,14 @@ const datetimePickerModule = (function () {
     datetimeDisplay.textContent = '选择提醒时间（可选）';
     datetimeDisplay.classList.add('placeholder');
     // 清除预设高亮
-    datePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
-    timePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
-    cyclePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+    if (datePresetRow) datePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+    if (timePresetRow) timePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
+    if (cyclePresetRow) cyclePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
     // 重置循环
-    cycleToggle.checked = false;
-    cycleOptions.style.display = 'none';
-    customCycle.style.display = 'none';
-    if (cycleCountInput) cycleCountInput.value = ''; // 清空循环次数
+    if (cycleToggle) cycleToggle.checked = false;
+    if (cycleOptions) cycleOptions.style.display = 'none';
+    if (customCycle) customCycle.style.display = 'none';
+    if (cycleCountInput) cycleCountInput.value = '';
     if (hourSelect) hourSelect.value = '08';
     if (minuteSelect) minuteSelect.value = '00';
     if (hourInput) hourInput.value = '';
@@ -556,11 +527,11 @@ const datetimePickerModule = (function () {
     if (beforeToggle) beforeToggle.checked = false;
     if (beforeOptions) beforeOptions.style.display = 'none';
     if (beforeInput) beforeInput.value = '';
-    currentHour = 8;
-    currentMinute = 0;
-    currentEndHour = 9;
-    currentEndMinute = 0;
-    endRemindBefore = 0;
+  }
+
+  // 清除所有选择（关闭弹窗）
+  function clearAll() {
+    _resetAllState();
     close();
   }
 

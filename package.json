@@ -1,6 +1,6 @@
 {
   "name": "todo-list",
-  "version": "2.22.0",
+  "version": "2.23.0",
   "description": "待办事项清单（Stitch 桌宠版）- Electron 桌面应用",
   "main": "electron/main.js",
   "author": "LiuJy",
@@ -49,7 +49,9 @@
           ]
         }
       ],
-      "icon": "electron/icon.png"
+      "icon": "electron/icon.png",
+      "publisherName": "LiuJy",
+      "requestedExecutionLevel": "asInvoker"
     },
     "mac": {
       "target": "dmg",
@@ -62,11 +64,19 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "待办事项清单",
-      "include": "electron/installer.nsh"
+      "include": "electron/installer.nsh",
+      "differentialPackage": true
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.exe"
-    }
+    },
+    "electronDownload": {
+      "mirror": "https://registry.npmmirror.com/-/binary/electron/"
+    },
+    "compression": "maximum",
+    "removePackageScripts": true,
+    "nodeGypRebuild": false,
+    "buildDependenciesFromSource": false
   },
   "allowScripts": {
     "electron@31.7.7": true

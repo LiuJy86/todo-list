@@ -266,9 +266,12 @@ function updateShortcut(action, newShortcut) {
  * @param {Object} todo - 待办事项数据 { id, text, notes, priority }
  */
 function createReminderWindow(todo) {
-  // 如果提醒窗口已存在，先关闭旧的
-  if (reminderWindow) {
-    reminderWindow.destroy();
+  // 如果提醒窗口已存在，先安全关闭旧的
+  if (reminderWindow && !reminderWindow.isDestroyed()) {
+    reminderWindow.close();  // close 触发 closed 事件，自动清理引用
+    // 注意：不需要手动设 null，closed 事件回调会处理
+  } else if (reminderWindow) {
+    // 窗口已销毁但引用未清理，手动清空
     reminderWindow = null;
   }
 
@@ -634,7 +637,7 @@ ipcMain.on('exit-sticky-mode', function () {
 // 从操作指南页面返回主页面
 ipcMain.on('load-main-page', function () {
   if (mainWindow) {
-    mainWindow.loadFile('src/index.html');
+    mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
   }
 });
 

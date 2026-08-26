@@ -367,7 +367,7 @@ function wrappedAddTodo() {
       }
       // 同步到日期选择器显示
       if (window.datetimePickerModule) {
-        window.datetimePickerModule.syncFromTimestamp(remindAt, null, parsed.endRemindAt, parsed.endRemindBefore);
+        window.datetimePickerModule.syncFromTimestamp(remindAt, null, null, 0);
       }
     }
   }
@@ -551,3 +551,5 @@ if (window.electronAPI && window.electronAPI.onCompleteTodo) {
     }
   });
 }
+
+// 【v2.24.0】用户引导由 08-onboarding.js 自动启动

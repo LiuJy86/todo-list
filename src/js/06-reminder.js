@@ -883,7 +883,6 @@
   // reminderItem: { type, at, reminded }
   function scheduleSingleReminder(todo, reminderItem) {
     if (!reminderItem || !reminderItem.at || todo.done) return;
-    if (reminderItem.reminded) return;
 
     // 循环提醒的 start 类型：允许重新调度（advanceCycle 会重置 reminded）
     const isCycleStart = reminderItem.type === 'start' && todo.recurrence && todo.recurrence.enabled;
@@ -930,8 +929,9 @@
       window.electronAPI.cancelReminderWindow(id);
     }
 
-    if (!Array.isArray(todos.find(function (t) { return t.id === id; }) || {}).reminders) {
-      // 兼容：直接清除可能存在的定时器
+    var todo = todos.find(function (t) { return t.id === id; });
+    if (!todo || !Array.isArray(todo.reminders)) {
+      // 事项不存在或没有 reminders 数组：直接清除所有匹配的定时器
       var keys = [];
       reminderTimers.forEach(function (v, k) {
         if (k.indexOf(id + ':') === 0) keys.push(k);
@@ -942,7 +942,6 @@
       });
       return;
     }
-    var todo = todos.find(function (t) { return t.id === id; });
     todo.reminders.forEach(function (r) {
       const key = id + ':' + r.type;
       const t = reminderTimers.get(key);
@@ -1003,7 +1002,7 @@
     reminderTimers.delete(todo.id + ':' + type);
 
     // 6) 【v2.22.0】弹出史迪仔桌面提醒窗口（独立透明窗口）
-    if (window.electronAPI && window.electronAPI.snoozeReminder) {
+    if (window.electronAPI && window.electronAPI.setReminderWindow) {
       // 构造兼容的待办对象传递给主进程
       var windowTodo = {
         id: todo.id,
@@ -1126,6 +1125,8 @@
 
   // 同时暴露日期选择器模块
   window.datetimePickerModule = {
+    open: datetimePickerModule.open,
+    close: datetimePickerModule.close,
     getTimestamp: datetimePickerModule.getTimestamp,
     getEndTimestamp: datetimePickerModule.getEndTimestamp,
     getEndRemindBefore: datetimePickerModule.getEndRemindBefore,

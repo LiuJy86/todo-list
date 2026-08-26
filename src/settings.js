@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initShortcutInputs();
   initUpdateSection();
   initAboutSection();
+  initOnboardingReset();
 });
 
 // ============================================
@@ -314,6 +315,23 @@ function initAboutSection() {
       window.electronAPI.openExternal('https://github.com/LiuJy86/todo-list');
     } else {
       window.open('https://github.com/LiuJy86/todo-list', '_blank');
+    }
+  });
+}
+
+// ============================================
+// 【v2.24.0】用户引导 - 重新查看
+// ============================================
+function initOnboardingReset() {
+  const btn = document.getElementById('resetOnboardingBtn');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    if (window.Onboarding) {
+      window.Onboarding.reset();
+    } else {
+      // 兜底：直接清除标记并刷新
+      localStorage.removeItem('onboarding_done');
+      location.reload();
     }
   });
 }
