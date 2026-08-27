@@ -5,7 +5,7 @@
    - 滚轮选择器、时间预设、结束时间、结束前提醒
    ============================================ */
 
-/* ===== 输入区 — Apple 风格 ===== */
+/* ===== 输入区 — Apple 风格（三层层次：卡片 > 输入框 > 按钮） ===== */
 .input-area {
   display: flex;
   gap: var(--spacing-sm);
@@ -23,16 +23,19 @@
   z-index: var(--z-popover);
 }
 
+/* 输入框 — 白底微浮起，与任务管理统一 */
 #todoInput {
-  flex: 1 1 100%;  /* 占满第一行 */
-  padding: var(--spacing-md) var(--spacing-lg);
-  font-size: 16px;
+  flex: 1 1 100%;
+  padding: 10px var(--spacing-md);
+  font-size: 15px;
   color: var(--text-primary);
-  background: var(--bg-primary);
-  border: 1.5px solid transparent;
-  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-sm);
   outline: none;
-  transition: all var(--transition-smooth);
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 #todoInput::placeholder {
@@ -40,47 +43,55 @@
 }
 
 #todoInput:focus {
-  background: var(--bg-secondary);
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 4px var(--accent-light);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 0 0 3px var(--accent-light);
 }
 
 /* 日期时间选择器 */
 .datetime-picker {
   position: relative;
   flex: 0 1 auto;
-  min-width: 180px;
-  max-width: 300px;
+  min-width: 160px;
+  max-width: 280px;
 }
 
+/* 任务管理触发器 — 与输入框统一白底微浮起 */
 .datetime-trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-sm);
-  font-size: 14px;
-  color: var(--text-primary);
-  background: var(--bg-primary);
-  border: 1.5px solid transparent;
-  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-sm);
   outline: none;
-  transition: all var(--transition-smooth);
+  transition: all var(--transition-fast);
   cursor: pointer;
   font-family: inherit;
-  min-width: 180px;
-  max-width: 300px;
+  min-width: 160px;
+  max-width: 280px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .datetime-trigger:hover {
-  background: var(--bg-secondary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.datetime-trigger:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .datetime-trigger.active,
 .datetime-trigger:focus {
-  background: var(--bg-secondary);
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 4px var(--accent-light);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 0 0 3px var(--accent-light);
+  color: var(--accent-color);
 }
 
 .datetime-display {

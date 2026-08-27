@@ -264,7 +264,7 @@ const datetimePickerModule = (function () {
   }
 
   function formatDisplayText() {
-    if (!currentDate) return '选择提醒时间（可选）';
+    if (!currentDate) return '任务管理（可选）';
     const d = new Date(currentDate);
     const hh = String(currentHour).padStart(2, '0');
     const mm = String(currentMinute).padStart(2, '0');
@@ -298,7 +298,8 @@ const datetimePickerModule = (function () {
   function formatRecurrenceShort(r) {
     if (!r || !r.enabled) return '';
     const unitMap = { minute: '分钟', hour: '小时', day: '天', week: '周' };
-    let text = '每' + r.interval + unitMap[r.unit];
+    const unitLabel = unitMap[r.unit] || r.unit || '未知';
+    let text = '每' + r.interval + unitLabel;
     // 有目标次数时追加显示（如 "每30分钟 ×8次"）
     if (r.targetCount && r.targetCount > 0) {
       text += ' ×' + r.targetCount + '次';
@@ -309,7 +310,8 @@ const datetimePickerModule = (function () {
   function formatRecurrenceLong(r) {
     if (!r || !r.enabled) return '';
     const unitMap = { minute: '分钟', hour: '小时', day: '天', week: '周' };
-    return '每 ' + r.interval + ' ' + unitMap[r.unit] + '循环';
+    const unitLabel = unitMap[r.unit] || r.unit || '未知';
+    return '每 ' + r.interval + ' ' + unitLabel + '循环';
   }
 
   // 获取当前选中的完整时间戳
@@ -362,16 +364,28 @@ const datetimePickerModule = (function () {
   function editTime(options) {
     const { startTimestamp, endTimestamp, beforeMinutes, recurrence, onConfirm, onCancel, anchor } = options || {};
 
+    // 保存当前任务管理状态，编辑结束后恢复，确保任务管理输入框不受影响
+    const savedState = captureState();
+
     // 重置状态（不触发事件，避免 clearAll 中的 toggle 变化干扰）
     clearAllSilent();
 
-    // 填充现有时间
+    // 填充现有时间（silent=true，不更新"任务管理"显示文本，避免与待办编辑状态耦合）
     if (startTimestamp || endTimestamp) {
-      syncFromTimestamp(startTimestamp || null, recurrence || null, endTimestamp || null, beforeMinutes || 0);
+      syncFromTimestamp(startTimestamp || null, recurrence || null, endTimestamp || null, beforeMinutes || 0, true);
     }
 
-    // 存储回调
-    editModeCallback = { onConfirm, onCancel };
+    // 存储回调（包装 onConfirm/onCancel，在结束时恢复任务管理状态）
+    editModeCallback = {
+      onConfirm: function (newStart, newEnd, newBefore, newRecurrence) {
+        restoreState(savedState);
+        if (onConfirm) onConfirm(newStart, newEnd, newBefore, newRecurrence);
+      },
+      onCancel: function () {
+        restoreState(savedState);
+        if (onCancel) onCancel();
+      }
+    };
 
     // 打开弹窗
     datetimePopover.classList.add('open');
@@ -380,6 +394,107 @@ const datetimePickerModule = (function () {
     // 根据锚点元素定位弹窗（如徽章/时间轴）
     if (anchor) {
       positionPopover(anchor);
+    }
+  }
+
+  // 捕获当前任务管理完整状态（用于编辑后恢复）
+  function captureState() {
+    return {
+      currentDate: currentDate ? new Date(currentDate) : null,
+      currentHour: currentHour,
+      currentMinute: currentMinute,
+      currentEndDate: currentEndDate ? new Date(currentEndDate) : null,
+      currentEndHour: currentEndHour,
+      currentEndMinute: currentEndMinute,
+      endRemindBefore: endRemindBefore,
+      currentRecurrence: currentRecurrence ? JSON.parse(JSON.stringify(currentRecurrence)) : null,
+      activeDatePreset: activeDatePreset,
+      activeTimePreset: activeTimePreset,
+      activeCyclePreset: activeCyclePreset,
+      // 输入框值
+      hourInput: hourInput ? hourInput.value : '',
+      minuteInput: minuteInput ? minuteInput.value : '',
+      monthInput: monthInput ? monthInput.value : '',
+      dayInput: dayInput ? dayInput.value : '',
+      endMonthInput: endMonthInput ? endMonthInput.value : '',
+      endDayInput: endDayInput ? endDayInput.value : '',
+      endHourInput: endHourInput ? endHourInput.value : '',
+      endMinuteInput: endMinuteInput ? endMinuteInput.value : '',
+      beforeInput: beforeInput ? beforeInput.value : '',
+      cycleCountInput: cycleCountInput ? cycleCountInput.value : '',
+      cycleValueInput: cycleValueInput ? cycleValueInput.value : '',
+      cycleUnitSelect: cycleUnitSelect ? cycleUnitSelect.value : 'minute',
+      // Toggle 状态
+      startToggle: startToggle ? startToggle.checked : false,
+      endToggle: endToggle ? endToggle.checked : false,
+      beforeToggle: beforeToggle ? beforeToggle.checked : false,
+      cycleToggle: cycleToggle ? cycleToggle.checked : false,
+      // 显示文本
+      displayText: datetimeDisplay.textContent,
+      displayPlaceholder: datetimeDisplay.classList.contains('placeholder')
+    };
+  }
+
+  // 恢复任务管理状态（编辑待办时间后调用，确保任务管理输入框不变）
+  function restoreState(s) {
+    if (!s) return;
+    currentDate = s.currentDate ? new Date(s.currentDate) : null;
+    currentHour = s.currentHour;
+    currentMinute = s.currentMinute;
+    currentEndDate = s.currentEndDate ? new Date(s.currentEndDate) : null;
+    currentEndHour = s.currentEndHour;
+    currentEndMinute = s.currentEndMinute;
+    endRemindBefore = s.endRemindBefore;
+    currentRecurrence = s.currentRecurrence ? JSON.parse(JSON.stringify(s.currentRecurrence)) : null;
+    activeDatePreset = s.activeDatePreset;
+    activeTimePreset = s.activeTimePreset;
+    activeCyclePreset = s.activeCyclePreset;
+    // 恢复输入框
+    if (hourInput) hourInput.value = s.hourInput;
+    if (minuteInput) minuteInput.value = s.minuteInput;
+    if (monthInput) monthInput.value = s.monthInput;
+    if (dayInput) dayInput.value = s.dayInput;
+    if (endMonthInput) endMonthInput.value = s.endMonthInput;
+    if (endDayInput) endDayInput.value = s.endDayInput;
+    if (endHourInput) endHourInput.value = s.endHourInput;
+    if (endMinuteInput) endMinuteInput.value = s.endMinuteInput;
+    if (beforeInput) beforeInput.value = s.beforeInput;
+    if (cycleCountInput) cycleCountInput.value = s.cycleCountInput;
+    if (cycleValueInput) cycleValueInput.value = s.cycleValueInput;
+    if (cycleUnitSelect) cycleUnitSelect.value = s.cycleUnitSelect;
+    // 恢复 Toggle
+    if (startToggle) startToggle.checked = s.startToggle;
+    if (endToggle) endToggle.checked = s.endToggle;
+    if (beforeToggle) beforeToggle.checked = s.beforeToggle;
+    if (cycleToggle) cycleToggle.checked = s.cycleToggle;
+    // 恢复区域显示
+    if (startOptions) startOptions.style.display = s.startToggle ? 'block' : 'none';
+    if (endOptions) endOptions.style.display = s.endToggle ? 'block' : 'none';
+    if (beforeOptions) beforeOptions.style.display = s.beforeToggle ? 'block' : 'none';
+    if (cycleOptions) cycleOptions.style.display = s.cycleToggle ? 'block' : 'none';
+    if (customCycle) customCycle.style.display = (s.activeCyclePreset === 'custom') ? 'flex' : 'none';
+    // 恢复预设高亮
+    if (datePresetRow) {
+      datePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.date === s.activeDatePreset);
+      });
+    }
+    if (timePresetRow) {
+      timePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.time === s.activeTimePreset);
+      });
+    }
+    if (cyclePresetRow) {
+      cyclePresetRow.querySelectorAll('.dp-preset').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.cycle === s.activeCyclePreset);
+      });
+    }
+    // 恢复显示文本
+    datetimeDisplay.textContent = s.displayText;
+    if (s.displayPlaceholder) {
+      datetimeDisplay.classList.add('placeholder');
+    } else {
+      datetimeDisplay.classList.remove('placeholder');
     }
   }
 
@@ -496,7 +611,7 @@ const datetimePickerModule = (function () {
     activeDatePreset = null;
     activeTimePreset = null;
     activeCyclePreset = null;
-    datetimeDisplay.textContent = '选择提醒时间（可选）';
+    datetimeDisplay.textContent = '任务管理（可选）';
     datetimeDisplay.classList.add('placeholder');
     // 清除预设高亮
     if (datePresetRow) datePresetRow.querySelectorAll('.dp-preset.active').forEach(b => b.classList.remove('active'));
@@ -536,7 +651,8 @@ const datetimePickerModule = (function () {
   }
 
   // 同步值到显示（在自然语言解析成功后调用）
-  function syncFromTimestamp(timestamp, recurrence, endTimestamp, beforeMinutes) {
+  // silent=true 时只更新选择器内部状态，不刷新"任务管理"触发器显示文本（编辑待办时间场景）
+  function syncFromTimestamp(timestamp, recurrence, endTimestamp, beforeMinutes, silent) {
     if (timestamp) {
       const d = new Date(timestamp);
       currentDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -567,12 +683,18 @@ const datetimePickerModule = (function () {
       if (beforeToggle) beforeToggle.checked = true;
       if (beforeOptions) beforeOptions.style.display = 'block';
     }
+    // 始终同步循环设置（包括设为 null 的情况，避免残留旧的循环状态）
+    currentRecurrence = recurrence || null;
     if (recurrence) {
-      currentRecurrence = recurrence;
       cycleToggle.checked = true;
       cycleOptions.style.display = 'block';
+    } else {
+      cycleToggle.checked = false;
+      cycleOptions.style.display = 'none';
     }
-    updateDisplay();
+    if (!silent) {
+      updateDisplay();
+    }
   }
 
   function updateDisplay() {

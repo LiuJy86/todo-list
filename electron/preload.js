@@ -2,10 +2,15 @@
 // 在渲染进程加载前运行，安全地向页面暴露有限的 Electron API
 const { contextBridge, ipcRenderer } = require('electron');
 
+// 跟踪已注册的监听器，防止重复注册
+const registeredListeners = new Set();
+
 // 通过 contextBridge 向页面暴露安全的 API
 contextBridge.exposeInMainWorld('electronAPI', {
   // 监听便签模式切换
   onStickyMode: function (callback) {
+    if (registeredListeners.has('sticky-mode')) return;
+    registeredListeners.add('sticky-mode');
     ipcRenderer.on('sticky-mode', function (event, enabled) {
       callback(enabled);
     });
@@ -16,6 +21,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   // 监听置顶状态变化
   onAlwaysOnTop: function (callback) {
+    if (registeredListeners.has('always-on-top-changed')) return;
+    registeredListeners.add('always-on-top-changed');
     ipcRenderer.on('always-on-top-changed', function (event, isEnabled) {
       callback(isEnabled);
     });
@@ -91,6 +98,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 监听提醒触发（主进程 → 渲染进程）
   onReminderTriggered: function (callback) {
+    if (registeredListeners.has('reminder-triggered')) return;
+    registeredListeners.add('reminder-triggered');
     ipcRenderer.on('reminder-triggered', function (event, todoId) {
       callback(todoId);
     });
@@ -98,6 +107,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 监听完成待办请求（从提醒窗口 → 主窗口）
   onCompleteTodo: function (callback) {
+    if (registeredListeners.has('complete-todo')) return;
+    registeredListeners.add('complete-todo');
     ipcRenderer.on('complete-todo', function (event, todoId) {
       callback(todoId);
     });
@@ -106,5 +117,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 加载主页面（从操作指南返回）
   loadMainPage: function () {
     ipcRenderer.send('load-main-page');
+  },
+  // 关闭窗口（隐藏到后台，程序继续运行）
+  hideWindow: function () {
+    ipcRenderer.send('hide-window');
   }
 });

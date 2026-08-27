@@ -71,7 +71,7 @@ header {
 /* 便签模式：main 区域过渡效果 */
 .sticky-mode main {
   transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease;
-  max-height: 1000px;
+  max-height: 1200px;
   opacity: 1;
   overflow: hidden;
 }
@@ -206,7 +206,7 @@ body.sticky-mode {
 }
 
 .sticky-mode.is-overflow .list-area {
-  max-height: 500px;
+  max-height: 80vh;
   overflow-y: auto;
 }
 
@@ -220,6 +220,7 @@ body.sticky-mode {
 .sticky-mode #stickyAddToggleBtn {
   display: inline-flex !important;
 }
+
 
 /* ===== 便签模式展开的输入区 ===== */
 .sticky-input-area {

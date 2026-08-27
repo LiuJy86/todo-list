@@ -191,6 +191,9 @@ function adjustStickyWindowHeight() {
   if (stickyCollapsed) return;
   if (!window.electronAPI || !window.electronAPI.resizeWindow) return;
 
+  // 引导正在显示时不调整窗口大小，避免与引导的 resize 产生竞争
+  if (window.Guide && window.Guide.isActive && window.Guide.isActive()) return;
+
   // 双重 requestAnimationFrame：等浏览器完成样式计算和布局后再测量
   requestAnimationFrame(function () {
     requestAnimationFrame(function () {
@@ -205,8 +208,11 @@ function adjustStickyWindowHeight() {
       // 总高度 = header + main（已含 padding），再加少量呼吸空间
       const contentHeight = headerHeight + mainHeight + STICKY_BREATH_SPACE;
 
+      // 最大高度根据屏幕可用空间动态计算
+      const stickyMaxH = getStickyMaxHeight();
+
       // 计算目标高度，设置上下限
-      const rawHeight = Math.max(STICKY_MIN_HEIGHT, Math.min(STICKY_MAX_HEIGHT, contentHeight));
+      const rawHeight = Math.max(STICKY_MIN_HEIGHT, Math.min(stickyMaxH, contentHeight));
 
       // 取整到整数像素，避免亚像素渲染导致的微小差异
       const targetHeight = Math.round(rawHeight);
@@ -217,14 +223,14 @@ function adjustStickyWindowHeight() {
       // 如果高度变化小于阈值，不调整（防止窗口持续微小变化）
       if (lastAppliedHeight > 0 && Math.abs(targetHeight - lastAppliedHeight) < STICKY_HEIGHT_THRESHOLD) {
         // 但仍需检查是否溢出（内容动态变化时）
-        const isOverflow = contentHeight > STICKY_MAX_HEIGHT;
+        const isOverflow = contentHeight > stickyMaxH;
         const hasClass = document.body.classList.contains('is-overflow');
         if (isOverflow === hasClass) return; // 状态没变，跳过
       }
       lastAppliedHeight = targetHeight;
 
       // 内容超出最大高度时，添加 is-overflow 类启用列表区域滚动
-      if (contentHeight > STICKY_MAX_HEIGHT) {
+      if (contentHeight > stickyMaxH) {
         document.body.classList.add('is-overflow');
       } else {
         document.body.classList.remove('is-overflow');
@@ -232,6 +238,66 @@ function adjustStickyWindowHeight() {
 
       window.electronAPI.resizeWindow(fixedWidth, targetHeight);
     });
+  });
+}
+
+
+// ---------- 4.0 编辑时间回调（共享函数，消除重复） ----------
+
+/**
+ * 处理编辑时间的确认回调
+ * @param {Object} todo - 待办事项对象
+ * @param {Function} onComplete - 完成后的额外回调（可选）
+ * @returns {Function} onConfirm 回调函数
+ */
+function createEditTimeHandler(todo, onComplete) {
+  return function (newStart, newEnd, newBefore, newRecurrence) {
+    const nowTs = Date.now();
+    const startR = getReminder(todo, 'start');
+    const endR = getReminder(todo, 'end');
+    // 更新开始时间
+    if (startR) { startR.at = newStart; startR.reminded = newStart <= nowTs; }
+    else if (newStart) { todo.reminders.push({ type: 'start', at: newStart, reminded: newStart <= nowTs }); }
+    // 更新结束时间
+    if (endR && newEnd) { endR.at = newEnd; endR.reminded = newEnd <= nowTs; }
+    else if (endR && !newEnd) { todo.reminders = todo.reminders.filter(function (x) { return x.type !== 'end'; }); }
+    else if (newEnd) { todo.reminders.push({ type: 'end', at: newEnd, reminded: newEnd <= nowTs }); }
+    // 更新结束前提醒
+    todo.reminders = todo.reminders.filter(function (x) { return x.type !== 'before'; });
+    if (newEnd && newBefore > 0) {
+      const beforeAt = newEnd - newBefore * 60000;
+      todo.reminders.push({ type: 'before', at: beforeAt, reminded: beforeAt <= nowTs });
+    }
+    // 更新循环设置
+    todo.recurrence = newRecurrence || null;
+    if (onComplete) onComplete();
+    save();
+    render();
+  };
+}
+
+/**
+ * 打开时间编辑器（共享逻辑）
+ * @param {Object} todo - 待办事项对象
+ * @param {HTMLElement} anchor - 锚点元素
+ */
+function openDateTimeEditor(todo, anchor) {
+  if (todo.done) return;
+  if (!window.datetimePickerModule) return;
+  const startAt = getReminderAt(todo, 'start');
+  const endAt = getReminderAt(todo, 'end');
+  const beforeMin = (function () {
+    const r = getReminder(todo, 'before');
+    return r ? Math.round((endAt - r.at) / 60000) : 0;
+  })();
+  window.datetimePickerModule.editTime({
+    startTimestamp: startAt,
+    endTimestamp: endAt,
+    beforeMinutes: beforeMin,
+    recurrence: todo.recurrence,
+    anchor: anchor,
+    onConfirm: createEditTimeHandler(todo),
+    onCancel: function () {}
   });
 }
 
@@ -362,7 +428,8 @@ function createTodoElement(todo) {
   }
   if (todo.recurrence && todo.recurrence.enabled) {
     const unitMap = { minute: '分钟', hour: '小时', day: '天', week: '周' };
-    let cycleText = '🔄 循环：每 ' + todo.recurrence.interval + ' ' + unitMap[todo.recurrence.unit];
+    const unitLabel = unitMap[todo.recurrence.unit] || todo.recurrence.unit || '未知';
+    let cycleText = '🔄 循环：每 ' + todo.recurrence.interval + ' ' + unitLabel;
     // 有目标次数时，在循环信息后追加次数进度（targetCount 统一存在 recurrence 内）
     const recurrenceTarget = todo.recurrence && todo.recurrence.targetCount;
     if (recurrenceTarget && recurrenceTarget > 0) {
@@ -398,62 +465,11 @@ function createTodoElement(todo) {
       badge.addEventListener('click', function (e) {
         e.stopPropagation();
         e.preventDefault();
-        if (todo.done) return; // 已完成事项不允许编辑
-        if (!window.datetimePickerModule) return;
-        const startAt = getReminderAt(todo, 'start');
-        const endAt = getReminderAt(todo, 'end');
-        const beforeMin = (function () {
-          const r = getReminder(todo, 'before');
-          return r ? Math.round((endAt - r.at) / 60000) : 0;
-        })();
-        window.datetimePickerModule.editTime({
-          startTimestamp: startAt,
-          endTimestamp: endAt,
-          beforeMinutes: beforeMin,
-          recurrence: todo.recurrence,
-          anchor: badge,
-          onConfirm: function (newStart, newEnd, newBefore, newRecurrence) {
-            console.log('[编辑时间] 原时间:', startAt, endAt, '新时间:', newStart, newEnd, newBefore);
-            // 更新提醒时间
-            if (startAt) {
-              const r = getReminder(todo, 'start');
-              if (r) r.at = newStart;
-            } else if (newStart) {
-              todo.reminders.push({ type: 'start', at: newStart, reminded: false });
-            }
-            // 更新结束时间
-            if (endAt) {
-              const r = getReminder(todo, 'end');
-              if (r && newEnd) {
-                r.at = newEnd;
-              } else if (r && !newEnd) {
-                todo.reminders = todo.reminders.filter(function (x) { return x.type !== 'end'; });
-              }
-            } else if (newEnd) {
-              todo.reminders.push({ type: 'end', at: newEnd, reminded: false });
-            }
-            // 更新结束前提醒
-            todo.reminders = todo.reminders.filter(function (x) { return x.type !== 'before'; });
-            if (newEnd && newBefore > 0) {
-              todo.reminders.push({ type: 'before', at: newEnd - newBefore * 60000, reminded: false });
-            }
-            // 更新循环设置
-            todo.recurrence = newRecurrence || null;
-            console.log('[编辑时间] 更新后:', JSON.stringify(todo.reminders));
-            save();
-            render();
-          },
-          onCancel: function () { /* 取消不做任何事 */ }
-        });
+        openDateTimeEditor(todo, badge);
       });
       // 提示可编辑
       badge.title = '双击修改时间';
       li.appendChild(badge);
-
-      // 循环徽章装饰
-      if (isCycle) {
-        badge.classList.add('reminder-badge-cycle');
-      }
     }
 
     // 循环完成次数小徽章（有目标次数时显示 "×2/8"，无目标时显示 "×2"）
@@ -500,13 +516,13 @@ function createTodoElement(todo) {
       timelineEnd.className = 'todo-timeline-dot end';
       const timelineLabel = document.createElement('span');
       timelineLabel.className = 'todo-timeline-label';
-      timelineLabel.textContent = formatTimeShort(startReminder.at) + ' - ' + formatTimeShort(endReminder.at);
+      timelineLabel.textContent = window.formatTimeShort(startReminder.at) + ' - ' + window.formatTimeShort(endReminder.at);
       timelineBar.appendChild(timelineStart);
       timelineBar.appendChild(timelineEnd);
       timeline.appendChild(timelineBar);
       timeline.appendChild(timelineLabel);
       // 悬浮显示完整时间信息（使用 JS 动态创建 tooltip，挂载到 body 避免被 overflow 裁剪）
-      const tooltipText = '📅 ' + formatReminderText(startReminder.at) + '\n🏁 ' + formatReminderText(endReminder.at);
+      const tooltipText = '📅 ' + window.formatReminderText(startReminder.at) + '\n🏁 ' + window.formatReminderText(endReminder.at);
       timeline.setAttribute('data-tooltip', tooltipText);
       timeline.classList.add('has-tooltip');
       attachTooltip(timeline, tooltipText);
@@ -515,37 +531,7 @@ function createTodoElement(todo) {
       timeline.addEventListener('click', function (e) {
         e.stopPropagation();
         e.preventDefault();
-        if (todo.done) return;
-        if (!window.datetimePickerModule) return;
-        const startAt = getReminderAt(todo, 'start');
-        const endAt = getReminderAt(todo, 'end');
-        const beforeMin = (function () {
-          const r = getReminder(todo, 'before');
-          return r ? Math.round((endAt - r.at) / 60000) : 0;
-        })();
-        window.datetimePickerModule.editTime({
-          startTimestamp: startAt,
-          endTimestamp: endAt,
-          beforeMinutes: beforeMin,
-          recurrence: todo.recurrence,
-          anchor: timeline,
-          onConfirm: function (newStart, newEnd, newBefore, newRecurrence) {
-            console.log('[时间轴编辑] 新时间:', newStart, newEnd, '原:', startAt, endAt);
-            const startR = getReminder(todo, 'start');
-            const endR = getReminder(todo, 'end');
-            if (startR) startR.at = newStart;
-            if (endR) endR.at = newEnd;
-            todo.reminders = todo.reminders.filter(function (x) { return x.type !== 'before'; });
-            if (newEnd && newBefore > 0) {
-              todo.reminders.push({ type: 'before', at: newEnd - newBefore * 60000, reminded: false });
-            }
-            todo.recurrence = newRecurrence || null;
-            console.log('[时间轴编辑] 更新后:', JSON.stringify(todo.reminders));
-            save();
-            render();
-          },
-          onCancel: function () {}
-        });
+        openDateTimeEditor(todo, timeline);
       });
       li.appendChild(timeline);
     }
@@ -681,62 +667,171 @@ function updateItemState(li, todo) {
   }
   // 刷新提醒徽章的文案与颜色（按距离提醒时间变色）
   updateReminderBadge(li, todo);
-  // 刷新时间轴标签（时间被修改后同步显示）
-  updateTimelineLabel(li, todo);
+  // 刷新时间轴（创建/移除/标签更新，根据开始+结束时间动态调整）
+  updateTimeline(li, todo);
+  // 刷新循环完成次数徽章（循环待办每次完成后同步更新 ×N 显示）
+  updateCompletionCountBadge(li, todo);
+  // 刷新循环徽章装饰与停止按钮（循环状态变化时增量更新 DOM）
+  updateCycleDecoration(li, todo);
 }
 
-// 更新时间轴标签文本
-function updateTimelineLabel(li, todo) {
-  const timeline = li.querySelector('.todo-timeline');
-  if (!timeline) return;
+// 刷新时间轴（根据开始+结束时间动态创建/移除/更新标签）
+function updateTimeline(li, todo) {
+  let timeline = li.querySelector('.todo-timeline');
   const startR = todo.reminders && todo.reminders.find(function (r) { return r.type === 'start'; });
   const endR = todo.reminders && todo.reminders.find(function (r) { return r.type === 'end'; });
-  if (!startR || !endR) return;
-  const label = timeline.querySelector('.todo-timeline-label');
-  if (label) {
-    label.textContent = formatTimeShort(startR.at) + ' - ' + formatTimeShort(endR.at);
+  const hasStart = !!startR;
+  const hasEnd = !!endR;
+  const deleteBtn = li.querySelector('.delete-btn');
+
+  // 有开始+结束时间 → 确保时间轴存在
+  if (hasStart && hasEnd) {
+    if (!timeline) {
+      // 创建时间轴
+      timeline = document.createElement('div');
+      timeline.className = 'todo-timeline';
+      const timelineBar = document.createElement('div');
+      timelineBar.className = 'todo-timeline-bar';
+      const timelineStart = document.createElement('span');
+      timelineStart.className = 'todo-timeline-dot start';
+      const timelineEnd = document.createElement('span');
+      timelineEnd.className = 'todo-timeline-dot end';
+      timelineBar.appendChild(timelineStart);
+      timelineBar.appendChild(timelineEnd);
+      timeline.appendChild(timelineBar);
+      const timelineLabel = document.createElement('span');
+      timelineLabel.className = 'todo-timeline-label';
+      timeline.appendChild(timelineLabel);
+      timeline.style.cursor = 'pointer';
+      // 单击时间轴修改时间
+      timeline.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        openDateTimeEditor(todo, timeline);
+      });
+      // 插入到删除按钮之前
+      li.insertBefore(timeline, deleteBtn);
+    }
+    // 更新标签文本
+    const label = timeline.querySelector('.todo-timeline-label');
+    if (label) {
+      label.textContent = window.formatTimeShort(startR.at) + ' - ' + window.formatTimeShort(endR.at);
+    }
+    // 更新 tooltip
+    const tooltipText = '📅 ' + window.formatReminderText(startR.at) + '\n🏁 ' + window.formatReminderText(endR.at);
+    timeline.setAttribute('data-tooltip', tooltipText);
+    timeline.classList.add('has-tooltip');
+    attachTooltip(timeline, tooltipText);
+  } else {
+    // 没有开始+结束时间 → 移除时间轴（如果有）
+    if (timeline) timeline.remove();
   }
-  // 更新 tooltip
-  const tooltipText = '📅 ' + formatReminderText(startR.at) + '\n🏁 ' + formatReminderText(endR.at);
-  timeline.setAttribute('data-tooltip', tooltipText);
-  attachTooltip(timeline, tooltipText);
 }
 
+// 刷新循环徽章装饰与停止按钮（循环状态变化时增量更新，避免重建整个节点）
+function updateCycleDecoration(li, todo) {
+  const isCycle = todo.recurrence && todo.recurrence.enabled;
+  const badge = li.querySelector('.reminder-badge');
+  const stopBtn = li.querySelector('.stop-cycle-btn');
+  const deleteBtn = li.querySelector('.delete-btn');
+
+  if (isCycle) {
+    // 循环状态：确保停止按钮存在
+    if (!stopBtn) {
+      const newStopBtn = document.createElement('button');
+      newStopBtn.className = 'stop-cycle-btn';
+      newStopBtn.textContent = '⏹';
+      newStopBtn.title = '停止循环提醒';
+      newStopBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        if (window.reminderModule) {
+          window.reminderModule.stopCycle(todo.id);
+        }
+      });
+      // 插入到删除按钮之前，保持正确顺序
+      li.insertBefore(newStopBtn, deleteBtn);
+    }
+  } else {
+    // 非循环状态：移除停止按钮
+    if (stopBtn) {
+      stopBtn.remove();
+    }
+  }
+}
+
+// 更新循环完成次数徽章（增量更新，避免重建 DOM）
+function updateCompletionCountBadge(li, todo) {
+  let countBadge = li.querySelector('.completion-count');
+  const isCycle = todo.recurrence && todo.recurrence.enabled;
+  const recurrenceTarget = todo.recurrence && todo.recurrence.targetCount;
+  const hasTarget = recurrenceTarget && recurrenceTarget > 0;
+
+  // 非循环、且无目标次数、且完成次数为 0 → 移除徽章
+  if (!isCycle || (!hasTarget && !todo.completionCount)) {
+    if (countBadge) countBadge.remove();
+    return;
+  }
+  // 循环且有目标次数或完成次数：创建或更新徽章
+  if (!countBadge) {
+    countBadge = document.createElement('span');
+    countBadge.className = 'completion-count';
+    // 插入到删除按钮之前，保持正确顺序
+    const deleteBtn = li.querySelector('.delete-btn');
+    li.insertBefore(countBadge, deleteBtn);
+  }
+  if (hasTarget) {
+    // 有目标次数：显示 "已完成/总次数"（如 ×0/8）
+    countBadge.textContent = '×' + (todo.completionCount || 0) + '/' + recurrenceTarget;
+  } else {
+    // 无目标次数：只显示完成数
+    countBadge.textContent = '×' + todo.completionCount;
+  }
+}
 
 // ---------- 4.3 提醒徽章刷新 ----------
-
-// 时间戳格式化为"8月15日 08:00"样式，便于用户阅读
-function formatReminderText(ts) {
-  const d = new Date(ts);
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return m + '月' + day + '日 ' + hh + ':' + mm;
-}
-
-// 时间戳格式化为简短"09:00"样式（用于时间轴）
-function formatTimeShort(ts) {
-  const d = new Date(ts);
-  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-}
+// 时间格式化函数已提取到 01-data.js 的全局工具函数中
 
 // 根据距离提醒时间的远近，刷新徽章文案与颜色 class
 // 规则：> 1天 灰色 / ≤1天且>1小时 紫色 / ≤1小时 橙色脉冲 / 已过期 红色删除线
 function updateReminderBadge(li, todo) {
-  const badge = li.querySelector('.reminder-badge');
-  if (!badge) return;       // 无徽章节点（未设提醒的事项）
+  let badge = li.querySelector('.reminder-badge');
+  const deleteBtn = li.querySelector('.delete-btn');
 
   // 从 reminders 数组获取各类型提醒点
   const hasReminders = Array.isArray(todo.reminders) && todo.reminders.length > 0;
-  if (!hasReminders) return;
-
-  const startR = todo.reminders.find(function (r) { return r.type === 'start'; });
-  const endR = todo.reminders.find(function (r) { return r.type === 'end'; });
-  const beforeR = todo.reminders.find(function (r) { return r.type === 'before'; });
+  const startR = todo.reminders && todo.reminders.find(function (r) { return r.type === 'start'; });
+  const endR = todo.reminders && todo.reminders.find(function (r) { return r.type === 'end'; });
+  const beforeR = todo.reminders && todo.reminders.find(function (r) { return r.type === 'before'; });
   const hasStart = !!startR;
   const hasEnd = !!endR;
-  if (!hasStart && !hasEnd) return;
+
+  // 有开始+结束 → 隐藏徽章（由时间轴承担显示）
+  if (hasStart && hasEnd) {
+    if (badge) badge.style.display = 'none';
+    return;
+  }
+
+  // 只有开始或只有结束 → 确保徽章存在并显示
+  if (hasStart || hasEnd) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'reminder-badge';
+      badge.title = '双击修改时间';
+      badge.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        openDateTimeEditor(todo, badge);
+      });
+      // 插入到删除按钮之前
+      li.insertBefore(badge, deleteBtn);
+    }
+    badge.style.display = ''; // 确保显示
+  } else {
+    // 无开始无结束 → 移除徽章
+    if (badge) badge.remove();
+    return;
+  }
 
   const now = Date.now();
 
@@ -767,8 +862,8 @@ function updateReminderBadge(li, todo) {
   let badgeText = '';
   if (hasStart && hasEnd) {
     // 有开始+结束：显示时间范围
-    const startStr = formatTimeShort(startR.at);
-    const endStr = formatTimeShort(endR.at);
+    const startStr = window.formatTimeShort(startR.at);
+    const endStr = window.formatTimeShort(endR.at);
     const startDate = new Date(startR.at);
     const endDate = new Date(endR.at);
     const sameDay = startDate.getMonth() === endDate.getMonth() && startDate.getDate() === endDate.getDate();
@@ -784,22 +879,22 @@ function updateReminderBadge(li, todo) {
   } else if (hasStart) {
     // 仅有开始时间
     if (startR.reminded || diff <= 0) {
-      badgeText = formatReminderText(startR.at) + ' 已过';
+      badgeText = window.formatReminderText(startR.at) + ' 已过';
     } else if (diff <= MS_PER_HOUR) {
       const mins = Math.max(1, Math.round(diff / MS_PER_MINUTE));
       badgeText = '还有 ' + mins + ' 分钟';
     } else {
-      badgeText = formatReminderText(startR.at);
+      badgeText = window.formatReminderText(startR.at);
     }
   } else if (hasEnd) {
     // 仅有结束时间
     if (endR.reminded || diff <= 0) {
-      badgeText = formatReminderText(endR.at) + ' 已过';
+      badgeText = window.formatReminderText(endR.at) + ' 已过';
     } else if (diff <= MS_PER_HOUR) {
       const mins = Math.max(1, Math.round(diff / MS_PER_MINUTE));
       badgeText = '还有 ' + mins + ' 分钟';
     } else {
-      badgeText = formatReminderText(endR.at);
+      badgeText = window.formatReminderText(endR.at);
     }
   }
 

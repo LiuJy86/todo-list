@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initShortcutInputs();
   initUpdateSection();
   initAboutSection();
-  initOnboardingReset();
+  initGuideControls();
 });
 
 // ============================================
@@ -320,18 +320,29 @@ function initAboutSection() {
 }
 
 // ============================================
-// 【v2.24.0】用户引导 - 重新查看
+// 【v2.25.0】用户引导 - 重置引导 / 重置提示
 // ============================================
-function initOnboardingReset() {
-  const btn = document.getElementById('resetOnboardingBtn');
-  if (!btn) return;
-  btn.addEventListener('click', function () {
-    if (window.Onboarding) {
-      window.Onboarding.reset();
-    } else {
-      // 兜底：直接清除标记并刷新
-      localStorage.removeItem('onboarding_done');
-      location.reload();
-    }
-  });
+function initGuideControls() {
+  const tourBtn = document.getElementById('guideResetTourBtn');
+
+  if (tourBtn) {
+    tourBtn.addEventListener('click', function () {
+      // 重置引导状态（清除完成标记、进度、便签引导标记）
+      localStorage.removeItem('guide_tour_done');
+      localStorage.removeItem('guide_tour_progress');
+      localStorage.removeItem('guide_sticky_tour_shown');
+
+      // 如果在便签模式下，先退出便签模式
+      if (window.electronAPI && window.electronAPI.exitStickyMode) {
+        window.electronAPI.exitStickyMode();
+      }
+
+      // 回到主页面启动引导
+      if (window.electronAPI && window.electronAPI.loadMainPage) {
+        window.electronAPI.loadMainPage();
+      } else {
+        window.location.href = 'index.html';
+      }
+    });
+  }
 }

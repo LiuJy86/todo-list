@@ -283,6 +283,14 @@
       randomMoveTimer = null;
     }
     pet.classList.remove('walking');
+    // 立即停止 CSS 过渡动画，固定到当前位置
+    pet.style.transition = 'none';
+    // 强制重排，确保 transition:none 生效
+    void pet.offsetHeight;
+    // 更新当前位置为当前渲染位置
+    var computed = pet.getBoundingClientRect();
+    currentX = computed.left;
+    currentY = window.innerHeight - computed.bottom;
   }
 
   // ---------- 9.5 拖拽功能 ----------
@@ -555,6 +563,10 @@
         });
       }, 300);
     };
+    // 加载失败时跳过本次切换，等待下一轮调度
+    loader.onerror = function () {
+      console.warn('GIF 加载失败:', nextSrc);
+    };
     loader.src = nextSrc;
   }
 
@@ -589,6 +601,7 @@
       stopRandomMovement();
       stopGifRotation();  // 页面不可见时停止轮播，节省资源
       stopTrail();        // 页面不可见时停止拖尾
+      stopRandomBubble(); // 页面不可见时停止随机气泡
     } else if (!isHidden) {
       startRandomMovement();
       startGifRotation();  // 页面恢复可见时重启轮播
@@ -688,10 +701,19 @@
   }
 
   // 统一监听用户操作（原来分散在两处，现合并为一处）
-  ['mousemove', 'keydown', 'click', 'touchstart'].forEach(function (evt) {
+  // 保存引用以便后续清理
+  const activityEvents = ['mousemove', 'keydown', 'click', 'touchstart'];
+  activityEvents.forEach(function (evt) {
     document.addEventListener(evt, onUserActivity, { passive: true });
   });
   onUserActivity();
+
+  // 页面卸载时清理监听器，防止内存泄漏
+  window.addEventListener('beforeunload', function () {
+    activityEvents.forEach(function (evt) {
+      document.removeEventListener(evt, onUserActivity);
+    });
+  });
 
   // ---------- 9.10 情绪状态机 ----------
 
@@ -886,7 +908,8 @@
   setTimeout(function () {
     if (!isHidden && window.petMood) {
       // 根据当前待办数量选择不同风格的欢迎语
-      const pendingCount = (window.todos || []).filter(function (t) { return !t.done; }).length;
+      const allTodos = window.getAllTodos ? window.getAllTodos() : [];
+      const pendingCount = allTodos.filter(function (t) { return !t.done; }).length;
       let welcomeMsg;
       if (pendingCount === 0) {
         welcomeMsg = '今天还没有待办呢，要不要加几个？我准备好了！';
@@ -900,16 +923,27 @@
   }, 2000);
 
   // 【已合并至 9.9 节的 onUserActivity 统一空闲检测系统】
+  // 注意：scheduleRandomBubble 与 scheduleNextInactivityBubble 功能重叠，
+  // 保留 inactivity 系统作为统一入口，randomBubble 仅在问候序列结束后启动一次
 
-  // 随机气泡：每 15-30 秒随机冒一个气泡
+  // 随机气泡：每 15-30 秒随机冒一个气泡（独立于 inactivity 系统）
+  let randomBubbleTimer = null;
   function scheduleRandomBubble() {
     const delay = 15000 + Math.random() * 15000; // 15-30 秒随机
-    setTimeout(function () {
+    randomBubbleTimer = setTimeout(function () {
       if (!isHidden && window.petMood) {
         window.petMood.bubble();
       }
       scheduleRandomBubble(); // 递归调度下一次
     }, delay);
+  }
+
+  // 停止随机气泡（页面隐藏时调用）
+  function stopRandomBubble() {
+    if (randomBubbleTimer) {
+      clearTimeout(randomBubbleTimer);
+      randomBubbleTimer = null;
+    }
   }
 
   // 首次进入页面时，史迪仔先说两句问候，然后启动随机互动
@@ -942,7 +976,7 @@
           // ★ 问候说完后，启动随机互动气泡
           // 等 8-15 秒后开始第一个随机气泡，然后持续循环
           const firstRandomDelay = 8000 + Math.random() * 7000;
-          setTimeout(scheduleRandomBubble, firstRandomDelay);
+          randomBubbleTimer = setTimeout(scheduleRandomBubble, firstRandomDelay);
         }, 4000);
       }, 500);
     }, 4000);
@@ -973,7 +1007,7 @@
   // ===== 日报功能 =====
   // 生成今日日报数据
   function generateDailyReport() {
-    const todos = window.todos || (window.getAllTodos ? window.getAllTodos() : []);
+    const todos = (window.getAllTodos ? window.getAllTodos() : []);
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
     const todayEnd = todayStart + 86400000;
@@ -1080,6 +1114,8 @@
 
   // 暴露全局接口
   window.showDailyReport = showDailyReport;
+  window.stopPetMovement = stopRandomMovement;
+  window.startPetMovement = startRandomMovement;
 
   // 检查是否到了日报时间（每晚 21:00）
   let dailyReportShown = false;

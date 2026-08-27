@@ -1,0 +1,333 @@
+/* ============================================
+   用户引导组件样式 (v2.25.0)
+   - Spotlight 高亮层
+   - Card 说明卡片
+   - Tooltip 轻量气泡
+   - 动画关键帧
+   ============================================ */
+
+/* ===== 引导根容器 ===== */
+#guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-guide, 9000);
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", sans-serif;
+}
+
+/* ===== Spotlight 高亮镂空框 ===== */
+.guide-spotlight {
+  position: fixed;
+  border-radius: var(--guide-spotlight-radius, 12px);
+  box-shadow: 0 0 0 9999px var(--guide-overlay-bg, rgba(0, 0, 0, 0.65));
+  transition: all 0.35s cubic-bezier(0, 0, 0.2, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 脉冲等待动画 */
+.guide-spotlight--pulse {
+  animation: guide-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes guide-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 9999px var(--guide-overlay-bg, rgba(0, 0, 0, 0.65)),
+                0 0 0 4px rgba(0, 122, 255, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 9999px var(--guide-overlay-bg, rgba(0, 0, 0, 0.65)),
+                0 0 0 12px rgba(0, 122, 255, 0.2);
+  }
+}
+
+/* 操作成功状态 */
+.guide-spotlight--success {
+  animation: guide-success 0.6s ease-out forwards;
+}
+
+@keyframes guide-success {
+  0% {
+    box-shadow: 0 0 0 9999px var(--guide-overlay-bg, rgba(0, 0, 0, 0.65)),
+                0 0 0 4px rgba(52, 199, 89, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 0 9999px var(--guide-overlay-bg, rgba(0, 0, 0, 0.65)),
+                0 0 0 24px rgba(52, 199, 89, 0);
+  }
+}
+
+/* 引导激活时，时间选择器弹窗显示在引导层之上 */
+body:has(#guide-overlay) .datetime-popover.open {
+  z-index: calc(var(--z-guide, 9000) + 10) !important;
+}
+
+/* ===== Card 说明卡片 ===== */
+.guide-card {
+  position: fixed;
+  width: 300px;
+  max-width: calc(100vw - 20px);
+  padding: 20px 22px;
+  background: var(--guide-card-bg, rgba(255, 255, 255, 0.98));
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 16px;
+  box-shadow: var(--guide-card-shadow, 0 12px 48px rgba(0, 0, 0, 0.25)),
+              0 0 0 1px rgba(0, 0, 0, 0.05);
+  pointer-events: none; /* 卡片主体不拦截点击，让事件穿透到目标元素 */
+  z-index: 2;
+  animation: guide-card-in 0.3s ease;
+  box-sizing: border-box;
+}
+
+@keyframes guide-card-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 居中卡片（无高亮元素） */
+.guide-card--centered {
+  top: 50% !important;
+  left: 50% !important;
+  bottom: auto !important;
+  right: auto !important;
+  transform: translate(-50%, -50%) !important;
+  position: fixed !important;
+}
+
+/* 步骤徽章 */
+.guide-card__badge {
+  display: inline-block;
+  padding: 4px 10px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-color);
+  background: var(--accent-light);
+  border-radius: 999px;
+}
+
+/* 卡片标题 */
+.guide-card__title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* 卡片描述 */
+.guide-card__desc {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+
+/* 底部 */
+.guide-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+/* 进度点 */
+.guide-card__dots {
+  display: flex;
+  gap: 6px;
+}
+
+.guide-card__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: #d1d1d6;
+  transition: all 0.3s ease;
+}
+
+.guide-card__dot--active {
+  background: var(--accent-color);
+  width: 18px;
+}
+
+.guide-card__dot--completed {
+  background: var(--success-color);
+}
+
+/* 操作按钮组 */
+.guide-card__actions {
+  display: flex;
+  gap: 8px;
+  pointer-events: auto; /* 按钮组恢复点击 */
+}
+
+.guide-card__btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.guide-card__btn--skip {
+  background: transparent;
+  color: var(--text-muted);
+}
+.guide-card__btn--skip:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+}
+
+.guide-card__btn--primary {
+  background: var(--accent-color);
+  color: #fff;
+}
+.guide-card__btn--primary:hover {
+  background: var(--accent-hover);
+}
+.guide-card__btn--primary:active {
+  transform: scale(0.96);
+}
+
+/* ===== Tooltip 轻量气泡 ===== */
+.guide-tooltip {
+  position: fixed;
+  max-width: 240px;
+  padding: 10px 14px;
+  background: var(--guide-tooltip-bg, rgba(40, 40, 60, 0.92));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  pointer-events: auto;
+  z-index: 3;
+  animation: guide-tooltip-in 0.25s ease;
+}
+
+@keyframes guide-tooltip-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.guide-tooltip--hiding {
+  animation: guide-fade-out 0.2s ease forwards;
+}
+
+@keyframes guide-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* 气泡内容行 */
+.guide-tooltip__body {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.guide-tooltip__text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--guide-tooltip-text, #ffffff);
+  flex: 1;
+}
+
+.guide-tooltip__close {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  margin-left: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+.guide-tooltip__close:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* 气泡箭头 */
+.guide-tooltip__arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 6px solid transparent;
+}
+
+.guide-tooltip__arrow--bottom {
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-bottom-color: var(--guide-tooltip-bg, rgba(40, 40, 60, 0.92));
+}
+
+.guide-tooltip__arrow--top {
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-top-color: var(--guide-tooltip-bg, rgba(40, 40, 60, 0.92));
+}
+
+.guide-tooltip__arrow--right {
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-right-color: var(--guide-tooltip-bg, rgba(40, 40, 60, 0.92));
+}
+
+.guide-tooltip__arrow--left {
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-left-color: var(--guide-tooltip-bg, rgba(40, 40, 60, 0.92));
+}
+
+/* ===== 窄屏适配 ===== */
+@media (max-width: 480px) {
+  .guide-card {
+    width: calc(100vw - 24px);
+    max-width: 300px;
+    padding: 16px 18px;
+    border-radius: 12px;
+  }
+
+  .guide-card__title {
+    font-size: 15px;
+  }
+
+  .guide-card__desc {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .guide-card__badge {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+
+  .guide-card__btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .guide-tooltip {
+    max-width: calc(100vw - 24px);
+    padding: 8px 12px;
+  }
+
+  .guide-tooltip__text {
+    font-size: 12px;
+  }
+}

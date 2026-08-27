@@ -19,14 +19,17 @@ function addTodo(remindAt, endRemindAt, endRemindBefore, recurrence) {
   }
 
   // 3) 构造提醒点数组
+  // 注意：如果时间已过，标记为 reminded: true，避免添加后立即触发提醒
+  const now = Date.now();
   const reminders = [];
   if (remindAt) {
-    reminders.push({ type: 'start', at: remindAt, reminded: false });
+    reminders.push({ type: 'start', at: remindAt, reminded: remindAt <= now });
   }
   if (endRemindAt) {
-    reminders.push({ type: 'end', at: endRemindAt, reminded: false });
+    reminders.push({ type: 'end', at: endRemindAt, reminded: endRemindAt <= now });
     if (endRemindBefore > 0) {
-      reminders.push({ type: 'before', at: endRemindAt - endRemindBefore * 60000, reminded: false });
+      const beforeAt = endRemindAt - endRemindBefore * 60000;
+      reminders.push({ type: 'before', at: beforeAt, reminded: beforeAt <= now });
     }
   }
 

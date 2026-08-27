@@ -50,8 +50,6 @@
 
     // 绑定按钮事件
     bindEvents(currentTodo);
-
-    console.log('[史迪仔提醒] 窗口已加载:', currentTodo.text || currentTodo.title);
   }
 
   // ============================================
@@ -146,10 +144,10 @@
       const audio = new Audio('提示音效.mp3');
       audio.volume = 0.6;
       audio.play().catch(function (e) {
-        console.log('[史迪仔提醒] 音频播放失败:', e);
+        console.warn('[史迪仔提醒] 音频播放失败:', e);
       });
     } catch (e) {
-      console.log('[史迪仔提醒] 音频播放失败:', e);
+      console.warn('[史迪仔提醒] 音频播放失败:', e);
     }
   }
 
@@ -157,17 +155,13 @@
   // 绑定按钮事件
   // ============================================
   function bindEvents(todo) {
-    console.log('[史迪仔提醒] 绑定按钮事件, electronAPI:', !!window.electronAPI);
-
     // "知道了"按钮 - 关闭窗口
     document.getElementById('btn-dismiss').addEventListener('click', function () {
-      console.log('[史迪仔提醒] 点击：知道了');
       dismissWithAnimation();
     });
 
     // "稍后提醒"按钮 - 延迟 5 分钟
     document.getElementById('btn-snooze').addEventListener('click', function () {
-      console.log('[史迪仔提醒] 点击：稍后提醒');
       if (window.electronAPI) {
         window.electronAPI.snoozeReminder(todo, 5);
       } else {
@@ -178,7 +172,6 @@
 
     // "完成"按钮 - 标记待办完成
     document.getElementById('btn-complete').addEventListener('click', function () {
-      console.log('[史迪仔提醒] 点击：完成');
       if (window.electronAPI) {
         window.electronAPI.completeTodoFromReminder(todo.id);
       } else {
@@ -189,7 +182,6 @@
 
     // 点击史迪仔也可以关闭
     document.getElementById('stitch-wrapper').addEventListener('click', function () {
-      console.log('[史迪仔提醒] 点击：史迪仔');
       dismissWithAnimation();
     });
   }

@@ -31,6 +31,27 @@ const STORAGE_KEY = 'todos';
 window.getAllTodos = function () { return todos; };
 window.getTodoCount = function () { return todos.length; };
 
+// 暴露 save 函数（供提醒模块等外部模块持久化数据）
+window.saveTodos = save;
+
+// ========== 时间格式化工具函数（供多模块复用） ==========
+
+// 时间戳格式化为"8月15日 08:00"样式
+window.formatReminderText = function (ts) {
+  const d = new Date(ts);
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return m + '月' + day + '日 ' + hh + ':' + mm;
+};
+
+// 时间戳格式化为简短"09:00"样式（用于时间轴）
+window.formatTimeShort = function (ts) {
+  const d = new Date(ts);
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+};
+
 // ===== 魔法数字常量集中管理（v2.22.0） =====
 
 // 收纳状态：已完成项超过此数量则自动收纳（当前未使用，保留供未来扩展）
@@ -50,7 +71,11 @@ const DOUBLE_CLICK_INTERVAL = 400;
 const STICKY_DEFAULT_WIDTH = 480;
 const STICKY_DEFAULT_HEIGHT = 760;
 const STICKY_MIN_HEIGHT = 80;
-const STICKY_MAX_HEIGHT = 600;
+// 便签模式最大高度：取屏幕可用高度的 80%，避免超出屏幕（最低 600，最高 1200）
+function getStickyMaxHeight() {
+  const screenH = (window.screen && window.screen.availHeight) || 800;
+  return Math.max(600, Math.min(1200, Math.round(screenH * 0.8)));
+}
 const STICKY_BREATH_SPACE = 8;
 const STICKY_HEIGHT_THRESHOLD = 8;
 

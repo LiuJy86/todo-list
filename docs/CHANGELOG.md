@@ -20,6 +20,108 @@
 
 ---
 
+## [v2.25.0] - 2026-08-27
+
+### 修复 (Fixed) — 自然语言解析优化
+
+1. **"每周一写海报"等循环提醒解析失败**
+   - 规则3（星期/周）在规则4（每X）之前错误匹配"周一"，导致循环设置丢失
+   - 修复：规则3正则添加 `(?<!每)` 负向后顾，排除"每"前缀
+   - 文件：`src/js/06-reminder.js`
+
+2. **"半小时后提醒我休息"显示"时间已过"**
+   - `setHours(15.5)` 小数部分被截断，导致时间不变
+   - 修复：改用毫秒计算 `d.setTime(d.getTime() + value * 60 * 60 * 1000)`
+   - 文件：`src/js/06-reminder.js`
+
+3. **"2小时后提醒我开会"等相对时间解析失败**
+   - 规则1.5（纯日期）错误匹配"2"作为日期
+   - 文件：`src/js/06-reminder.js`
+
+4. **"每天晚上10点提醒我读书"等阿拉伯数字+点格式解析失败**
+   - 正则只支持中文数字+点（如"十点"），不支持阿拉伯数字+点（如"10点"）
+   - 修复：正则添加 `\d{1,2}` 支持阿拉伯数字，代码添加数字类型判断
+   - 文件：`src/js/06-reminder.js`
+
+### 修复 (Fixed) — 提醒触发逻辑优化
+
+1. **设置过去时间后添加事项立即触发提醒**
+   - 创建事项时如果时间已过，提醒点标记为 `reminded: true`，避免立即触发
+   - 文件：`src/js/03-crud.js`、`src/js/02-render.js`
+
+### 优化 (Improved) — UI 优化
+
+1. **移除循环徽章 🔄 图标**
+   - 删除 `.reminder-badge-cycle::after` 伪元素
+   - 文件：`src/css/list.css`、`src/style.css`、`src/js/02-render.js`
+
+### 新增 (Added) — 托盘菜单增强
+
+1. **托盘菜单添加"便签模式"选项**
+   - 右键托盘图标可切换便签模式，带复选框显示当前状态
+   - 文件：`electron/main.js`
+
+2. **修复切换便签模式出现多个托盘图标**
+   - `createTray()` 创建新托盘前销毁旧托盘
+   - 文件：`electron/main.js`
+
+---
+
+## [v2.24.0] - 2026-08-27
+
+### 修复 (Fixed) — 代码审查问题修复
+
+1. **Critical — 跨文件依赖与内存泄漏**
+   - `pet.js` 中 `window.todos` 直接引用不可靠，改用 `window.getAllTodos()`
+   - `preload.js` 重复注册 IPC 监听器，添加 `registeredListeners` Set 去重
+   - `reminder.js` 直接调用 `save()` 跨文件依赖，改用 `window.saveTodos()`
+   - 文件：`src/js/04-pet.js`、`electron/preload.js`、`src/js/06-reminder.js`
+
+2. **High — 代码重复与事件泄漏**
+   - `02-render.js` 中 ~150 行重复的 editTime 回调提取为 `createEditTimeHandler` + `openDateTimeEditor`
+   - `pet.js` 事件监听器未清理导致内存泄漏，添加 `beforeunload` 清理
+   - `pet.js` 定时器泄漏，添加 `stopRandomBubble` + 定时器追踪
+   - `main.js` `tray._notifiedOnce` 脆弱访问改用局部变量 `trayNotified`
+   - 文件：`src/js/02-render.js`、`src/js/04-pet.js`、`electron/main.js`
+
+3. **Medium — 代码质量与命名**
+   - `formatReminderText` / `formatTimeShort` 多文件重复定义，提升到 `window` 全局复用
+   - `guide.js` `handleBlockedClick` 选择器过于宽松，改为只匹配 `step.wait.modalTarget`
+   - `guide.js` `notify` 重命名为 `checkCustomTips`
+   - `main.js` `did-finish-load` 改用 `.once()` 防止重复触发
+   - 文件：`src/js/01-data.js`、`src/js/02-render.js`、`src/js/09-guide.js`、`electron/main.js`
+
+4. **Low — 调试日志清理**
+   - 移除所有 `console.log` 调试语句（保留 `console.error`/`console.warn`）
+   - 音频播放失败日志级别从 `console.log` 提升为 `console.warn`
+   - 文件：`src/js/reminder-window.js`、`electron/main.js`、`electron/preload.js`
+
+### 修复 (Fixed) — 引导功能修复
+
+1. **「查看引导」失效**
+   - `resetTour()` 只清除完成标记未清除进度，导致引导从中间步骤恢复
+   - 修复：`resetTour()` 同时清除 `guide_tour_progress` 和 `guide_sticky_tour_shown`
+   - 文件：`src/js/09-guide.js`
+
+2. **设置页面多余元素**
+   - 设置页面加载 `09-guide.js` 会创建多余的 `#guide-overlay` 元素
+   - 修复：设置页面不再加载 Guide 模块，重置逻辑直接写在 `settings.js` 中
+   - 文件：`src/settings.html`、`src/settings.js`
+
+### 核心文件
+
+- `src/js/01-data.js`：新增 `formatReminderText`、`formatTimeShort` 全局工具函数
+- `src/js/02-render.js`：提取 `createEditTimeHandler`、`openDateTimeEditor` 公共函数
+- `src/js/04-pet.js`：修复 `window.todos` 引用、事件监听器清理、定时器追踪
+- `src/js/09-guide.js`：`resetTour()` 同时清除进度和便签引导标记
+- `src/js/reminder-window.js`：清理调试日志
+- `src/settings.html`：移除 Guide 脚本引用
+- `src/settings.js`：直接实现引导重置逻辑
+- `electron/main.js`：`trayNotified` 局部变量、平台检查、`.once()`、清理日志
+- `electron/preload.js`：`registeredListeners` 去重、清理日志
+
+---
+
 ## [v2.22.0] - 2026-08-25
 
 ### 修复 (Fixed)

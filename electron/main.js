@@ -44,6 +44,7 @@ function saveMainSettings(settings) {
 let mainWindow = null;   // 主窗口
 let tray = null;          // 系统托盘
 let isQuitting = false;   // 是否真正退出（区分关闭到托盘和退出）
+let trayNotified = false; // 是否已显示过托盘提示（替代 trayNotified）
 
 // ============================================
 // 史迪仔桌面提醒窗口（v2.22.0）
@@ -100,13 +101,13 @@ function createWindow(isToolbar) {
       e.preventDefault();
       mainWindow.hide();
       // 首次隐藏时托盘提示
-      if (tray && !tray._notifiedOnce) {
+      if (tray && !trayNotified) {
         tray.displayBalloon({
           iconType: 'info',
           title: 'ToDoList',
           content: '我还在后台运行哦～提醒不会漏掉的！点击托盘图标重新打开。'
         });
-        tray._notifiedOnce = true;
+        trayNotified = true;
       }
     }
   });
@@ -170,9 +171,13 @@ function applySavedSettings() {
   const mainSettings = loadMainSettings();
   // 应用开机自启动设置
   if (mainSettings.autoStart !== undefined) {
+    const exePath = app.getPath('exe');
     app.setLoginItemSettings({
       openAtLogin: mainSettings.autoStart,
-      openAsHidden: mainSettings.startHidden || false
+      openAsHidden: mainSettings.startHidden || false,
+      // 指定可执行文件路径，确保启动的是 ToDoList 而不是 electron
+      path: exePath !== 'electron.exe' ? exePath : undefined,
+      args: []
     });
   }
 }
@@ -314,7 +319,7 @@ function createReminderWindow(todo) {
     }
   });
 
-  console.log('[史迪仔提醒] 已弹出提醒窗口:', todo.text || todo.title);
+  // 已弹出提醒窗口
 }
 
 /**
@@ -361,8 +366,7 @@ function setReminderTimer(todo) {
   // 保存引用
   reminderTimers.set(todo.id + ':window', timerId);
 
-  console.log('[史迪仔提醒] 已设置定时器:', todo.text || todo.title,
-    '→', new Date(triggerTime).toLocaleString());
+  // 已设置提醒定时器
 }
 
 /**
@@ -374,12 +378,18 @@ function clearReminderTimer(todoId) {
   if (timerId) {
     clearTimeout(timerId);
     reminderTimers.delete(todoId + ':window');
-    console.log('[史迪仔提醒] 已取消定时器: todoId=' + todoId);
+    // 已取消定时器
   }
 }
 
 // 创建系统托盘
 function createTray() {
+  // 销毁旧托盘图标，避免重复创建出现多个托盘图标
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
+
   // 托盘图标（Windows 下 GIF 不可直接用，这里用 nativeImage 尝试加载）
   let trayIcon;
   try {
@@ -410,6 +420,14 @@ function createTray() {
       label: '隐藏到托盘',
       click: () => {
         if (mainWindow) mainWindow.hide();
+      }
+    },
+    {
+      label: '便签模式',
+      type: 'checkbox',
+      checked: isStickyMode,
+      click: () => {
+        toggleStickyMode(!isStickyMode);
       }
     },
     { type: 'separator' },
@@ -510,6 +528,13 @@ app.on('before-quit', () => {
   }
 });
 
+// 处理关闭窗口请求（隐藏到后台，程序继续运行）
+ipcMain.on('hide-window', function () {
+  if (mainWindow) {
+    mainWindow.hide();
+  }
+});
+
 // ============================================
 // 设置相关 IPC 处理（v2.18.0）
 // ============================================
@@ -530,7 +555,7 @@ ipcMain.on('cancel-reminder-window', function (_, todoId) {
 
 // 稍后提醒（延迟 N 分钟）
 ipcMain.on('snooze-reminder', function (_, todo, minutes) {
-  console.log('[主进程] 稍后提醒:', todo && todo.text, minutes, '分钟');
+  // 稍后提醒
   // 先清除原有定时器
   clearReminderTimer(todo.id);
   // 设置新的触发时间
@@ -551,7 +576,7 @@ ipcMain.on('snooze-reminder', function (_, todo, minutes) {
 
 // 关闭提醒窗口
 ipcMain.on('close-reminder-window', function () {
-  console.log('[主进程] 关闭提醒窗口');
+  // 关闭提醒窗口
   if (reminderWindow) {
     reminderWindow.destroy();
     reminderWindow = null;
@@ -560,7 +585,7 @@ ipcMain.on('close-reminder-window', function () {
 
 // 完成待办（从提醒窗口触发）
 ipcMain.on('complete-todo-from-reminder', function (_, todoId) {
-  console.log('[主进程] 完成待办:', todoId);
+  // 完成待办
   // 通知主窗口标记完成
   if (mainWindow) {
     mainWindow.webContents.send('complete-todo', todoId);
@@ -576,9 +601,13 @@ ipcMain.on('complete-todo-from-reminder', function (_, todoId) {
 ipcMain.on('set-auto-start', function (_, enabled) {
   // 立即生效（保留用户设置的 startHidden 偏好）
   const mainSettings = loadMainSettings();
+  const exePath = app.getPath('exe');
   app.setLoginItemSettings({
     openAtLogin: enabled,
-    openAsHidden: mainSettings.startHidden || false
+    openAsHidden: mainSettings.startHidden || false,
+    // 指定可执行文件路径，确保启动的是 ToDoList 而不是 electron
+    path: exePath !== 'electron.exe' ? exePath : undefined,
+    args: []
   });
   // 持久化到配置文件，下次启动时读取
   mainSettings.autoStart = enabled;
@@ -682,7 +711,8 @@ function toggleStickyMode(enable) {
       autoHideMenuBar: true,
       titleBarStyle: 'hidden',     // 隐藏原生标题栏，与主窗口一致
       backgroundColor: '#F2F2F7',
-      type: 'toolbar',  // 关键：toolbar 类型不受 Windows+D 影响
+      // type: 'toolbar' 仅 Windows 支持，macOS 下使用 'panel' 类型
+      type: process.platform === 'win32' ? 'toolbar' : (process.platform === 'darwin' ? 'panel' : undefined),
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
@@ -695,9 +725,12 @@ function toggleStickyMode(enable) {
     mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
 
     // 页面加载完成后显示窗口并通知进入便签模式
-    mainWindow.webContents.on('did-finish-load', () => {
-      mainWindow.webContents.send('sticky-mode', true);
-      mainWindow.show();
+    // 使用 once 确保只触发一次，避免重复通知
+    mainWindow.webContents.once('did-finish-load', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('sticky-mode', true);
+        mainWindow.show();
+      }
     });
 
     // 重新绑定关闭拦截
@@ -750,9 +783,12 @@ function toggleStickyMode(enable) {
     mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
 
     // 页面加载完成后显示窗口并通知退出便签模式
-    mainWindow.webContents.on('did-finish-load', () => {
-      mainWindow.webContents.send('sticky-mode', false);
-      mainWindow.show();
+    // 使用 once 确保只触发一次，避免重复通知
+    mainWindow.webContents.once('did-finish-load', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('sticky-mode', false);
+        mainWindow.show();
+      }
     });
 
     // 重新绑定关闭拦截
@@ -760,13 +796,13 @@ function toggleStickyMode(enable) {
       if (!isQuitting) {
         e.preventDefault();
         mainWindow.hide();
-        if (tray && !tray._notifiedOnce) {
+        if (tray && !trayNotified) {
           tray.displayBalloon({
             iconType: 'info',
             title: 'ToDoList',
             content: '我还在后台运行哦～提醒不会漏掉的！点击托盘图标重新打开。'
           });
-          tray._notifiedOnce = true;
+          trayNotified = true;
         }
       }
     });
@@ -774,6 +810,11 @@ function toggleStickyMode(enable) {
     mainWindow.on('closed', () => {
       mainWindow = null;
     });
+  }
+
+  // 重建托盘菜单，更新便签模式复选框状态
+  if (tray) {
+    createTray();
   }
 }
 

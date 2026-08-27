@@ -16,6 +16,22 @@ todoInput.addEventListener('keydown', onTodoInputKeydown);
 
 // ---------- 8. 页面初始化 ----------
 
+// 随机 placeholder 提示语（展示自然语言能力）
+var placeholderExamples = [
+  '如：九点半提醒我开线上会议',
+  '每30分钟提醒我喝水',
+  '明天早上8点叫我起床',
+  '每天下午6点去健身',
+  '20分钟后提醒我关火',
+  '每周一9点写周报',
+  '下午3点提醒我喝水',
+  '2小时后提醒我开会',
+  '每天晚上10点读书',
+  '半小时后提醒我休息'
+];
+var randomPlaceholder = placeholderExamples[Math.floor(Math.random() * placeholderExamples.length)];
+todoInput.setAttribute('placeholder', randomPlaceholder);
+
 // 脚本执行到此，说明函数定义与事件监听都已就绪
 // 先从 sessionStorage 读取上次会话的数据
 load();
@@ -41,7 +57,7 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
       // 记录进入便签模式时的宽度（使用 clientWidth，不含滚动条）
       // 注意：不用 window.innerWidth，因为它会随滚动条出现/变化
       window.stickyModeWidth = document.documentElement.clientWidth || STICKY_DEFAULT_WIDTH;
-      // 便签模式：显示折叠按钮和「+」按钮
+      // 便签模式：显示折叠按钮、「+」按钮
       var collapseBtn = document.getElementById('stickyCollapseBtn');
       if (collapseBtn) collapseBtn.style.display = 'inline-block';
       if (addToggleBtn) addToggleBtn.style.display = 'inline-block';
@@ -145,7 +161,7 @@ function updateStickyTitle() {
       document.body.classList.remove('sticky-collapsed');
       // 先放大到最大高度，让内容完全展开（避免 scrollHeight 因窗口太小而测量不准）
       if (window.electronAPI && window.electronAPI.resizeWindow) {
-        window.electronAPI.resizeWindow(fixedWidth, STICKY_MAX_HEIGHT);
+        window.electronAPI.resizeWindow(fixedWidth, getStickyMaxHeight());
       }
       collapseBtn.textContent = '▼';
       collapseBtn.title = '折叠窗口';
@@ -156,6 +172,18 @@ function updateStickyTitle() {
           adjustStickyWindowHeight();
         });
       });
+    }
+  });
+})();
+
+// 隐藏窗口按钮：点击隐藏窗口（程序继续后台运行）
+(function () {
+  var hideBtn = document.getElementById('hideWindowBtn');
+  if (!hideBtn) return;
+  hideBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (window.electronAPI && window.electronAPI.hideWindow) {
+      window.electronAPI.hideWindow();
     }
   });
 })();
@@ -406,6 +434,10 @@ function wrappedAddTodo() {
     window.datetimePickerModule.clearAll();
   }
 
+  // 切换随机 placeholder，展示更多自然语言示例
+  var newPlaceholder = placeholderExamples[Math.floor(Math.random() * placeholderExamples.length)];
+  todoInput.setAttribute('placeholder', newPlaceholder);
+
   // 触发桌宠反馈
   if (window.petMood) {
     window.petMood.excited();
@@ -424,6 +456,15 @@ function wrappedAddTodo() {
       msg = ADD_TODO_TOASTS[Math.floor(Math.random() * ADD_TODO_TOASTS.length)];
     }
     window.petMood.toast(msg, 'success');
+  }
+
+  // 【v2.25.0】引导钩子：首次添加成功 / 首次使用时间选择器
+  localStorage.setItem('guide_first_todo_added', '1');
+  if (remindAt || endRemindAt) {
+    localStorage.setItem('guide_datetime_used', '1');
+  }
+  if (window.Guide) {
+    window.Guide.checkCustomTips(remindAt ? 'datetime-used' : 'todo-added');
   }
 }
 
@@ -453,6 +494,14 @@ function wrappedToggleTodo(id) {
       window.petMood.toast(msg, 'success');
     } else if (wasDone && !todo.done) {
       window.petMood.toast('取消完成？没关系，继续加油！', 'info');
+    }
+  }
+
+  // 【v2.25.0】引导钩子：首次完成待办
+  if (todo && todo.done && !wasDone) {
+    localStorage.setItem('guide_first_completed', '1');
+    if (window.Guide) {
+      window.Guide.checkCustomTips('todo-completed');
     }
   }
 }
@@ -542,7 +591,7 @@ window.getAllTodos = function () { return todos; };
 // 监听从提醒窗口发来的"完成待办"请求
 if (window.electronAPI && window.electronAPI.onCompleteTodo) {
   window.electronAPI.onCompleteTodo(function (todoId) {
-    console.log('[史迪仔提醒] 收到完成待办请求:', todoId);
+    // 收到完成待办请求
     // 找到对应的待办并切换完成状态
     var todo = todos.find(function (t) { return t.id === todoId; });
     if (todo && !todo.done) {
@@ -552,4 +601,4 @@ if (window.electronAPI && window.electronAPI.onCompleteTodo) {
   });
 }
 
-// 【v2.24.0】用户引导由 08-onboarding.js 自动启动
+// 【v2.25.0】用户引导由 09-guide.js 自动启动

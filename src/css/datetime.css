@@ -290,27 +290,30 @@
   }
 }
 
-/* 添加按钮 */
+/* 添加按钮 — 第三层：主操作按钮，最醒目 */
 #addBtn {
   width: auto;
-  min-width: 80px;
-  padding: var(--spacing-md) var(--spacing-lg);
-  font-size: 15px;
-  font-weight: 600;
+  min-width: 64px;
+  padding: 8px var(--spacing-md);
+  font-size: 14px;
+  font-weight: 500;
   color: #fff;
   background: var(--accent-color);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25);
 }
 
 #addBtn:hover {
   background: var(--accent-hover);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.35);
+  transform: translateY(-1px);
 }
 
 #addBtn:active {
-  transform: scale(0.96);
-  opacity: 0.9;
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 122, 255, 0.2);
 }

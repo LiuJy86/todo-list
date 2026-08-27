@@ -28,3 +28,7 @@ desktop.ini
 # Electron 相关
 out/
 screenshots/
+
+# 测试结果和缓存
+test-results/
+tests_python/__pycache__/
