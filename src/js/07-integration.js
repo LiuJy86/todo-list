@@ -27,7 +27,8 @@ var placeholderExamples = [
   '下午3点提醒我喝水',
   '2小时后提醒我开会',
   '每天晚上10点读书',
-  '半小时后提醒我休息'
+  '半小时后提醒我休息',
+  '批量：八点提醒我开会 九点提醒我吃饭'
 ];
 var randomPlaceholder = placeholderExamples[Math.floor(Math.random() * placeholderExamples.length)];
 todoInput.setAttribute('placeholder', randomPlaceholder);
@@ -361,11 +362,135 @@ const COMPLETE_TODO_TOASTS = [
 // 直接重新赋值函数不会改变已绑定的监听器。这里采用「包装」方案：
 // 移除旧监听器，添加新监听器调用包装后的逻辑。
 
+// 批量输入检测：判断文本是否以时间表达式开头
+// 支持：X点、X点X分、早上/上午/中午/下午/晚上/凌晨、明天/后天/大后天/今晚、
+//       周X、星期X、每X、X月X日、农历/阴历、数字时间（8:30）等
+function isTimeStart(str) {
+  var timeStartRe = /^(?:\d{1,2}[点：:½]|[一二两三四五六七八九十百千]+点|早上|早晨|明早|上午|中午|下午|晚上|凌晨|今晚|今天|明天|后天|大后天|周[一二三四五六日]|星期[一二三四五六日天]|每\d*|农历|阴历|\d{1,2}月)/;
+  return timeStartRe.test(str.trim());
+}
+
+// 批量分割输入：将"八点提醒我开会 九点提醒我吃饭"分割为["八点提醒我开会", "九点提醒我吃饭"]
+// 只有当检测到多个时间开头时才分割，否则返回原文本数组
+function splitBatchInput(text) {
+  var segments = text.split(/\s+/).filter(function (s) { return s.trim(); });
+  if (segments.length <= 1) return [text];
+
+  var groups = [];
+  var current = segments[0];
+  var timeStartCount = isTimeStart(segments[0]) ? 1 : 0;
+
+  for (var i = 1; i < segments.length; i++) {
+    if (isTimeStart(segments[i])) {
+      timeStartCount++;
+      groups.push(current);
+      current = segments[i];
+    } else {
+      current += ' ' + segments[i];
+    }
+  }
+  groups.push(current);
+
+  // 只有至少 2 个时间开头才视为批量输入
+  return timeStartCount >= 2 ? groups : [text];
+}
+
+// 批量添加待办事项
+function addBatchTodos(batches) {
+  var now = Date.now();
+  var addedCount = 0;
+  var firstNewTodo = null;
+
+  for (var i = 0; i < batches.length; i++) {
+    var batch = batches[i].trim();
+    if (!batch) continue;
+
+    var remindAt = null;
+    var recurrence = null;
+    var todoText = batch;
+
+    // 尝试自然语言解析
+    if (window.reminderModule) {
+      try {
+        var parsed = window.reminderModule.parse(batch);
+        if (parsed && parsed.remindAt) {
+          remindAt = parsed.remindAt;
+          todoText = window.reminderModule.cleanTodoText(parsed.text);
+          if (parsed.recurrence && parsed.recurrence.enabled) {
+            recurrence = parsed.recurrence;
+          }
+        }
+      } catch (err) {
+        console.error('批量解析失败:', err);
+      }
+    }
+
+    // 构造提醒点数组
+    var reminders = [];
+    if (remindAt) {
+      reminders.push({ type: 'start', at: remindAt, reminded: remindAt <= now });
+    }
+
+    var newTodo = {
+      id: Date.now() + i, // 加 i 避免同毫秒 ID 重复
+      text: todoText || batch,
+      done: false,
+      reminders: reminders,
+      recurrence: recurrence || null,
+      completionCount: 0,
+      lastRemindAt: null
+    };
+    todos.push(newTodo);
+    addedCount++;
+    if (!firstNewTodo) firstNewTodo = newTodo;
+
+    // 调度提醒
+    if (window.reminderModule && reminders.length > 0) {
+      window.reminderModule.schedule(newTodo);
+    }
+  }
+
+  // 重新渲染列表
+  render();
+
+  // 清空输入框并聚焦
+  todoInput.value = '';
+  todoInput.focus();
+
+  // 添加成功反馈
+  todoInput.classList.add('success-flash');
+  setTimeout(function () {
+    todoInput.classList.remove('success-flash');
+  }, INPUT_SUCCESS_DURATION);
+
+  // 桌宠反馈
+  if (window.petMood) {
+    window.petMood.excited();
+    var msg = '已批量添加 ' + addedCount + ' 项待办！';
+    window.petMood.toast(msg, 'success');
+  }
+
+  // 引导钩子
+  localStorage.setItem('guide_first_todo_added', '1');
+  if (window.Guide) {
+    window.Guide.checkCustomTips('todo-added');
+  }
+
+  return firstNewTodo;
+}
+
 // 包装 addTodo：整合自然语言解析 + 日期选择器 + 循环设置 + 调度提醒 + 桌宠反馈
 function wrappedAddTodo() {
   const rawText = todoInput.value.trim();
   if (rawText === '') {
     addTodo();
+    return;
+  }
+
+  // 批量输入检测：如"八点提醒我开会 九点提醒我吃饭 十一点提醒我洗碗"
+  const batches = splitBatchInput(rawText);
+  if (batches.length > 1) {
+    addBatchTodos(batches);
     return;
   }
 
