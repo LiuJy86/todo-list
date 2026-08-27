@@ -83,10 +83,6 @@
    - 删除 `electron/icon_backup.png`、`electron/icon_backup2.png`、`electron/tool bar_icon_health_active.png`
    - 更新 `electron/icon.png` 为新设计图标
 
----
-
-## [v2.25.0] - 2026-08-27
-
 ### 修复 (Fixed) — 自然语言解析优化
 
 1. **"每周一写海报"等循环提醒解析失败**
