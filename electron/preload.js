@@ -121,5 +121,49 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 关闭窗口（隐藏到后台，程序继续运行）
   hideWindow: function () {
     ipcRenderer.send('hide-window');
+  },
+
+  // ============================================
+  // 自定义资源 API（v2.24.0）
+  // ============================================
+
+  // 获取 userData 路径
+  getUserDataPath: function () {
+    return ipcRenderer.invoke('get-user-data-path');
+  },
+
+  // 选择音效文件（返回文件路径，取消返回 null）
+  selectSoundFile: function () {
+    return ipcRenderer.invoke('select-sound-file');
+  },
+
+  // 选择图片文件（多选，返回文件路径数组，取消返回 null）
+  selectImageFiles: function () {
+    return ipcRenderer.invoke('select-image-files');
+  },
+
+  // 保存自定义音效（复制到 userData）
+  saveCustomSound: function (srcPath) {
+    return ipcRenderer.invoke('save-custom-sound', srcPath);
+  },
+
+  // 保存自定义图片（复制到 userData）
+  saveCustomImages: function (srcPaths) {
+    return ipcRenderer.invoke('save-custom-images', srcPaths);
+  },
+
+  // 清除自定义音效
+  clearCustomSound: function () {
+    return ipcRenderer.invoke('clear-custom-sound');
+  },
+
+  // 清除所有自定义图片
+  clearCustomImages: function () {
+    return ipcRenderer.invoke('clear-custom-images');
+  },
+
+  // 获取当前自定义资源信息
+  getCustomAssets: function () {
+    return ipcRenderer.invoke('get-custom-assets');
   }
 });

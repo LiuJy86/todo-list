@@ -1,4 +1,4 @@
-// ===== 9. 史迪奇桌宠模块 =====
+// ===== 9. 桌宠模块 =====
 
 (function () {
   'use strict';
@@ -201,9 +201,9 @@
     }, duration * 1000);
   }
 
-  // ---------- 9.4.1 点击空白处召唤史迪奇 ----------
+  // ---------- 9.4.1 点击空白处召唤桌宠 ----------
   // 监听 document 的 click 事件，若点击的不是按钮/输入框/桌宠本身，
-  // 则让史迪奇走到点击位置（自动避开功能按钮）
+  // 则让桌宠走到点击位置（自动避开功能按钮）
   function onDocumentClick(e) {
     if (isHidden || isDragging) return;
 
@@ -216,7 +216,7 @@
     if (e.target.closest(interactiveSelectors)) return;
 
     // 计算点击位置对应的桌宠 left/bottom 坐标
-    // 桌宠左下角对齐到点击点（让史迪奇"走过来"到点击位置）
+    // 桌宠左下角对齐到点击点（让桌宠"走过来"到点击位置）
     // 点击位置 (clientX, clientY) → left = clientX - PET_WIDTH/2, bottom = viewportHeight - clientY - PET_HEIGHT/2
     const clickX = e.clientX - PET_WIDTH / 2;
     const clickY = window.innerHeight - e.clientY - PET_HEIGHT / 2;
@@ -411,27 +411,27 @@
     }
   });
 
-  // 史迪奇随机气泡文案池（中二 + 乐天派 + 暖心）
+  // 桌宠随机气泡文案池（元气 + 暖心 + 鼓励）
   const bubbleMessages = [
-    // ===== 中二风格 =====
-    '吾乃史迪奇，626 号实验体！你的待办就是本大人的使命！',
-    '哼，没有待办能逃过我的眼睛！',
-    '本大人今天也要守护你的待办清单！Ohana！',
-    '感受到我体内涌动的力量了吗？那是完成待办的意志！',
-    '吾之使命，乃助你征服所有待办！',
-    // ===== 乐天派 =====
+    // ===== 元气风格 =====
     '今天也是元气满满的一天！冲鸭！',
     '嘿嘿，有我在，什么都不怕~',
     '阳光正好，适合把待办一个个消灭！',
     '今天的心情是彩虹色的！',
     '笑一个吧，待办什么的分分钟搞定！',
-    // ===== 暖心 =====
+    '加油加油！我们一起努力！',
+    // ===== 暖心风格 =====
     '累了就休息一下，待办可以等一等哦~',
     '你已经做得很棒了，不要给自己太大压力。',
     '不管有多少待办，我都会陪着你。',
     '记得喝水，记得吃饭，你最重要。',
     '今天辛苦了，好好休息，明天继续加油。',
-    '不管发生什么，Ohana 都在你身边。'
+    '不管发生什么，我都在你身边。',
+    // ===== 鼓励风格 =====
+    '每一份努力都会有回报！',
+    '今天的你也很棒呢！',
+    '待办在等你，我也在等你哦~',
+    '一步一步来，不用着急！'
   ];
 
   function onPetClick() {
@@ -493,7 +493,7 @@
 
   function showRestoreButton() {
     const btn = document.createElement('button');
-    btn.textContent = '🐾 召唤史迪奇';
+    btn.textContent = '🐾 召唤我';
     btn.id = 'petRestoreBtn';
     btn.style.cssText = [
       'position: fixed', 'left: 24px', 'bottom: 24px',
@@ -526,9 +526,8 @@
   }
 
   // ---------- 9.7.1 GIF 轮播（3-5 秒随机切换桌宠动图）----------
-  // 桌宠图片放在 img 文件夹下，共 6 张史迪奇系列 gif
-  // 每 3-5 秒随机切换一张，切换时淡入淡出避免闪白突兀
-  const PET_GIFS = [
+  // 【v2.24.0】支持自定义图片：优先使用用户自定义图片，否则用默认史迪奇 GIF
+  var DEFAULT_PET_GIFS = [
     'img/史迪奇1.gif',
     'img/史迪奇2.gif',
     'img/史迪奇3.gif',
@@ -536,7 +535,71 @@
     'img/史迪奇5.gif',
     'img/史迪奇6.gif'
   ];
-  let currentGifIndex = 0;  // 当前显示的 gif 在数组中的下标
+  var PET_GIFS = DEFAULT_PET_GIFS.slice(); // 当前使用的图片列表（副本）
+  var currentGifIndex = 0;  // 当前显示的 gif 在数组中的下标
+
+  // 解析当前应使用的图片列表
+  function resolveCurrentPetGifs() {
+    try {
+      var saved = localStorage.getItem('settings');
+      if (saved) {
+        var s = JSON.parse(saved);
+        if (s.customImages && s.customImages.length > 0) {
+          var userData = getCachedUserDataPath();
+          if (userData) {
+            var basePath = 'file:///' + userData.replace(/\\/g, '/') + '/custom-assets/';
+            return s.customImages.map(function (f) {
+              return basePath + f;
+            });
+          }
+        }
+      }
+    } catch (e) { /* ignore */ }
+    return DEFAULT_PET_GIFS;
+  }
+
+  // 获取缓存的 userData 路径
+  function getCachedUserDataPath() {
+    return cachedUserDataPath;
+  }
+
+  // 更新 PET_GIFS 列表
+  function updatePetGifs() {
+    var newGifs = resolveCurrentPetGifs();
+    // 检查是否有变化
+    if (JSON.stringify(newGifs) !== JSON.stringify(PET_GIFS)) {
+      PET_GIFS = newGifs;
+      // 确保当前索引不越界
+      if (currentGifIndex >= PET_GIFS.length) {
+        currentGifIndex = 0;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // 缓存的 userData 路径
+  var cachedUserDataPath = null;
+
+  // 异步预加载 userData 路径
+  function prefetchUserDataPathForPet() {
+    if (window.electronAPI && window.electronAPI.getUserDataPath) {
+      window.electronAPI.getUserDataPath().then(function (userData) {
+        cachedUserDataPath = userData;
+        updatePetGifs();
+      }).catch(function () { /* ignore */ });
+    }
+  }
+
+  // 启动时预加载
+  prefetchUserDataPathForPet();
+
+  // 监听 storage 事件（设置页面修改后同步更新）
+  window.addEventListener('storage', function (e) {
+    if (e.key === 'settings') {
+      updatePetGifs();
+    }
+  });
 
   // 预加载并切换到下一张 gif
   // 用 Image 对象预加载，加载完成后再换 src，避免直接改 src 造成的闪白

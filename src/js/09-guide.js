@@ -68,7 +68,7 @@
         },
         {
           title: '设置提醒',
-          desc: '点击 📅 时间管理\n可为事项设置提醒时间、循环提醒\n到点史迪仔会弹窗提醒你 🔔',
+          desc: '点击 📅 时间管理\n可为事项设置提醒时间、循环提醒\n到点桌宠会弹窗提醒你 🔔',
           spotlight: '#datetimeTrigger',
           position: 'bottom',
           wait: { type: 'click', target: '#datetimeTrigger' }
@@ -90,8 +90,8 @@
           action: { label: '下一步', fn: 'next' }
         },
         {
-          title: '史迪奇日报 📊',
-          desc: '双击史迪奇，可以查看你的每日完成报告！\n\n📈 完成率 — 今日完成进度\n✅ 已完成 — 事项统计\n\n试试看，双击它吧！',
+          title: '桌宠日报 📊',
+          desc: '双击桌宠，可以查看你的每日完成报告！\n\n📈 完成率 — 今日完成进度\n✅ 已完成 — 事项统计\n\n试试看，双击它吧！',
           spotlight: '#stitchPet',
           position: 'top',
           wait: { type: 'dblclick-then-modal-close', target: '#stitchPet', modalTarget: '#dailyReportModal' }

@@ -1,6 +1,6 @@
 /**
  * 史迪仔桌面提醒窗口脚本
- * v2.22.0 - 独立透明窗口，负责展示提醒 + 用户交互
+ * v2.24.0 - 独立透明窗口，负责展示提醒 + 用户交互
  *
  * 功能：
  * 1. 从 URL 参数解析待办数据
@@ -12,17 +12,25 @@
   'use strict';
 
   // 当前待办数据
-  let currentTodo = null;
+  var currentTodo = null;
+
+  // 当前播放的音频元素（用于关闭窗口时停止）
+  var currentAudio = null;
 
   // ============================================
   // 获取 URL 参数中的待办数据
   // ============================================
   function getTodoFromURL() {
-    const params = new URLSearchParams(window.location.search);
-    const todoEncoded = params.get('todo');
+    console.log('[史迪仔提醒] window.location.search:', window.location.search);
+    var params = new URLSearchParams(window.location.search);
+    var todoEncoded = params.get('todo');
+    console.log('[史迪仔提醒] todo 参数:', todoEncoded ? todoEncoded.substring(0, 100) + '...' : 'null');
     if (!todoEncoded) return null;
     try {
-      return JSON.parse(decodeURIComponent(todoEncoded));
+      // URLSearchParams.get() 会自动 decodeURIComponent，直接 parse
+      var result = JSON.parse(todoEncoded);
+      console.log('[史迪仔提醒] 解析成功:', result);
+      return result;
     } catch (e) {
       console.error('[史迪仔提醒] 解析待办数据失败:', e);
       return null;
@@ -30,184 +38,74 @@
   }
 
   // ============================================
-  // 初始化
+  // 【v2.24.0】从 URL 参数获取自定义资源
   // ============================================
-  function init() {
-    currentTodo = getTodoFromURL();
-    if (!currentTodo) {
-      console.error('[史迪仔提醒] 未获取到待办数据');
-      return;
+  function getCustomAssetsFromURL() {
+    var params = new URLSearchParams(window.location.search);
+    var sound = params.get('sound') || null;
+    console.log('[史迪仔提醒] sound 参数:', sound);
+    var images = [];
+    try {
+      var imagesParam = params.get('images');
+      console.log('[史迪仔提醒] images 参数:', imagesParam);
+      if (imagesParam) {
+        // URLSearchParams.get() 会自动 decodeURIComponent
+        images = JSON.parse(imagesParam);
+      }
+    } catch (e) {
+      console.error('[史迪仔提醒] 解析 images 失败:', e);
+      images = [];
     }
-
-    // 填充数据
-    populateData(currentTodo);
-
-    // 启动动画
-    startAnimation();
-
-    // 播放提示音
-    playSound();
-
-    // 绑定按钮事件
-    bindEvents(currentTodo);
+    return { sound: sound, images: images };
   }
 
+  var customAssets = getCustomAssetsFromURL();
+
   // ============================================
-  // 填充页面数据
+  // 根据优先级选择史迪仔 GIF
   // ============================================
-  function populateData(todo) {
-    const reminderText = document.getElementById('reminder-text');
-    const todoTitle = document.getElementById('todo-title');
-    const todoNotes = document.getElementById('todo-notes');
-    const stitchImg = document.getElementById('stitch-img');
-
-    // 设置提醒文字
-    reminderText.textContent = getReminderText(todo);
-
-    // 设置待办标题（兼容 text 和 title 字段）
-    if (todoTitle) {
-      todoTitle.textContent = todo.text || todo.title || '待办事项';
-    }
-
-    // 设置备注（如果有）
-    if (todoNotes) {
-      if (todo.notes) {
-        todoNotes.textContent = todo.notes;
-        todoNotes.style.display = 'block';
-      } else {
-        todoNotes.style.display = 'none';
+  function getStitchGifByPriority(priority) {
+    // 【v2.24.0】优先使用自定义图片
+    if (customAssets.images && customAssets.images.length > 0) {
+      var index;
+      switch (priority) {
+        case 3: index = Math.min(2, customAssets.images.length - 1); break;
+        case 2: index = Math.min(1, customAssets.images.length - 1); break;
+        default: index = 0;
       }
+      return customAssets.images[index];
     }
-
-    // 根据优先级选择不同史迪仔表情
-    const gifIndex = getStitchGifByPriority(todo.priority);
-    stitchImg.src = `img/史迪奇${gifIndex}.gif`;
+    // 默认史迪奇 GIF
+    switch (priority) {
+      case 3: return 6;
+      case 2: return 4;
+      case 1:
+      default: return 1;
+    }
   }
 
   // ============================================
   // 根据场景生成提醒文字
   // ============================================
   function getReminderText(todo) {
-    const title = todo.text || todo.title || '待办';
-    const texts = [
-      `该${title}了！`,
-      `别忘了：${title}`,
-      `${title} 时间到！`,
-      `嘿！该${title}啦～`,
+    var title = todo.text || todo.title || '待办';
+    var texts = [
+      '该' + title + '了！',
+      '别忘了：' + title,
+      title + ' 时间到！',
+      '嘿！该' + title + '啦～'
     ];
-    // 根据 todo.id 选择一个固定的文案
-    const index = hashString(String(todo.id)) % texts.length;
+    var index = hashString(String(todo.id)) % texts.length;
     return texts[index];
-  }
-
-  // ============================================
-  // 根据优先级选择史迪仔 GIF
-  // ============================================
-  function getStitchGifByPriority(priority) {
-    // 1=普通(可爱), 2=中等(期待), 3=紧急(着急)
-    switch (priority) {
-      case 3: return 6;  // 紧急 - 史迪奇6.gif
-      case 2: return 4;  // 中等 - 史迪奇4.gif
-      case 1:
-      default: return 1; // 普通 - 史迪奇1.gif
-    }
-  }
-
-  // ============================================
-  // 启动动画序列（自然轻柔版）
-  // ============================================
-  function startAnimation() {
-    const stitchWrapper = document.getElementById('stitch-wrapper');
-
-    // 阶段1：入场后先轻微弹跳 3 次（约2.4秒），引起注意
-    setTimeout(() => {
-      stitchWrapper.classList.add('bouncing');
-    }, 600);
-
-    // 阶段2：弹跳结束后切换为轻柔摇摆，持续更久
-    setTimeout(() => {
-      stitchWrapper.classList.remove('bouncing');
-      stitchWrapper.classList.add('shaking');
-    }, 3000);
-
-    // 阶段3：8 秒后停止所有动画，恢复安静
-    setTimeout(() => {
-      stitchWrapper.classList.remove('shaking');
-    }, 8000);
-  }
-
-  // ============================================
-  // 播放提示音
-  // ============================================
-  function playSound() {
-    try {
-      const audio = new Audio('提示音效.mp3');
-      audio.volume = 0.6;
-      audio.play().catch(function (e) {
-        console.warn('[史迪仔提醒] 音频播放失败:', e);
-      });
-    } catch (e) {
-      console.warn('[史迪仔提醒] 音频播放失败:', e);
-    }
-  }
-
-  // ============================================
-  // 绑定按钮事件
-  // ============================================
-  function bindEvents(todo) {
-    // "知道了"按钮 - 关闭窗口
-    document.getElementById('btn-dismiss').addEventListener('click', function () {
-      dismissWithAnimation();
-    });
-
-    // "稍后提醒"按钮 - 延迟 5 分钟
-    document.getElementById('btn-snooze').addEventListener('click', function () {
-      if (window.electronAPI) {
-        window.electronAPI.snoozeReminder(todo, 5);
-      } else {
-        console.error('[史迪仔提醒] electronAPI 不可用');
-      }
-      dismissWithAnimation();
-    });
-
-    // "完成"按钮 - 标记待办完成
-    document.getElementById('btn-complete').addEventListener('click', function () {
-      if (window.electronAPI) {
-        window.electronAPI.completeTodoFromReminder(todo.id);
-      } else {
-        console.error('[史迪仔提醒] electronAPI 不可用');
-      }
-      dismissWithAnimation();
-    });
-
-    // 点击史迪仔也可以关闭
-    document.getElementById('stitch-wrapper').addEventListener('click', function () {
-      dismissWithAnimation();
-    });
-  }
-
-  // ============================================
-  // 带动画关闭
-  // ============================================
-  function dismissWithAnimation() {
-    const container = document.getElementById('reminder-container');
-    container.classList.add('dismissing');
-
-    // 动画结束后通知主进程关闭窗口
-    setTimeout(function () {
-      if (window.electronAPI) {
-        window.electronAPI.closeReminder();
-      }
-    }, 300);
   }
 
   // ============================================
   // 工具函数：字符串哈希
   // ============================================
   function hashString(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
+    var hash = 0;
+    for (var i = 0; i < str.length; i++) {
+      var char = str.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash;
     }
@@ -215,8 +113,209 @@
   }
 
   // ============================================
+  // 停止音效
+  // ============================================
+  function stopSound() {
+    if (currentAudio) {
+      try {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      } catch (e) { /* ignore */ }
+      currentAudio = null;
+    }
+  }
+
+  // ============================================
+  // 关闭窗口
+  // ============================================
+  function closeWindow() {
+    console.log('[史迪仔提醒] 关闭窗口');
+    stopSound(); // 关闭前先停止音效
+    // 直接通过 IPC 通知主进程关闭
+    if (window.electronAPI && window.electronAPI.closeReminder) {
+      window.electronAPI.closeReminder();
+    } else {
+      console.error('[史迪仔提醒] electronAPI 不可用');
+    }
+  }
+
+  // ============================================
+  // 绑定按钮事件
+  // ============================================
+  function bindEvents(todo) {
+    console.log('[史迪仔提醒] 绑定按钮事件');
+
+    // "知道了"按钮
+    var dismissBtn = document.getElementById('btn-dismiss');
+    if (dismissBtn) {
+      dismissBtn.onclick = function () {
+        console.log('[史迪仔提醒] 点击：知道了');
+        closeWindow();
+      };
+    } else {
+      console.warn('[史迪仔提醒] 未找到 btn-dismiss');
+    }
+
+    // "稍后提醒"按钮
+    var snoozeBtn = document.getElementById('btn-snooze');
+    if (snoozeBtn) {
+      snoozeBtn.onclick = function () {
+        console.log('[史迪仔提醒] 点击：稍后提醒');
+        if (window.electronAPI && window.electronAPI.snoozeReminder) {
+          window.electronAPI.snoozeReminder(todo, 5);
+        }
+        closeWindow();
+      };
+    } else {
+      console.warn('[史迪仔提醒] 未找到 btn-snooze');
+    }
+
+    // "完成"按钮
+    var completeBtn = document.getElementById('btn-complete');
+    if (completeBtn) {
+      completeBtn.onclick = function () {
+        console.log('[史迪仔提醒] 点击：完成', todo.id);
+        if (window.electronAPI && window.electronAPI.completeTodoFromReminder) {
+          window.electronAPI.completeTodoFromReminder(todo.id);
+        }
+        closeWindow();
+      };
+    } else {
+      console.warn('[史迪仔提醒] 未找到 btn-complete');
+    }
+
+    // 点击史迪仔关闭
+    var stitchWrapper = document.getElementById('stitch-wrapper');
+    if (stitchWrapper) {
+      stitchWrapper.onclick = function () {
+        console.log('[史迪仔提醒] 点击：史迪仔');
+        closeWindow();
+      };
+    }
+  }
+
+  // ============================================
+  // 填充页面数据
+  // ============================================
+  function populateData(todo) {
+    console.log('[史迪仔提醒] 填充数据:', todo);
+
+    var reminderText = document.getElementById('reminder-text');
+    if (reminderText) {
+      reminderText.textContent = getReminderText(todo);
+    }
+
+    // 设置史迪奇图片
+    var stitchImg = document.getElementById('stitch-img');
+    if (stitchImg) {
+      var gifValue = getStitchGifByPriority(todo.priority);
+      console.log('[史迪仔提醒] GIF值:', gifValue, '自定义图片:', customAssets.images);
+
+      if (typeof gifValue === 'string') {
+        // 自定义图片
+        if (window.electronAPI && window.electronAPI.getUserDataPath) {
+          window.electronAPI.getUserDataPath().then(function (userData) {
+            stitchImg.src = 'file:///' + userData.replace(/\\/g, '/') + '/custom-assets/' + gifValue;
+          }).catch(function () {
+            stitchImg.src = 'img/史迪奇1.gif';
+          });
+        } else {
+          stitchImg.src = 'img/史迪奇1.gif';
+        }
+      } else {
+        // 默认 GIF
+        stitchImg.src = 'img/史迪奇' + gifValue + '.gif';
+      }
+    }
+  }
+
+  // ============================================
+  // 播放提示音
+  // ============================================
+  function playSound() {
+    var src = '提示音效.mp3';
+
+    if (customAssets.sound && window.electronAPI && window.electronAPI.getUserDataPath) {
+      window.electronAPI.getUserDataPath().then(function (userData) {
+        src = 'file:///' + userData.replace(/\\/g, '/') + '/custom-assets/' + customAssets.sound;
+        doPlaySound(src);
+      }).catch(function () {
+        doPlaySound(src);
+      });
+    } else {
+      doPlaySound(src);
+    }
+  }
+
+  function doPlaySound(src) {
+    try {
+      // 先停止之前的音效，避免叠加
+      stopSound();
+      var audio = new Audio(src);
+      audio.volume = 0.6;
+      currentAudio = audio;
+      audio.play().catch(function (e) {
+        console.warn('[史迪仔提醒] 音频播放失败:', e);
+      });
+      // 播放完毕后自动清理引用
+      audio.addEventListener('ended', function () {
+        currentAudio = null;
+      }, { once: true });
+    } catch (e) {
+      console.warn('[史迪仔提醒] 音频播放失败:', e);
+    }
+  }
+
+  // ============================================
+  // 启动动画序列
+  // ============================================
+  function startAnimation() {
+    var stitchWrapper = document.getElementById('stitch-wrapper');
+    if (!stitchWrapper) return;
+
+    setTimeout(function () {
+      stitchWrapper.classList.add('bouncing');
+    }, 600);
+
+    setTimeout(function () {
+      stitchWrapper.classList.remove('bouncing');
+      stitchWrapper.classList.add('shaking');
+    }, 3000);
+
+    setTimeout(function () {
+      stitchWrapper.classList.remove('shaking');
+    }, 8000);
+  }
+
+  // ============================================
+  // 初始化
+  // ============================================
+  function init() {
+    console.log('[史迪仔提醒] 初始化开始');
+
+    currentTodo = getTodoFromURL();
+    if (!currentTodo) {
+      console.error('[史迪仔提醒] 未获取到待办数据');
+      return;
+    }
+
+    console.log('[史迪仔提醒] 待办数据:', currentTodo);
+
+    populateData(currentTodo);
+    startAnimation();
+    playSound();
+    bindEvents(currentTodo);
+
+    console.log('[史迪仔提醒] 初始化完成');
+  }
+
+  // ============================================
   // 启动
   // ============================================
-  document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 
 })();

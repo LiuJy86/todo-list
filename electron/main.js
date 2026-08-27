@@ -1,6 +1,6 @@
 // Electron 主进程入口
 // 负责创建窗口、系统托盘、应用生命周期管理
-const { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain, globalShortcut } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain, globalShortcut, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -38,6 +38,81 @@ function saveMainSettings(settings) {
     fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf-8');
   } catch (e) {
     console.error('保存设置文件失败:', e.message);
+  }
+}
+
+// ============================================
+// 自定义资源管理（v2.24.0）
+// ============================================
+
+// 获取自定义资源根目录
+function getCustomAssetsDir() {
+  return path.join(app.getPath('userData'), 'custom-assets');
+}
+
+// 确保自定义资源目录存在
+function ensureCustomAssetsDir() {
+  const dir = getCustomAssetsDir();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+// 复制用户选择的文件到自定义资源目录
+// prefix: 文件名前缀（'sound' 或 'image'）
+// 返回: { success, filename } 或 { success: false, error }
+function copyCustomFile(sourcePath, prefix) {
+  try {
+    const dir = ensureCustomAssetsDir();
+    const ext = path.extname(sourcePath) || '';
+    const basename = prefix + '-' + Date.now() + ext;
+    const dest = path.join(dir, basename);
+    fs.copyFileSync(sourcePath, dest);
+    return { success: true, filename: basename };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+// 删除自定义资源文件
+function deleteCustomFile(filename) {
+  try {
+    if (!filename) return { success: true };
+    const filePath = path.join(getCustomAssetsDir(), filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+// 获取自定义音效文件名（最新的那个）
+function getCustomSoundFilename() {
+  try {
+    const dir = getCustomAssetsDir();
+    if (!fs.existsSync(dir)) return null;
+    const files = fs.readdirSync(dir).filter(function (f) {
+      return f.startsWith('sound-');
+    });
+    return files.length > 0 ? files[0] : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// 获取所有自定义图片文件名
+function getCustomImageFilenames() {
+  try {
+    const dir = getCustomAssetsDir();
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir).filter(function (f) {
+      return f.startsWith('image-');
+    });
+  } catch (e) {
+    return [];
   }
 }
 
@@ -304,12 +379,15 @@ function createReminderWindow(todo) {
     }
   });
 
-  // 加载提醒页面，传递待办数据
+  // 加载提醒页面，传递待办数据和自定义资源
+  // 手动构建 query 字符串，确保编码一致
   const todoData = encodeURIComponent(JSON.stringify(todo));
-  reminderWindow.loadFile(
-    path.join(__dirname, '..', 'src', 'reminder.html'),
-    { query: { todo: todoData } }
-  );
+  const customSound = encodeURIComponent(getCustomSoundFilename() || '');
+  const customImages = encodeURIComponent(JSON.stringify(getCustomImageFilenames()));
+  const queryString = 'todo=' + todoData + '&sound=' + customSound + '&images=' + customImages;
+  const reminderUrl = 'file:///' + path.join(__dirname, '..', 'src', 'reminder.html').replace(/\\/g, '/') + '?' + queryString;
+  console.log('[主进程] 加载提醒窗口 URL:', reminderUrl.substring(0, 200) + '...');
+  reminderWindow.loadURL(reminderUrl);
 
   // 窗口关闭时清理引用，并把焦点交回主窗口
   reminderWindow.on('closed', () => {
@@ -628,6 +706,79 @@ ipcMain.on('open-external', function (_, url) {
 // 获取应用版本号（从 package.json 读取）
 ipcMain.handle('get-app-version', function () {
   return app.getVersion();
+});
+
+// ============================================
+// 自定义资源 IPC 处理（v2.24.0）
+// ============================================
+
+// 获取 userData 路径
+ipcMain.handle('get-user-data-path', function () {
+  return app.getPath('userData');
+});
+
+// 选择音效文件（打开文件对话框）
+ipcMain.handle('select-sound-file', async function () {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [
+      { name: '音频文件', extensions: ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac'] }
+    ]
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+// 选择图片文件（多选）
+ipcMain.handle('select-image-files', async function () {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile', 'multiSelections'],
+    filters: [
+      { name: '图片文件', extensions: ['gif', 'png', 'jpg', 'jpeg', 'webp', 'bmp', 'apng'] }
+    ]
+  });
+  return result.canceled ? null : result.filePaths;
+});
+
+// 保存自定义音效
+ipcMain.handle('save-custom-sound', async function (_, srcPath) {
+  // 先清除旧的音效
+  const oldSound = getCustomSoundFilename();
+  if (oldSound) deleteCustomFile(oldSound);
+  return copyCustomFile(srcPath, 'sound');
+});
+
+// 保存自定义图片
+ipcMain.handle('save-custom-images', async function (_, srcPaths) {
+  const results = [];
+  srcPaths.forEach(function (srcPath) {
+    const result = copyCustomFile(srcPath, 'image');
+    if (result.success) {
+      results.push(result.filename);
+    }
+  });
+  return { success: true, filenames: results };
+});
+
+// 清除自定义音效
+ipcMain.handle('clear-custom-sound', async function () {
+  const oldSound = getCustomSoundFilename();
+  if (oldSound) deleteCustomFile(oldSound);
+  return { success: true };
+});
+
+// 清除所有自定义图片
+ipcMain.handle('clear-custom-images', async function () {
+  const images = getCustomImageFilenames();
+  images.forEach(function (f) { deleteCustomFile(f); });
+  return { success: true };
+});
+
+// 获取自定义资源信息
+ipcMain.handle('get-custom-assets', async function () {
+  return {
+    sound: getCustomSoundFilename(),
+    images: getCustomImageFilenames()
+  };
 });
 
 // 处理窗口置顶切换

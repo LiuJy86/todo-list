@@ -50,8 +50,18 @@ npm run build
 
 ### 设置中心
 - 入口：托盘菜单「⚙️ 设置」
-- 功能：开机自启动、快捷键自定义、检查更新、GitHub 链接
+- 功能：开机自启动、快捷键自定义、个性化设置、检查更新、GitHub 链接、用户引导
 - 设置持久化：`%APPDATA%/ToDoList/settings.json`
+
+### 个性化设置（v2.24.0）
+- **自定义提示音效**：用户可选择本地音频文件替代默认音效，支持试听和恢复默认
+  - 支持格式：mp3、wav、ogg、flac、m4a、aac
+  - 存储路径：`%APPDATA%/ToDoList/custom-assets/sound-*.{ext}`
+- **自定义桌宠动图**：用户可添加多张图片替代默认史迪奇 GIF，支持预览和清空
+  - 支持格式：gif、png、jpg、jpeg、webp、bmp、apng
+  - 存储路径：`%APPDATA%/ToDoList/custom-assets/image-*.{ext}`
+- 自定义资源通过 IPC 通道 `electronAPI` 与主进程通信
+- 文件：`src/settings.js`、`electron/main.js`、`electron/preload.js`
 
 ### 无边框窗口
 - 隐藏 Windows 原生标题栏（`titleBarStyle: 'hidden'`）
@@ -113,8 +123,12 @@ todo-list/
 - **数据存储**：localStorage 数据持久化在 Electron 的用户数据目录下
   - 路径：`%APPDATA%/待办事项清单/`
   - 卸载应用会清除数据（便携版除外）
+- **自定义资源**：用户自定义的音效和图片存储在 `custom-assets` 子目录
+  - 路径：`%APPDATA%/待办事项清单/custom-assets/`
+  - 卸载应用会清除（便携版除外）
 - **提醒功能**：关闭窗口到托盘后，setTimeout 定时器继续运行，到点照常提醒
 - **音效**：`提示音效.mp3` 随应用打包，无需额外配置
+- **自定义音效**：用户选择的音频文件会被复制到 `custom-assets` 目录，提醒时优先使用
 - **自动播放策略**：Electron 环境下不受浏览器自动播放策略限制，首次到点即可出声
 
 ## 常见问题

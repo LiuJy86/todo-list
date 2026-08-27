@@ -14,7 +14,7 @@ body {
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
   user-select: none;
-  -webkit-app-region: drag;  /* 允许拖动窗口 */
+  /* 注意：不在 body 上设置 drag，否则会拦截按钮点击 */
 }
 
 /* ============================================
@@ -61,6 +61,7 @@ body::-webkit-scrollbar {
 /* 退出动画 */
 .reminder-container.dismissing {
   animation: containerDismiss 0.3s ease-in forwards;
+  pointer-events: none;  /* 动画期间禁止点击 */
 }
 
 @keyframes containerDismiss {
@@ -141,7 +142,7 @@ body::-webkit-scrollbar {
   justify-content: center;
   animation: stitchEnter 0.6s ease-out 0.2s both;
   cursor: pointer;
-  -webkit-app-region: no-drag;
+  -webkit-app-region: drag;  /* 只有图片区域可拖动窗口 */
 }
 
 #stitch-img {

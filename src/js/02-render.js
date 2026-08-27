@@ -611,7 +611,10 @@ function attachTooltip(element, text) {
     let top = rect.top - tooltipRect.height - 8;
 
     // 上方空间不足时显示在下方
-    if (top < 0) {
+    // 计算上方可用空间：取视口顶部与 header 底部的较大值（便签模式下 header 占据顶部区域）
+    const headerEl = document.querySelector('header');
+    const minTop = headerEl ? Math.max(0, headerEl.getBoundingClientRect().bottom) : 0;
+    if (top < minTop) {
       top = rect.bottom + 8;
     }
     // 边界保护
@@ -634,11 +637,33 @@ function attachTooltip(element, text) {
   element.addEventListener('mouseenter', showTooltip);
   element.addEventListener('mouseleave', hideTooltip);
 
+  // 【修复便签模式 bug】便签模式下 header 设置了 -webkit-app-region: drag，
+  // 鼠标从待办项移向 header 时 mouseleave 可能无法触发，导致 tooltip 残留。
+  // 通过全局 mousemove 检测鼠标是否仍在元素区域内，若已离开则隐藏 tooltip。
+  function onMouseMove(e) {
+    if (!tooltipEl) return;
+    const rect = element.getBoundingClientRect();
+    // 扩大检测范围，包含 tooltip 自身可能出现的区域（上方或下方）
+    const padding = 16;
+    const inHoriz = e.clientX >= rect.left - padding && e.clientX <= rect.right + padding;
+    const inVert = e.clientY >= rect.top - padding && e.clientY <= rect.bottom + padding;
+    if (!inHoriz || !inVert) {
+      hideTooltip();
+    }
+  }
+  element.addEventListener('mouseenter', function () {
+    document.addEventListener('mousemove', onMouseMove);
+  });
+  element.addEventListener('mouseleave', function () {
+    document.removeEventListener('mousemove', onMouseMove);
+  });
+
   // 使用 MutationObserver 替代已废弃的 DOMNodeRemoved 事件
   // 当元素从 DOM 中移除时自动清理 tooltip，避免残留
   var cleanupObserver = new MutationObserver(function (mutations) {
     if (!document.contains(element)) {
       hideTooltip();
+      document.removeEventListener('mousemove', onMouseMove);
       cleanupObserver.disconnect();
     }
   });

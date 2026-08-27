@@ -749,8 +749,75 @@
 
   // ---------- 11.4 提示音播放（优先 MP3，兜底 Web Audio 合成） ----------
 
-  // MP3 音效路径（与 index.html 同目录）。URL encode 中文路径以免部分浏览器无法加载
-  const REMINDER_MP3_SRC = encodeURI('提示音效.mp3');
+  // 默认 MP3 音效路径（与 index.html 同目录）。URL encode 中文路径以免部分浏览器无法加载
+  const DEFAULT_REMINDER_MP3_SRC = encodeURI('提示音效.mp3');
+
+  // 【v2.24.0】动态获取音效路径（支持自定义音效）
+  var REMINDER_MP3_SRC = DEFAULT_REMINDER_MP3_SRC;
+  var cachedUserDataPath = null;
+
+  // 获取 userData 路径（带缓存）
+  function getUserDataPathSync() {
+    return cachedUserDataPath;
+  }
+
+  // 解析当前应使用的音效路径
+  function resolveCurrentSoundSrc() {
+    try {
+      var saved = localStorage.getItem('settings');
+      if (saved) {
+        var s = JSON.parse(saved);
+        if (s.customSound) {
+          var userData = getUserDataPathSync();
+          if (userData) {
+            return 'file:///' + userData.replace(/\\/g, '/') + '/custom-assets/' + s.customSound;
+          }
+        }
+      }
+    } catch (e) { /* ignore */ }
+    return DEFAULT_REMINDER_MP3_SRC;
+  }
+
+  // 异步预加载 userData 路径
+  function prefetchUserDataPath() {
+    if (window.electronAPI && window.electronAPI.getUserDataPath) {
+      window.electronAPI.getUserDataPath().then(function (userData) {
+        cachedUserDataPath = userData;
+        // 更新音效路径
+        var newSrc = resolveCurrentSoundSrc();
+        if (newSrc !== REMINDER_MP3_SRC) {
+          REMINDER_MP3_SRC = newSrc;
+          // 重新创建 Audio 元素以绑定新的事件监听
+          if (mp3Audio) {
+            try { mp3Audio.pause(); } catch (e) { /* ignore */ }
+          }
+          mp3Audio = null;
+          mp3Ready = false;
+          ensureMp3Audio();
+        }
+      }).catch(function () { /* ignore */ });
+    }
+  }
+
+  // 启动时预加载
+  prefetchUserDataPath();
+
+  // 监听 storage 事件（设置页面修改后同步更新）
+  window.addEventListener('storage', function (e) {
+    if (e.key === 'settings') {
+      var newSrc = resolveCurrentSoundSrc();
+      if (newSrc !== REMINDER_MP3_SRC) {
+        REMINDER_MP3_SRC = newSrc;
+        // 重新创建 Audio 元素以绑定新的事件监听
+        if (mp3Audio) {
+          try { mp3Audio.pause(); } catch (e) { /* ignore */ }
+        }
+        mp3Audio = null;
+        mp3Ready = false;
+        ensureMp3Audio();
+      }
+    }
+  });
 
   // 单例 HTMLAudio 元素（全局只创建一次，复用避免每次 new Audio 造成泄漏和延迟）
   let mp3Audio = null;
@@ -837,6 +904,25 @@
           mp3Audio.currentTime = 0;
         } catch (e) { /* ignore */ }
       }
+    }
+  }
+
+  // 停止当前播放的提示音（MP3 + Web Audio 合成音）
+  // 用于用户手动操作（完成/删除/停止循环）时同步关闭音效
+  function stopReminderSound() {
+    // 停止 MP3
+    if (mp3Audio) {
+      try {
+        mp3Audio.pause();
+        mp3Audio.currentTime = 0;
+      } catch (e) { /* ignore */ }
+    }
+    // 停止 Web Audio：关闭旧 AudioContext 并重建（最直接地终止所有 oscillator）
+    if (audioCtx) {
+      try {
+        audioCtx.close().catch(function (e) { /* ignore */ });
+      } catch (e) { /* ignore */ }
+      audioCtx = null;
     }
   }
 
@@ -1155,6 +1241,7 @@
     checkMissed: checkMissedReminders,
     trigger: triggerReminder,
     playSound: playReminderSound,
+    stopSound: stopReminderSound,
     unlockAudio: unlockAudio,
     stopCycle: stopCycleReminder,
     getIntervalMs: getIntervalMs,

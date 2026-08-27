@@ -20,7 +20,7 @@
 
 ---
 
-## [v2.26.0] - 2026-08-27
+## [v2.24.0] - 2026-08-27
 
 ### 新增 (Added) — 批量输入解析
 
@@ -29,6 +29,59 @@
    - 自动检测时间表达式开头（X点、早上/下午、明天、周X、8:00 等）作为分割点
    - 每个分段独立解析时间，解析失败的分段保留原文本
    - 文件：`src/js/07-integration.js`
+
+### 新增 (Added) — 个性化自定义资源
+
+1. **自定义提示音效**
+   - 用户可通过设置中心选择自定义音频文件（支持 mp3/wav/ogg/flac/m4a/aac）
+   - 支持试听功能（播放/暂停切换）
+   - 支持恢复默认音效
+   - 自定义音效存储于 `%APPDATA%/ToDoList/custom-assets/` 目录
+   - 文件：`src/settings.js`、`src/settings.html`、`electron/main.js`、`electron/preload.js`
+
+2. **自定义桌宠动图**
+   - 用户可添加多张自定义图片作为桌宠动图（支持 gif/png/jpg/jpeg/webp/bmp/apng）
+   - 支持图片预览网格展示
+   - 支持清空恢复默认史迪奇 GIF
+   - 自定义图片存储于 `%APPDATA%/ToDoList/custom-assets/` 目录
+   - 文件：`src/settings.js`、`src/settings.html`、`src/js/04-pet.js`、`electron/main.js`、`electron/preload.js`
+
+### 优化 (Improved) — 提醒窗口重构
+
+1. **提醒窗口支持自定义资源**
+   - 提醒窗口加载时自动传递自定义音效和图片参数
+   - 支持自定义音效播放（优先使用用户自定义音效）
+   - 支持自定义桌宠图片展示（按优先级选择对应图片）
+   - 文件：`src/js/reminder-window.js`、`electron/main.js`
+
+2. **音效停止控制**
+   - 新增 `stopReminderSound()` 函数，用户手动操作（完成/删除/停止循环）时同步关闭音效
+   - 关闭提醒窗口时自动停止当前播放的音效
+   - 文件：`src/js/06-reminder.js`、`src/js/reminder-window.js`
+
+### 修复 (Fixed) — 交互体验优化
+
+1. **便签模式 Tooltip 残留修复**
+   - 便签模式下 header 设置了 `-webkit-app-region: drag`，鼠标移向 header 时 mouseleave 可能无法触发
+   - 新增全局 mousemove 检测，鼠标离开元素区域时自动隐藏 tooltip
+   - 文件：`src/js/02-render.js`
+
+2. **提醒窗口拖拽区域优化**
+   - 移除 body 上的 `-webkit-app-region: drag`，避免拦截按钮点击
+   - 仅在桌宠图片区域启用窗口拖拽
+   - 退出动画期间禁止点击
+   - 文件：`src/css/reminder.css`
+
+### 重构 (Refactored) — 代码泛化
+
+1. **桌宠文案泛化**
+   - 将"史迪奇"相关文案改为"桌宠"，为自定义桌宠图片做准备
+   - 气泡文案风格从"中二"调整为"元气 + 暖心 + 鼓励"
+   - 文件：`src/js/04-pet.js`、`src/js/09-guide.js`
+
+2. **清理冗余图标文件**
+   - 删除 `electron/icon_backup.png`、`electron/icon_backup2.png`、`electron/tool bar_icon_health_active.png`
+   - 更新 `electron/icon.png` 为新设计图标
 
 ---
 

@@ -10,7 +10,9 @@ const DEFAULT_SETTINGS = {
   shortcuts: {
     'toggle-window': 'Alt+F',   // 显示/隐藏窗口
     'toggle-sticky': 'Alt+G'    // 切换便签模式
-  }
+  },
+  customSound: null,          // 自定义音效文件名 (v2.24.0)
+  customImages: []            // 自定义图片文件名数组 (v2.24.0)
 };
 
 // 当前设置（从 localStorage 加载，没有则用默认值）
@@ -28,6 +30,8 @@ document.addEventListener('DOMContentLoaded', function () {
   initUpdateSection();
   initAboutSection();
   initGuideControls();
+  initCustomSoundControls();
+  initCustomImageControls();
 });
 
 // ============================================
@@ -47,7 +51,9 @@ function loadSettings() {
         shortcuts: {
           ...DEFAULT_SETTINGS.shortcuts,
           ...(parsed.shortcuts || {})
-        }
+        },
+        customSound: parsed.customSound ?? DEFAULT_SETTINGS.customSound,
+        customImages: Array.isArray(parsed.customImages) ? parsed.customImages : DEFAULT_SETTINGS.customImages
       };
     } catch (e) {
       return { ...DEFAULT_SETTINGS };
@@ -345,4 +351,226 @@ function initGuideControls() {
       }
     });
   }
+}
+
+// ============================================
+// 【v2.24.0】个性化 - 自定义提示音效
+// ============================================
+function initCustomSoundControls() {
+  var descEl = document.getElementById('soundDesc');
+  var previewBtn = document.getElementById('previewSoundBtn');
+  var selectBtn = document.getElementById('selectSoundBtn');
+  var clearBtn = document.getElementById('clearSoundBtn');
+
+  if (!descEl || !selectBtn) return; // 元素不存在则跳过
+
+  // 更新描述显示
+  function updateDesc() {
+    if (settings.customSound) {
+      descEl.textContent = '自定义: ' + settings.customSound;
+    } else {
+      descEl.textContent = '默认音效';
+    }
+  }
+
+  // 选择音效
+  selectBtn.addEventListener('click', async function () {
+    if (!window.electronAPI || !window.electronAPI.selectSoundFile) {
+      alert('文件选择功能不可用');
+      return;
+    }
+    try {
+      var srcPath = await window.electronAPI.selectSoundFile();
+      if (!srcPath) return; // 用户取消
+
+      var result = await window.electronAPI.saveCustomSound(srcPath);
+      if (result && result.success) {
+        settings.customSound = result.filename;
+        saveSettings();
+        updateDesc();
+      } else {
+        alert('保存音效失败: ' + (result && result.error ? result.error : '未知错误'));
+      }
+    } catch (e) {
+      alert('选择音效失败: ' + e.message);
+    }
+  });
+
+  // 试听逻辑（播放/暂停/停止）
+  var previewAudio = null;   // 当前 Audio 实例
+  var previewState = 'stop'; // 'stop' | 'playing'
+
+  // 设置按钮状态（图标由 CSS 绘制）
+  function setPreviewState(state) {
+    previewState = state;
+    if (state === 'playing') {
+      previewBtn.classList.add('playing');
+    } else {
+      previewBtn.classList.remove('playing');
+    }
+  }
+
+  // 停止播放并重置
+  function stopPreview() {
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio.currentTime = 0;
+      previewAudio = null;
+    }
+    setPreviewState('stop');
+  }
+
+  // 试听按钮点击
+  previewBtn.addEventListener('click', async function () {
+    // 正在播放 → 停止
+    if (previewState === 'playing') {
+      stopPreview();
+      return;
+    }
+
+    // 停止之前的播放
+    stopPreview();
+
+    // 获取音频源
+    var src;
+    if (settings.customSound && window.electronAPI && window.electronAPI.getUserDataPath) {
+      try {
+        var userData = await window.electronAPI.getUserDataPath();
+        src = 'file:///' + userData.replace(/\\/g, '/') + '/custom-assets/' + settings.customSound;
+      } catch (e) {
+        src = '提示音效.mp3';
+      }
+    } else {
+      src = '提示音效.mp3';
+    }
+
+    try {
+      previewAudio = new Audio(src);
+      previewAudio.volume = 0.6;
+
+      // 播放结束 → 重置
+      previewAudio.addEventListener('ended', function () {
+        setPreviewState('stop');
+      }, { once: true });
+
+      // 播放出错 → 显示错误
+      previewAudio.addEventListener('error', function () {
+        console.warn('试听失败');
+        previewAudio = null;
+        setPreviewState('stop');
+      }, { once: true });
+
+      // 开始播放
+      var playPromise = previewAudio.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.then(function () {
+          setPreviewState('playing');
+        }).catch(function (e) {
+          console.warn('试听失败:', e);
+          setPreviewState('stop');
+        });
+      } else {
+        setPreviewState('playing');
+      }
+    } catch (e) {
+      console.warn('试听失败:', e);
+      setPreviewState('stop');
+    }
+  });
+
+  // 恢复默认
+  clearBtn.addEventListener('click', async function () {
+    if (!window.electronAPI || !window.electronAPI.clearCustomSound) {
+      return;
+    }
+    try {
+      await window.electronAPI.clearCustomSound();
+      settings.customSound = null;
+      saveSettings();
+      updateDesc();
+    } catch (e) {
+      console.warn('清除音效失败:', e);
+    }
+  });
+
+  updateDesc();
+}
+
+// ============================================
+// 【v2.24.0】个性化 - 自定义桌宠动图
+// ============================================
+function initCustomImageControls() {
+  var descEl = document.getElementById('imagesDesc');
+  var gridEl = document.getElementById('imagePreviewGrid');
+  var addBtn = document.getElementById('addImagesBtn');
+  var clearBtn = document.getElementById('clearImagesBtn');
+
+  if (!descEl || !addBtn) return; // 元素不存在则跳过
+
+  // 渲染预览网格
+  async function renderGrid() {
+    var images = settings.customImages || [];
+    gridEl.innerHTML = '';
+    descEl.textContent = images.length > 0 ? '自定义 ' + images.length + ' 张' : '默认 6 张';
+
+    if (images.length === 0 || !window.electronAPI || !window.electronAPI.getUserDataPath) {
+      return;
+    }
+
+    try {
+      var userData = await window.electronAPI.getUserDataPath();
+      var basePath = 'file:///' + userData.replace(/\\/g, '/') + '/custom-assets/';
+      images.forEach(function (filename) {
+        var thumb = document.createElement('div');
+        thumb.className = 'image-thumb';
+        var img = document.createElement('img');
+        img.src = basePath + filename;
+        img.alt = filename;
+        thumb.appendChild(img);
+        gridEl.appendChild(thumb);
+      });
+    } catch (e) {
+      console.warn('加载图片预览失败:', e);
+    }
+  }
+
+  // 添加图片
+  addBtn.addEventListener('click', async function () {
+    if (!window.electronAPI || !window.electronAPI.selectImageFiles) {
+      alert('文件选择功能不可用');
+      return;
+    }
+    try {
+      var paths = await window.electronAPI.selectImageFiles();
+      if (!paths || paths.length === 0) return; // 用户取消
+
+      var result = await window.electronAPI.saveCustomImages(paths);
+      if (result && result.success) {
+        settings.customImages = (settings.customImages || []).concat(result.filenames);
+        saveSettings();
+        renderGrid();
+      } else {
+        alert('保存图片失败');
+      }
+    } catch (e) {
+      alert('选择图片失败: ' + e.message);
+    }
+  });
+
+  // 清空
+  clearBtn.addEventListener('click', async function () {
+    if (!window.electronAPI || !window.electronAPI.clearCustomImages) {
+      return;
+    }
+    try {
+      await window.electronAPI.clearCustomImages();
+      settings.customImages = [];
+      saveSettings();
+      renderGrid();
+    } catch (e) {
+      console.warn('清除图片失败:', e);
+    }
+  });
+
+  renderGrid();
 }

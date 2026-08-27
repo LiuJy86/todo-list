@@ -76,6 +76,52 @@
         </div>
       </section>
 
+      <!-- 个性化设置 (v2.24.0) -->
+      <section class="settings-section">
+        <h2 class="section-title">个性化</h2>
+
+        <!-- 提示音效 -->
+        <div class="settings-item">
+          <div class="settings-item-info">
+            <span class="settings-item-label">提示音效</span>
+            <span class="settings-item-desc" id="soundDesc">默认音效</span>
+          </div>
+          <div class="settings-item-controls">
+            <button id="previewSoundBtn" class="action-btn" title="试听">▶</button>
+            <button id="selectSoundBtn" class="action-btn">选择</button>
+            <button id="clearSoundBtn" class="action-btn">默认</button>
+          </div>
+        </div>
+
+        <!-- 桌宠动图 -->
+        <div class="settings-item settings-item-block">
+          <div class="settings-item-info">
+            <span class="settings-item-label">桌宠动图</span>
+            <span class="settings-item-desc" id="imagesDesc">默认 6 张</span>
+            <div class="settings-item-hint">建议使用透明背景 GIF，效果更佳</div>
+          </div>
+          <div class="settings-item-controls">
+            <div id="imagePreviewGrid" class="image-preview-grid"></div>
+            <button id="addImagesBtn" class="action-btn">添加</button>
+            <button id="clearImagesBtn" class="action-btn">清空</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 用户引导 (v2.25.0) -->
+      <section class="settings-section">
+        <h2 class="section-title">用户引导</h2>
+
+        <!-- 重新查看引导 -->
+        <div class="settings-item">
+          <div class="settings-item-info">
+            <span class="settings-item-label">重新查看引导</span>
+            <span class="settings-item-desc">再次显示首次使用时的功能引导</span>
+          </div>
+          <button id="guideResetTourBtn" class="action-btn">查看引导</button>
+        </div>
+      </section>
+
       <!-- 更新设置 -->
       <section class="settings-section">
         <h2 class="section-title">更新</h2>
@@ -109,20 +155,6 @@
             <span class="settings-item-desc">查看源代码和文档</span>
           </div>
           <button id="openGithubBtn" class="action-btn">打开</button>
-        </div>
-      </section>
-
-      <!-- 用户引导 (v2.25.0) -->
-      <section class="settings-section">
-        <h2 class="section-title">用户引导</h2>
-
-        <!-- 重新查看引导 -->
-        <div class="settings-item">
-          <div class="settings-item-info">
-            <span class="settings-item-label">重新查看引导</span>
-            <span class="settings-item-desc">再次显示首次使用时的功能引导</span>
-          </div>
-          <button id="guideResetTourBtn" class="action-btn">查看引导</button>
         </div>
       </section>
 
