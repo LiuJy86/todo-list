@@ -4,6 +4,9 @@ const { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain, globalShort
 const path = require('path');
 const fs = require('fs');
 
+// 【内存优化】禁用 GPU 进程沙箱（单窗口应用不需要）
+// app.disableHardwareAcceleration(); // 如需进一步减少内存可取消注释（会牺牲动画性能）
+
 // ============================================
 // 设置文件管理（主进程读写，零依赖）
 // ============================================
@@ -153,7 +156,11 @@ function createWindow(isToolbar) {
       contextIsolation: true,     // 上下文隔离（安全）
       nodeIntegration: false,     // 禁用 Node 集成（安全）
       preload: path.join(__dirname, 'preload.js'),  // 预加载脚本
-      spellcheck: false
+      spellcheck: false,
+      // 【内存优化】禁用不必要的功能，减少进程开销
+      webSecurity: true,
+      enableWebSQL: false,        // 禁用 WebSQL（已废弃）
+      webgl: false                // 禁用 WebGL（本应用不需要 3D 渲染）
     }
   };
   // toolbar 类型：Windows+D 不会最小化，不在任务栏和 Alt+Tab 显示（仅 Windows）
@@ -483,7 +490,31 @@ function createTray() {
   tray = new Tray(trayIcon);
   tray.setToolTip('ToDoList · 点击显示/隐藏');
 
-  // 托盘右键菜单
+  // 创建托盘菜单
+  buildTrayMenu();
+
+  // 单击托盘：切换显示/隐藏
+  tray.on('click', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isVisible()) {
+      mainWindow.hide();
+    } else {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  // 双击托盘：始终显示
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
+// 【优化】构建托盘菜单（独立函数，支持仅更新菜单而不重建托盘）
+function buildTrayMenu() {
   stickyMenu = Menu.buildFromTemplate([
     {
       label: '显示主窗口',
@@ -537,26 +568,9 @@ function createTray() {
     }
   ]);
 
-  tray.setContextMenu(stickyMenu);
-
-  // 单击托盘：切换显示/隐藏
-  tray.on('click', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isVisible()) {
-      mainWindow.hide();
-    } else {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
-
-  // 双击托盘：始终显示
-  tray.on('double-click', () => {
-    if (mainWindow) {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
+  if (tray) {
+    tray.setContextMenu(stickyMenu);
+  }
 }
 
 // 防止多开：第二个实例直接聚焦已有窗口
@@ -822,12 +836,20 @@ ipcMain.on('load-main-page', function () {
 });
 
 // 切换便签模式
+// 【优化】使用"先建后毁"策略，避免窗口闪烁
 function toggleStickyMode(enable) {
   if (!mainWindow) return;
 
   // 状态没变则不操作
   if (isStickyMode === enable) return;
   isStickyMode = enable;
+
+  // 保存旧窗口引用
+  const oldWindow = mainWindow;
+
+  // 【修复】移除旧窗口的 closed 事件 handler，避免销毁时误清 mainWindow
+  oldWindow.removeAllListeners('closed');
+  oldWindow.removeAllListeners('close');
 
   if (enable) {
     // 进入便签模式：用 toolbar 类型重建窗口（Windows+D 无法最小化）
@@ -845,11 +867,7 @@ function toggleStickyMode(enable) {
       posY = 10;
     }
 
-    // 销毁旧窗口
-    mainWindow.destroy();
-
-    // 创建 toolbar 类型窗口（不受 Windows+D 影响）
-    // minHeight 设小，允许便签模式根据内容自适应高度
+    // 创建新窗口（隐藏状态，避免闪烁）
     mainWindow = new BrowserWindow({
       width: 480,
       height: 760,
@@ -857,12 +875,12 @@ function toggleStickyMode(enable) {
       minHeight: 80,
       x: posX,
       y: posY,
+      show: false,
       title: 'ToDoList',
       icon: getIconPath(),
       autoHideMenuBar: true,
-      titleBarStyle: 'hidden',     // 隐藏原生标题栏，与主窗口一致
+      titleBarStyle: 'hidden',
       backgroundColor: '#F2F2F7',
-      // type: 'toolbar' 仅 Windows 支持，macOS 下使用 'panel' 类型
       type: process.platform === 'win32' ? 'toolbar' : (process.platform === 'darwin' ? 'panel' : undefined),
       webPreferences: {
         contextIsolation: true,
@@ -872,44 +890,41 @@ function toggleStickyMode(enable) {
       }
     });
 
-    // 重新加载页面
-    mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
+    const newWindow = mainWindow;
+    newWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
 
-    // 页面加载完成后显示窗口并通知进入便签模式
-    // 使用 once 确保只触发一次，避免重复通知
-    mainWindow.webContents.once('did-finish-load', () => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('sticky-mode', true);
-        mainWindow.show();
+    newWindow.webContents.once('did-finish-load', () => {
+      if (newWindow && !newWindow.isDestroyed()) {
+        // 销毁旧窗口
+        if (oldWindow && !oldWindow.isDestroyed()) {
+          oldWindow.destroy();
+        }
+        // 通知并显示新窗口
+        newWindow.webContents.send('sticky-mode', true);
+        newWindow.show();
+        newWindow.focus();
       }
     });
 
-    // 重新绑定关闭拦截
-    mainWindow.on('close', (e) => {
+    newWindow.on('close', (e) => {
       if (!isQuitting) {
         e.preventDefault();
-        mainWindow.hide();
+        newWindow.hide();
       }
     });
 
-    mainWindow.on('closed', () => {
-      mainWindow = null;
+    newWindow.on('closed', () => {
+      if (mainWindow === newWindow) mainWindow = null;
     });
 
-    // 监听拖动，记住位置
-    mainWindow.on('move', saveStickyPosition);
+    newWindow.on('move', saveStickyPosition);
 
   } else {
     // 退出便签模式：恢复普通窗口
     const [posX, posY] = mainWindow.getPosition();
-
-    // 保存当前位置
     stickyPosition = { x: posX, y: posY };
 
-    // 销毁 toolbar 窗口
-    mainWindow.destroy();
-
-    // 创建普通窗口
+    // 创建新窗口（隐藏状态，避免闪烁）
     mainWindow = new BrowserWindow({
       width: 480,
       height: 760,
@@ -917,10 +932,11 @@ function toggleStickyMode(enable) {
       minHeight: 520,
       x: posX,
       y: posY,
+      show: false,
       title: 'ToDoList',
       icon: getIconPath(),
       autoHideMenuBar: true,
-      titleBarStyle: 'hidden',     // 隐藏原生标题栏，与主窗口一致
+      titleBarStyle: 'hidden',
       backgroundColor: '#F2F2F7',
       webPreferences: {
         contextIsolation: true,
@@ -930,23 +946,26 @@ function toggleStickyMode(enable) {
       }
     });
 
-    // 重新加载页面
-    mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
+    const newWindow = mainWindow;
+    newWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
 
-    // 页面加载完成后显示窗口并通知退出便签模式
-    // 使用 once 确保只触发一次，避免重复通知
-    mainWindow.webContents.once('did-finish-load', () => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('sticky-mode', false);
-        mainWindow.show();
+    newWindow.webContents.once('did-finish-load', () => {
+      if (newWindow && !newWindow.isDestroyed()) {
+        // 销毁旧窗口
+        if (oldWindow && !oldWindow.isDestroyed()) {
+          oldWindow.destroy();
+        }
+        // 通知并显示新窗口
+        newWindow.webContents.send('sticky-mode', false);
+        newWindow.show();
+        newWindow.focus();
       }
     });
 
-    // 重新绑定关闭拦截
-    mainWindow.on('close', (e) => {
+    newWindow.on('close', (e) => {
       if (!isQuitting) {
         e.preventDefault();
-        mainWindow.hide();
+        newWindow.hide();
         if (tray && !trayNotified) {
           tray.displayBalloon({
             iconType: 'info',
@@ -958,14 +977,14 @@ function toggleStickyMode(enable) {
       }
     });
 
-    mainWindow.on('closed', () => {
-      mainWindow = null;
+    newWindow.on('closed', () => {
+      if (mainWindow === newWindow) mainWindow = null;
     });
   }
 
-  // 重建托盘菜单，更新便签模式复选框状态
+  // 仅更新托盘菜单复选框状态，不重建整个托盘
   if (tray) {
-    createTray();
+    buildTrayMenu();
   }
 }
 

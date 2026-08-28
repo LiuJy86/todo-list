@@ -1,5 +1,5 @@
 /**
- * 统一引导系统 (v2.25.0)
+ * 统一引导系统 (v2.24.0)
  *
  * 合并「首次引导」+「上下文提示」+「功能发现」三套能力。
  * 声明式配置，新增引导步骤只需加配置项。
@@ -647,11 +647,13 @@
 
   // ============ 触发器系统 ============
 
+  // 【内存优化】追踪所有引导系统创建的 MutationObserver，确保全部可清理
   var tipTriggers = {
     events: [],
     intervals: [],
     mutationObservers: []
   };
+  var guideModalObservers = []; // 专门追踪弹窗监听 observer
 
   function startTipTriggers() {
     stopTipTriggers();
@@ -677,7 +679,13 @@
   }
 
   function stopTipTriggers() {
-    // 移除事件监听（通过标记失效）
+    // 【修复 P0】真正移除事件监听器，防止内存泄漏
+    for (var e = 0; e < tipTriggers.events.length; e++) {
+      var evt = tipTriggers.events[e];
+      if (evt && evt.event && evt.handler) {
+        document.removeEventListener(evt.event, evt.handler, true);
+      }
+    }
     tipTriggers.events = [];
 
     // 清除定时器
@@ -688,9 +696,28 @@
 
     // 断开 MutationObserver
     for (var j = 0; j < tipTriggers.mutationObservers.length; j++) {
-      tipTriggers.mutationObservers[j].disconnect();
+      try { tipTriggers.mutationObservers[j].disconnect(); } catch (ex) { /* ignore */ }
     }
     tipTriggers.mutationObservers = [];
+
+    // 断开所有引导弹窗监听 observer
+    for (var k = 0; k < guideModalObservers.length; k++) {
+      try { guideModalObservers[k].disconnect(); } catch (ex) { /* ignore */ }
+    }
+    guideModalObservers = [];
+  }
+
+  // 【内存优化】注册弹窗 observer 到全局追踪列表
+  function trackModalObserver(obs) {
+    guideModalObservers.push(obs);
+    return obs;
+  }
+
+  // 【内存优化】从追踪列表中移除并断开指定 observer
+  function untrackModalObserver(obs) {
+    var idx = guideModalObservers.indexOf(obs);
+    if (idx !== -1) guideModalObservers.splice(idx, 1);
+    try { obs.disconnect(); } catch (e) { /* ignore */ }
   }
 
   function bindEventTrigger(tip, trigger) {
@@ -935,7 +962,7 @@
               var removed = muts[i].removedNodes;
               for (var j = 0; j < removed.length; j++) {
                 if (removed[j] === modalEl || (removed[j] && removed[j].contains && removed[j].contains(modalEl))) {
-                  modalObs.disconnect();
+                  untrackModalObserver(modalObs);
                   dismissTip('guide-step-tooltip');
                   if (cardEl) cardEl.style.visibility = '';
                   onStepActionComplete(step);
@@ -944,9 +971,10 @@
               }
             }
           });
+          trackModalObserver(modalObs);
           modalObs.observe(modalParent, { childList: true, subtree: true });
           phaseCleanup = function () {
-            modalObs.disconnect();
+            untrackModalObserver(modalObs);
             dismissTip('guide-step-tooltip');
             if (cardEl) cardEl.style.visibility = '';
           };
@@ -955,7 +983,7 @@
           var appearObs = new MutationObserver(function () {
             var m = document.querySelector(wait.target);
             if (m) {
-              appearObs.disconnect();
+              untrackModalObserver(appearObs);
               // 弹窗出现了，隐藏卡片和高亮框
               if (cardEl) cardEl.style.visibility = 'hidden';
               hideSpotlight();
@@ -977,7 +1005,7 @@
                   var removed = muts[i].removedNodes;
                   for (var j = 0; j < removed.length; j++) {
                     if (removed[j] === m || (removed[j] && removed[j].contains && removed[j].contains(m))) {
-                      closeObs.disconnect();
+                      untrackModalObserver(closeObs);
                       dismissTip('guide-step-tooltip');
                       if (cardEl) cardEl.style.visibility = '';
                       onStepActionComplete(step);
@@ -986,17 +1014,19 @@
                   }
                 }
               });
+              trackModalObserver(closeObs);
               closeObs.observe(mp, { childList: true, subtree: true });
               phaseCleanup = function () {
-                closeObs.disconnect();
+                untrackModalObserver(closeObs);
                 dismissTip('guide-step-tooltip');
                 if (cardEl) cardEl.style.visibility = '';
               };
             }
           });
+          trackModalObserver(appearObs);
           appearObs.observe(document.body, { childList: true, subtree: true });
           phaseCleanup = function () {
-            appearObs.disconnect();
+            untrackModalObserver(appearObs);
             dismissTip('guide-step-tooltip');
             if (cardEl) cardEl.style.visibility = '';
           };
@@ -1006,7 +1036,7 @@
     }
   }
 
-  // 等待弹窗关闭的辅助函数
+  // 等待弹窗关闭的辅助函数 - 【内存优化】使用 trackModalObserver 追踪
   function waitForModalClose(modalTarget, stepWait) {
     var modalEl = document.querySelector(modalTarget);
     if (modalEl) {
@@ -1017,7 +1047,7 @@
           var removed = muts[i].removedNodes;
           for (var j = 0; j < removed.length; j++) {
             if (removed[j] === modalEl || (removed[j] && removed[j].contains && removed[j].contains(modalEl))) {
-              modalObs.disconnect();
+              untrackModalObserver(modalObs);
               if (overlayEl) overlayEl.style.display = '';
               onStepActionComplete(stepWait);
               return;
@@ -1025,21 +1055,22 @@
           }
         }
       });
+      trackModalObserver(modalObs);
       modalObs.observe(modalParent, { childList: true, subtree: true });
-      phaseCleanup = function () { modalObs.disconnect(); if (overlayEl) overlayEl.style.display = ''; };
+      phaseCleanup = function () { untrackModalObserver(modalObs); if (overlayEl) overlayEl.style.display = ''; };
     } else {
       // 弹窗不存在，等待出现后再监听关闭
       var appearObs = new MutationObserver(function () {
         var m = document.querySelector(modalTarget);
         if (m) {
-          appearObs.disconnect();
+          untrackModalObserver(appearObs);
           var mp = m.parentNode;
           var closeObs = new MutationObserver(function (muts) {
             for (var i = 0; i < muts.length; i++) {
               var removed = muts[i].removedNodes;
               for (var j = 0; j < removed.length; j++) {
                 if (removed[j] === m || (removed[j] && removed[j].contains && removed[j].contains(m))) {
-                  closeObs.disconnect();
+                  untrackModalObserver(closeObs);
                   if (overlayEl) overlayEl.style.display = '';
                   onStepActionComplete(stepWait);
                   return;
@@ -1047,12 +1078,14 @@
               }
             }
           });
+          trackModalObserver(closeObs);
           closeObs.observe(mp, { childList: true, subtree: true });
-          phaseCleanup = function () { closeObs.disconnect(); if (overlayEl) overlayEl.style.display = ''; };
+          phaseCleanup = function () { untrackModalObserver(closeObs); if (overlayEl) overlayEl.style.display = ''; };
         }
       });
+      trackModalObserver(appearObs);
       appearObs.observe(document.body, { childList: true, subtree: true });
-      phaseCleanup = function () { appearObs.disconnect(); if (overlayEl) overlayEl.style.display = ''; };
+      phaseCleanup = function () { untrackModalObserver(appearObs); if (overlayEl) overlayEl.style.display = ''; };
     }
   }
 

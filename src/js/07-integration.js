@@ -91,7 +91,34 @@ if (window.electronAPI && window.electronAPI.onStickyMode) {
   });
 }
 
+// 【内存优化】缓存 settings 解析结果，避免每次渲染都解析 localStorage
+var cachedSettings = null;
+var cachedSettingsKey = '';
+
+function getCachedSettings() {
+  var raw = localStorage.getItem('settings');
+  if (raw === cachedSettingsKey && cachedSettings) {
+    return cachedSettings;
+  }
+  cachedSettingsKey = raw;
+  try {
+    cachedSettings = raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    cachedSettings = {};
+  }
+  return cachedSettings;
+}
+
+// 监听 storage 事件，清除缓存
+window.addEventListener('storage', function (e) {
+  if (e.key === 'settings') {
+    cachedSettings = null;
+    cachedSettingsKey = '';
+  }
+});
+
 // 【v2.14.0】更新便签模式标题（显示待办计数 / 完成进度）
+// 【内存优化】使用缓存的 settings，避免重复解析 localStorage
 function updateStickyTitle() {
   var h1 = document.querySelector('header h1');
   if (!h1) return;
@@ -528,23 +555,26 @@ function wrappedAddTodo() {
   // 2) 从日期选择器获取时间（覆盖自然语言解析结果）
   // 注意：只有日期选择器有明确设置时间时才覆盖；循环设置只在选择器有值时才覆盖，
   // 避免自然语言解析得到的循环设置被选择器的 null 覆盖
+  // 【修复】开始时间、结束时间、结束前提醒分别独立获取，避免嵌套导致无法单独设置
   const pickerTs = window.datetimePickerModule ? window.datetimePickerModule.getTimestamp() : null;
+  const pickerEndTs = window.datetimePickerModule ? window.datetimePickerModule.getEndTimestamp() : null;
+  const pickerBefore = window.datetimePickerModule ? window.datetimePickerModule.getEndRemindBefore() : 0;
+  const pickerRecurrence = window.datetimePickerModule ? window.datetimePickerModule.getRecurrence() : null;
+
   if (pickerTs) {
     remindAt = pickerTs;
-    // 获取结束时间
-    const pickerEndTs = window.datetimePickerModule.getEndTimestamp();
-    if (pickerEndTs) {
-      endRemindAt = pickerEndTs;
-    }
-    // 获取结束前提醒
-    const pickerBefore = window.datetimePickerModule.getEndRemindBefore();
-    if (pickerBefore > 0) {
-      endRemindBefore = pickerBefore;
-    }
-    const pickerRecurrence = window.datetimePickerModule.getRecurrence();
-    if (pickerRecurrence) {
-      recurrence = pickerRecurrence;
-    }
+  }
+  // 结束时间独立于开始时间获取
+  if (pickerEndTs) {
+    endRemindAt = pickerEndTs;
+  }
+  // 结束前提醒独立获取（需要结束时间才有意义）
+  if (pickerBefore > 0 && pickerEndTs) {
+    endRemindBefore = pickerBefore;
+  }
+  // 循环设置独立获取
+  if (pickerRecurrence) {
+    recurrence = pickerRecurrence;
   }
 
   // 3) 都没有 → 纯添加（不设提醒）

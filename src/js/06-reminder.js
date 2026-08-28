@@ -909,6 +909,7 @@
 
   // 停止当前播放的提示音（MP3 + Web Audio 合成音）
   // 用于用户手动操作（完成/删除/停止循环）时同步关闭音效
+  // 【内存优化】AudioContext 不再 close，仅 suspend 以复用，避免反复创建/销毁
   function stopReminderSound() {
     // 停止 MP3
     if (mp3Audio) {
@@ -917,12 +918,12 @@
         mp3Audio.currentTime = 0;
       } catch (e) { /* ignore */ }
     }
-    // 停止 Web Audio：关闭旧 AudioContext 并重建（最直接地终止所有 oscillator）
-    if (audioCtx) {
+    // 【优化】Web Audio：不再 close AudioContext，仅 suspend 以复用
+    // 终止所有 oscillator 通过 suspend AudioContext 实现
+    if (audioCtx && audioCtx.state === 'running') {
       try {
-        audioCtx.close().catch(function (e) { /* ignore */ });
+        audioCtx.suspend();
       } catch (e) { /* ignore */ }
-      audioCtx = null;
     }
   }
 
@@ -1132,6 +1133,7 @@
     // 6) 【v2.22.0】弹出史迪仔桌面提醒窗口（独立透明窗口）
     if (window.electronAPI && window.electronAPI.setReminderWindow) {
       // 构造兼容的待办对象传递给主进程
+      // 【优化】传递提醒类型，让提醒窗口能显示对应的提示文案
       var windowTodo = {
         id: todo.id,
         text: todo.text,
@@ -1139,7 +1141,8 @@
         priority: todo.priority || 1,
         remindAt: reminderItem.at,
         reminders: todo.reminders,
-        recurrence: todo.recurrence
+        recurrence: todo.recurrence,
+        reminderType: type  // 新增：提醒类型（start/end/before）
       };
       window.electronAPI.setReminderWindow(windowTodo);
     }
@@ -1212,21 +1215,41 @@
   // 徽章刷新间隔：让"还有 N 分钟"倒计时定期更新（仅改 textContent，不调用 render）
   var BADGE_REFRESH_INTERVAL = 30000;    // 30 秒
 
-  setInterval(checkMissedReminders, MISSED_REMINDER_INTERVAL);
+  // 【内存优化】徽章刷新定时器 - 支持页面不可见时暂停
+  var badgeRefreshTimer = null;
 
-  setInterval(function () {
-    nodeCache.forEach(function (li, id) {
-      const todo = todos.find(function (t) { return t.id === id; });
-      if (todo) updateReminderBadge(li, todo);
-    });
-  }, BADGE_REFRESH_INTERVAL);
+  function startBadgeRefresh() {
+    if (badgeRefreshTimer) return;
+    badgeRefreshTimer = setInterval(function () {
+      nodeCache.forEach(function (li, id) {
+        const todo = todos.find(function (t) { return t.id === id; });
+        if (todo) updateReminderBadge(li, todo);
+      });
+    }, BADGE_REFRESH_INTERVAL);
+  }
+
+  function stopBadgeRefresh() {
+    if (badgeRefreshTimer) {
+      clearInterval(badgeRefreshTimer);
+      badgeRefreshTimer = null;
+    }
+  }
+
+  // 启动徽章刷新
+  startBadgeRefresh();
+
+  setInterval(checkMissedReminders, MISSED_REMINDER_INTERVAL);
 
 
   // ---------- 11.7 页面可见性联动 ----------
   // 切回前台时补触发切走期间错过的提醒
+  // 【内存优化】页面不可见时暂停徽章刷新，节省资源
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) {
+    if (document.hidden) {
+      stopBadgeRefresh();
+    } else {
       checkMissedReminders();
+      startBadgeRefresh();
     }
   });
 

@@ -676,12 +676,18 @@ const datetimePickerModule = (function () {
       if (endToggle) endToggle.checked = true;
       if (endOptions) endOptions.style.display = 'block';
     }
-    // 同步结束前提醒
+    // 同步结束前提醒（【修复】始终同步，避免残留旧值）
     if (beforeMinutes && beforeMinutes > 0) {
       endRemindBefore = beforeMinutes;
       if (beforeInput) beforeInput.value = String(beforeMinutes);
       if (beforeToggle) beforeToggle.checked = true;
       if (beforeOptions) beforeOptions.style.display = 'block';
+    } else {
+      // 【修复】清除旧的结束前提醒，避免残留
+      endRemindBefore = 0;
+      if (beforeInput) beforeInput.value = '';
+      if (beforeToggle) beforeToggle.checked = false;
+      if (beforeOptions) beforeOptions.style.display = 'none';
     }
     // 始终同步循环设置（包括设为 null 的情况，避免残留旧的循环状态）
     currentRecurrence = recurrence || null;
@@ -969,8 +975,9 @@ const datetimePickerModule = (function () {
         }
         return;
       }
-      if (!currentDate) {
-        // 没有选日期，关闭不做任何事
+      // 【修复】允许仅设置结束时间（无需开始时间）
+      // 如果没有开始日期也没有结束日期，关闭不做任何事
+      if (!currentDate && !currentEndDate) {
         close();
         return;
       }

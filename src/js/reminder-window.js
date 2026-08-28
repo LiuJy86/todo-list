@@ -85,16 +85,40 @@
   }
 
   // ============================================
-  // 根据场景生成提醒文字
+  // 根据场景生成提醒文字（支持不同提醒类型）
   // ============================================
   function getReminderText(todo) {
     var title = todo.text || todo.title || '待办';
-    var texts = [
-      '该' + title + '了！',
-      '别忘了：' + title,
-      title + ' 时间到！',
-      '嘿！该' + title + '啦～'
-    ];
+    var type = todo.reminderType || 'start';
+    var texts;
+
+    // 根据提醒类型选择不同的文案风格
+    if (type === 'before') {
+      // 结束前提醒：强调即将结束
+      texts = [
+        '⏰ 即将结束：' + title,
+        '还有几分钟就结束了哦：' + title,
+        '快结束了，准备好了吗：' + title,
+        '⏳ ' + title + ' 即将到期～'
+      ];
+    } else if (type === 'end') {
+      // 结束时间提醒
+      texts = [
+        '🏁 结束时间到：' + title,
+        title + ' 结束时间到了！',
+        '别忘了结束哦：' + title,
+        '🏁 该完成啦：' + title
+      ];
+    } else {
+      // 开始时间提醒（默认）
+      texts = [
+        '该' + title + '了！',
+        '别忘了：' + title,
+        title + ' 时间到！',
+        '嘿！该' + title + '啦～'
+      ];
+    }
+
     var index = hashString(String(todo.id)) % texts.length;
     return texts[index];
   }
@@ -203,6 +227,19 @@
     var reminderText = document.getElementById('reminder-text');
     if (reminderText) {
       reminderText.textContent = getReminderText(todo);
+    }
+
+    // 【优化】根据提醒类型显示不同图标
+    var reminderIcon = document.getElementById('reminder-icon');
+    if (reminderIcon) {
+      var type = todo.reminderType || 'start';
+      if (type === 'before') {
+        reminderIcon.textContent = '⏰';  // 闹钟 - 即将结束
+      } else if (type === 'end') {
+        reminderIcon.textContent = '🏁';  // 旗帜 - 结束
+      } else {
+        reminderIcon.textContent = '🔔';  // 铃铛 - 开始
+      }
     }
 
     // 设置史迪奇图片

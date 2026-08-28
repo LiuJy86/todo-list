@@ -57,16 +57,20 @@
   // 收集页面上需要避开的交互元素：按钮、输入框、待办项、收纳按钮等
   // 返回它们的视口矩形数组（含位置和尺寸）
   // 【优化】缓存避障矩形，避免拖拽时每帧重复 querySelectorAll
+  // 【内存优化】增加时间戳，300ms 内不重复查询 DOM
   let cachedAvoidRects = null;
   let avoidRectsDirty = true;  // 标记缓存是否失效
+  let avoidRectsTimestamp = 0; // 缓存时间戳
+  const AVOID_RECT_CACHE_TTL = 300; // 缓存有效期（毫秒）
 
   function invalidateAvoidRects() {
     avoidRectsDirty = true;
   }
 
   function getAvoidRects() {
-    // 缓存有效且未失效时直接返回，避免重复 DOM 查询
-    if (!avoidRectsDirty && cachedAvoidRects) {
+    const now = Date.now();
+    // 缓存有效且未失效且在有效期内时直接返回
+    if (!avoidRectsDirty && cachedAvoidRects && (now - avoidRectsTimestamp) < AVOID_RECT_CACHE_TTL) {
       return cachedAvoidRects;
     }
 
@@ -95,6 +99,7 @@
 
     cachedAvoidRects = rects;
     avoidRectsDirty = false;
+    avoidRectsTimestamp = Date.now();
     return rects;
   }
 
@@ -732,8 +737,16 @@
   // ---------- 9.9 空闲互动（合并原 inactivity + idle 双系统）----------
   // 统一的用户活动追踪：用户操作时重置，空闲时随机冒气泡/搭话
   // 替代原来两套独立的 resetInactivityTimer + resetIdleTimer
+  // 【优化】添加节流，避免 mousemove 频繁触发重置
+  let lastActivityTime = 0;
+  const ACTIVITY_THROTTLE_MS = 1000; // 1秒内不重复处理
 
   function onUserActivity() {
+    const now = Date.now();
+    // 节流：忽略高频事件（如 mousemove）
+    if (now - lastActivityTime < ACTIVITY_THROTTLE_MS) return;
+    lastActivityTime = now;
+
     // 重置空闲计时器
     if (inactivityTimer) clearTimeout(inactivityTimer);
     scheduleNextInactivityBubble();
@@ -765,10 +778,13 @@
 
   // 统一监听用户操作（原来分散在两处，现合并为一处）
   // 保存引用以便后续清理
-  const activityEvents = ['mousemove', 'keydown', 'click', 'touchstart'];
+  // 【优化】mousemove 使用节流，其他事件正常监听
+  const activityEvents = ['keydown', 'click', 'touchstart'];
   activityEvents.forEach(function (evt) {
     document.addEventListener(evt, onUserActivity, { passive: true });
   });
+  // mousemove 单独添加，使用节流
+  document.addEventListener('mousemove', onUserActivity, { passive: true });
   onUserActivity();
 
   // 页面卸载时清理监听器，防止内存泄漏
@@ -901,21 +917,76 @@
     }, 4100);
   }
 
-  // 行走拖尾
+  // 行走拖尾 - 【内存优化】使用对象池复用 DOM 元素，避免频繁创建/销毁
   let trailTimer = null;
+  const trailPool = [];      // 对象池
+  const trailActive = [];    // 当前活跃的拖尾元素
+  const TRAIL_POOL_SIZE = 8; // 对象池大小
+  const colors = ['#FFD700', '#FF6B6B', '#667eea', '#4ECDC4', '#FFE66D', '#FF8C42'];
+
+  // 初始化拖尾对象池
+  function initTrailPool() {
+    for (let i = 0; i < TRAIL_POOL_SIZE; i++) {
+      const trail = document.createElement('div');
+      trail.className = 'pet-trail';
+      trail.style.display = 'none';
+      petParticles.appendChild(trail);
+      trailPool.push(trail);
+    }
+  }
+
+  // 从对象池获取一个拖尾元素
+  function getTrailFromPool() {
+    // 优先从池中获取
+    if (trailPool.length > 0) {
+      return trailPool.pop();
+    }
+    // 池空了，复用最旧的活动元素
+    if (trailActive.length > 0) {
+      const oldest = trailActive.shift();
+      return oldest;
+    }
+    // 都不可用，创建新元素（兜底）
+    const trail = document.createElement('div');
+    trail.className = 'pet-trail';
+    petParticles.appendChild(trail);
+    return trail;
+  }
+
+  // 归还拖尾元素到对象池
+  function returnTrailToPool(trail) {
+    trail.style.display = 'none';
+    trail.style.transition = '';
+    trail.style.opacity = '';
+    trail.style.transform = '';
+    // 避免重复归还
+    if (trailPool.indexOf(trail) === -1 && trailActive.indexOf(trail) === -1) {
+      trailPool.push(trail);
+    }
+  }
+
   function startTrail() {
     if (trailTimer) return;
-    const colors = ['#FFD700', '#FF6B6B', '#667eea', '#4ECDC4', '#FFE66D', '#FF8C42'];
+    // 确保对象池已初始化
+    if (trailPool.length === 0 && trailActive.length === 0) {
+      initTrailPool();
+    }
     trailTimer = setInterval(function () {
       // 桌宠隐藏或未行走时跳过，避免无意义的 DOM 操作
       if (isHidden || !pet.classList.contains('walking')) return;
-      const trail = document.createElement('div');
-      trail.className = 'pet-trail';
+      const trail = getTrailFromPool();
       trail.style.background = colors[Math.floor(Math.random() * colors.length)];
       trail.style.left = (40 + Math.random() * 20) + '%';
       trail.style.bottom = '0px';
-      petParticles.appendChild(trail);
-      setTimeout(function () { trail.remove(); }, 800);
+      trail.style.display = 'block';
+      trail.style.opacity = '1';
+      trailActive.push(trail);
+      // 800ms 后归还到对象池
+      setTimeout(function () {
+        const idx = trailActive.indexOf(trail);
+        if (idx !== -1) trailActive.splice(idx, 1);
+        returnTrailToPool(trail);
+      }, 800);
     }, 150);
   }
 
@@ -1181,11 +1252,16 @@
   window.startPetMovement = startRandomMovement;
 
   // 检查是否到了日报时间（每晚 21:00）
+  // 【优化】使用智能调度，只在接近 21:00 时启动检查
   let dailyReportShown = false;
+  let dailyReportTimer = null;
+
   function checkDailyReportTime() {
     const now = new Date();
+    const hour = now.getHours();
+
     // 21:00 - 21:59 之间，且今日未显示过
-    if (now.getHours() === 21 && !dailyReportShown) {
+    if (hour === 21 && !dailyReportShown) {
       dailyReportShown = true;
       // 史迪奇弹出提醒
       if (window.petMood) {
@@ -1200,14 +1276,68 @@
         }, 100);
       }
     }
-    // 过了 25:00（实际是次日），重置标志
-    if (now.getHours() === 0) {
+
+    // 过了 24:00（次日），重置标志并重新调度
+    if (hour === 0) {
       dailyReportShown = false;
     }
+
+    // 【优化】智能调度：根据当前时间决定下次检查间隔
+    scheduleNextDailyReportCheck();
   }
-  // 每 60 秒检查一次时间
-  setInterval(checkDailyReportTime, 60000);
-  // 页面打开时也检查一次
+
+  function scheduleNextDailyReportCheck() {
+    // 清除旧定时器
+    if (dailyReportTimer) clearInterval(dailyReportTimer);
+    if (dailyReportTimeout) clearTimeout(dailyReportTimeout);
+
+    const now = new Date();
+    const hour = now.getHours();
+
+    let delay;
+    if (hour >= 21 && hour < 22) {
+      // 在 21:00-22:00 区间，每 30 秒检查一次
+      delay = 30000;
+      dailyReportTimer = setInterval(checkDailyReportTime, delay);
+    } else if (hour >= 20 && hour < 21) {
+      // 接近 21:00（前1小时），每 5 分钟检查一次
+      delay = 300000;
+      dailyReportTimer = setInterval(checkDailyReportTime, delay);
+    } else {
+      // 其他时间，计算到 20:00 的延迟，一次性定时器
+      const target = new Date(now);
+      target.setHours(20, 0, 0, 0);
+      if (now >= target) {
+        // 今天已过 20:00，等到明天 20:00
+        target.setDate(target.getDate() + 1);
+      }
+      delay = target.getTime() - now.getTime();
+      // 最大延迟不超过 24 小时
+      delay = Math.min(delay, 86400000);
+      dailyReportTimeout = setTimeout(function () {
+        checkDailyReportTime();
+        // 启动高频检查
+        dailyReportTimer = setInterval(checkDailyReportTime, 30000);
+      }, delay);
+    }
+  }
+
+  let dailyReportTimeout = null;
+
+  // 启动日报检查调度
+  scheduleNextDailyReportCheck();
+  // 页面打开时也检查一次（如果恰好在 21:00 附近）
   setTimeout(checkDailyReportTime, 5000);
+
+  // 页面隐藏时暂停日报检查，恢复时重启
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      if (dailyReportTimer) { clearInterval(dailyReportTimer); dailyReportTimer = null; }
+      if (dailyReportTimeout) { clearTimeout(dailyReportTimeout); dailyReportTimeout = null; }
+    } else {
+      scheduleNextDailyReportCheck();
+      checkDailyReportTime();
+    }
+  });
 
 })();

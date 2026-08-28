@@ -114,10 +114,22 @@ function render() {
   const activeIds = new Set(todos.map(function (t) { return t.id; }));
   nodeCache.forEach(function (node, id) {
     if (!activeIds.has(id)) {
+      // 【内存优化】清理该节点关联的 tooltip observer
+      if (tooltipObservers.has(node)) {
+        tooltipObservers.get(node).disconnect();
+        tooltipObservers.delete(node);
+      }
       node.remove();
       nodeCache.delete(id);
     }
   });
+
+  // 【内存优化】定期清理已移除元素的 tooltip observer（每 10 次 render 执行一次）
+  if (typeof renderCount === 'undefined') renderCount = 0;
+  renderCount++;
+  if (renderCount % 10 === 0) {
+    cleanupTooltipObservers();
+  }
 
   // 【v2.13.0】空状态显示/隐藏
   var emptyState = document.getElementById('emptyState');
@@ -131,10 +143,10 @@ function render() {
       var examplesEl = emptyState.querySelector('.empty-examples');
       if (isSticky) {
         if (titleEl) titleEl.textContent = '便签模式 · 轻量提醒';
-        // 读取用户实际设置的快捷键，写死 Alt+G 在自定义快捷键后会出错
+        // 【内存优化】使用缓存的 settings 解析结果
         var stickyShortcut = 'Alt+G';
         try {
-          var settings = JSON.parse(localStorage.getItem('settings') || '{}');
+          var settings = (typeof getCachedSettings === 'function') ? getCachedSettings() : JSON.parse(localStorage.getItem('settings') || '{}');
           if (settings.shortcuts && settings.shortcuts['toggle-sticky']) {
             stickyShortcut = settings.shortcuts['toggle-sticky'];
           }
@@ -522,7 +534,12 @@ function createTodoElement(todo) {
       timeline.appendChild(timelineBar);
       timeline.appendChild(timelineLabel);
       // 悬浮显示完整时间信息（使用 JS 动态创建 tooltip，挂载到 body 避免被 overflow 裁剪）
-      const tooltipText = '📅 ' + window.formatReminderText(startReminder.at) + '\n🏁 ' + window.formatReminderText(endReminder.at);
+      // 【修复】包含提前提醒信息
+      var tooltipText = '📅 ' + window.formatReminderText(startReminder.at) + '\n🏁 ' + window.formatReminderText(endReminder.at);
+      if (hasBefore) {
+        var beforeMins = Math.round((endReminder.at - beforeReminder.at) / MS_PER_MINUTE);
+        tooltipText += '\n⏰ 结束前 ' + beforeMins + ' 分钟提醒';
+      }
       timeline.setAttribute('data-tooltip', tooltipText);
       timeline.classList.add('has-tooltip');
       attachTooltip(timeline, tooltipText);
@@ -594,6 +611,9 @@ function hideAllTooltips() {
 }
 
 // 通用 tooltip 附件函数：JS 动态创建，position: fixed 脱离滚动容器裁剪
+// 全局 tooltip 清理追踪，防止 MutationObserver 泄漏
+const tooltipObservers = new WeakMap();
+
 function attachTooltip(element, text) {
   let tooltipEl = null;
 
@@ -660,17 +680,30 @@ function attachTooltip(element, text) {
 
   // 使用 MutationObserver 替代已废弃的 DOMNodeRemoved 事件
   // 当元素从 DOM 中移除时自动清理 tooltip，避免残留
+  // 【内存优化】使用 WeakMap 追踪 observer，确保元素被 GC 时 observer 也能被清理
   var cleanupObserver = new MutationObserver(function (mutations) {
     if (!document.contains(element)) {
       hideTooltip();
       document.removeEventListener('mousemove', onMouseMove);
       cleanupObserver.disconnect();
+      tooltipObservers.delete(element);
     }
   });
+  tooltipObservers.set(element, cleanupObserver);
   // 监听 document.body 的子节点变化（tooltip 的父元素通常是 body）
   if (element.parentNode) {
     cleanupObserver.observe(element.parentNode, { childList: true, subtree: true });
   }
+}
+
+// 【内存优化】清理已移除元素的 tooltip observer
+function cleanupTooltipObservers() {
+  tooltipObservers.forEach(function (observer, element) {
+    if (!document.contains(element)) {
+      observer.disconnect();
+      tooltipObservers.delete(element);
+    }
+  });
 }
 
 
@@ -705,8 +738,10 @@ function updateTimeline(li, todo) {
   let timeline = li.querySelector('.todo-timeline');
   const startR = todo.reminders && todo.reminders.find(function (r) { return r.type === 'start'; });
   const endR = todo.reminders && todo.reminders.find(function (r) { return r.type === 'end'; });
+  const beforeR = todo.reminders && todo.reminders.find(function (r) { return r.type === 'before'; });
   const hasStart = !!startR;
   const hasEnd = !!endR;
+  const hasBefore = !!beforeR;
   const deleteBtn = li.querySelector('.delete-btn');
 
   // 有开始+结束时间 → 确保时间轴存在
@@ -742,14 +777,30 @@ function updateTimeline(li, todo) {
     if (label) {
       label.textContent = window.formatTimeShort(startR.at) + ' - ' + window.formatTimeShort(endR.at);
     }
-    // 更新 tooltip
-    const tooltipText = '📅 ' + window.formatReminderText(startR.at) + '\n🏁 ' + window.formatReminderText(endR.at);
+    // 更新 tooltip（【修复】包含提前提醒信息）
+    var tooltipText = '📅 ' + window.formatReminderText(startR.at) + '\n🏁 ' + window.formatReminderText(endR.at);
+    if (hasBefore) {
+      var beforeMins = Math.round((endR.at - beforeR.at) / MS_PER_MINUTE);
+      tooltipText += '\n⏰ 结束前 ' + beforeMins + ' 分钟提醒';
+    }
+    // 【内存优化】移除旧的 tooltip observer 再重新绑定
+    if (tooltipObservers.has(timeline)) {
+      tooltipObservers.get(timeline).disconnect();
+      tooltipObservers.delete(timeline);
+    }
     timeline.setAttribute('data-tooltip', tooltipText);
     timeline.classList.add('has-tooltip');
     attachTooltip(timeline, tooltipText);
   } else {
     // 没有开始+结束时间 → 移除时间轴（如果有）
-    if (timeline) timeline.remove();
+    if (timeline) {
+      // 【内存优化】清理 tooltip observer
+      if (tooltipObservers.has(timeline)) {
+        tooltipObservers.get(timeline).disconnect();
+        tooltipObservers.delete(timeline);
+      }
+      timeline.remove();
+    }
   }
 }
 
