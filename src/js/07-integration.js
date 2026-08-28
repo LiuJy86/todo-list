@@ -392,8 +392,9 @@ const COMPLETE_TODO_TOASTS = [
 // 批量输入检测：判断文本是否以时间表达式开头
 // 支持：X点、X点X分、早上/上午/中午/下午/晚上/凌晨、明天/后天/大后天/今晚、
 //       周X、星期X、每X、X月X日、农历/阴历、数字时间（8:30）等
+//       相对时间：一分钟后、两分钟之后、三小时后、过10分钟、再过2小时、三天后等
 function isTimeStart(str) {
-  var timeStartRe = /^(?:\d{1,2}[点：:½]|[一二两三四五六七八九十百千]+点|早上|早晨|明早|上午|中午|下午|晚上|凌晨|今晚|今天|明天|后天|大后天|周[一二三四五六日]|星期[一二三四五六日天]|每\d*|农历|阴历|\d{1,2}月)/;
+  var timeStartRe = /^(?:\d{1,2}[点：:½]|[一二两三四五六七八九十百千]+点|早上|早晨|明早|上午|中午|下午|晚上|凌晨|今晚|今天|明天|后天|大后天|周[一二三四五六日]|星期[一二三四五六日天]|每\d*|农历|阴历|\d{1,2}月|(过|再过)?\s*\d*\s*(半|[一二两三四五六七八九十百]+)?\s*(分钟|分|小时|时|天|周|星期)\s*之?后?)/;
   return timeStartRe.test(str.trim());
 }
 
@@ -495,12 +496,6 @@ function addBatchTodos(batches) {
     window.petMood.excited();
     var msg = '已批量添加 ' + addedCount + ' 项待办！';
     window.petMood.toast(msg, 'success');
-  }
-
-  // 引导钩子
-  localStorage.setItem('guide_first_todo_added', '1');
-  if (window.Guide) {
-    window.Guide.checkCustomTips('todo-added');
   }
 
   return firstNewTodo;
@@ -613,14 +608,6 @@ function wrappedAddTodo() {
     window.petMood.toast(msg, 'success');
   }
 
-  // 【v2.25.0】引导钩子：首次添加成功 / 首次使用时间选择器
-  localStorage.setItem('guide_first_todo_added', '1');
-  if (remindAt || endRemindAt) {
-    localStorage.setItem('guide_datetime_used', '1');
-  }
-  if (window.Guide) {
-    window.Guide.checkCustomTips(remindAt ? 'datetime-used' : 'todo-added');
-  }
 }
 
 // 包装 toggleTodo：根据状态触发对应表情 + toast
@@ -652,13 +639,6 @@ function wrappedToggleTodo(id) {
     }
   }
 
-  // 【v2.25.0】引导钩子：首次完成待办
-  if (todo && todo.done && !wasDone) {
-    localStorage.setItem('guide_first_completed', '1');
-    if (window.Guide) {
-      window.Guide.checkCustomTips('todo-completed');
-    }
-  }
 }
 
 // 包装 deleteTodo：动画删除 → 表情 + toast 反馈（不再弹窗确认）

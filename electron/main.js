@@ -140,13 +140,14 @@ function getIconPath() {
   return path.join(__dirname, 'icon.png');
 }
 
-// 创建主窗口（isToolbar: 是否用 toolbar 类型，便签模式使用）
-function createWindow(isToolbar) {
+// 创建主窗口（isToolbar: 是否用 toolbar 类型，便签模式使用；showStart: 是否初始显示）
+function createWindow(isToolbar, showStart) {
   const config = {
     width: 480,
     height: 760,
     minWidth: 360,
     minHeight: 520,
+    show: showStart !== false,   // 默认显示；false = 创建时不显示（避免闪烁）
     title: 'ToDoList',
     icon: getIconPath(),
     autoHideMenuBar: true,        // 隐藏菜单栏
@@ -591,7 +592,19 @@ if (!gotLock) {
     // 启动时读取保存的设置并应用
     applySavedSettings();
 
-    createWindow();
+    // 【修复】读取 startHidden 设置，决定是否初始隐藏窗口
+    const mainSettings = loadMainSettings();
+    const shouldHide = !!mainSettings.startHidden;
+    console.log('[启动隐藏] settings.json 内容:', JSON.stringify(mainSettings));
+    console.log('[启动隐藏] shouldHide =', shouldHide);
+
+    createWindow(false, shouldHide);
+
+    // 如果设置了隐藏，确保窗口不显示
+    if (shouldHide && mainWindow) {
+      mainWindow.hide();
+    }
+
     createTray();
 
     // 注册全局快捷键
@@ -704,6 +717,23 @@ ipcMain.on('set-auto-start', function (_, enabled) {
   // 持久化到配置文件，下次启动时读取
   mainSettings.autoStart = enabled;
   saveMainSettings(mainSettings);
+});
+
+// 【修复】设置启动时隐藏（同步到主进程配置文件）
+ipcMain.on('set-start-hidden', function (_, enabled) {
+  const mainSettings = loadMainSettings();
+  mainSettings.startHidden = enabled;
+  saveMainSettings(mainSettings);
+  // 同步更新开机自启动的 openAsHidden 参数
+  if (mainSettings.autoStart) {
+    const exePath = app.getPath('exe');
+    app.setLoginItemSettings({
+      openAtLogin: true,
+      openAsHidden: enabled,
+      path: exePath !== 'electron.exe' ? exePath : undefined,
+      args: []
+    });
+  }
 });
 
 // 注册/修改快捷键（invoke 方式，返回结果给渲染进程）

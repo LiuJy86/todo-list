@@ -92,6 +92,10 @@ function initToggles() {
   startHiddenEl.addEventListener('change', function () {
     settings.startHidden = this.checked;
     saveSettings();
+    // 通知主进程同步设置（确保开机自启动时也能读取到）
+    if (window.electronAPI && window.electronAPI.setStartHidden) {
+      window.electronAPI.setStartHidden(this.checked);
+    }
   });
 }
 

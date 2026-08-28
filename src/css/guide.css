@@ -2,7 +2,6 @@
    用户引导组件样式 (v2.25.0)
    - Spotlight 高亮层
    - Card 说明卡片
-   - Tooltip 轻量气泡
    - 动画关键帧
    ============================================ */
 
@@ -194,106 +193,6 @@ body:has(#guide-overlay) .datetime-popover.open {
   transform: scale(0.96);
 }
 
-/* ===== Tooltip 轻量气泡 ===== */
-.guide-tooltip {
-  position: fixed;
-  max-width: 240px;
-  padding: 10px 14px;
-  background: var(--guide-tooltip-bg, rgba(40, 40, 60, 0.92));
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-  pointer-events: auto;
-  z-index: 3;
-  animation: guide-tooltip-in 0.25s ease;
-}
-
-@keyframes guide-tooltip-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.guide-tooltip--hiding {
-  animation: guide-fade-out 0.2s ease forwards;
-}
-
-@keyframes guide-fade-out {
-  from { opacity: 1; }
-  to   { opacity: 0; }
-}
-
-/* 气泡内容行 */
-.guide-tooltip__body {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.guide-tooltip__text {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--guide-tooltip-text, #ffffff);
-  flex: 1;
-}
-
-.guide-tooltip__close {
-  flex-shrink: 0;
-  padding: 2px 10px;
-  margin-left: 4px;
-  background: rgba(255, 255, 255, 0.15);
-  border: none;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease;
-  font-family: inherit;
-  line-height: 1.6;
-}
-
-.guide-tooltip__close:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-/* 气泡箭头 */
-.guide-tooltip__arrow {
-  position: absolute;
-  width: 0;
-  height: 0;
-  border: 6px solid transparent;
-}
-
-.guide-tooltip__arrow--bottom {
-  top: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-bottom-color: var(--guide-tooltip-bg, rgba(40, 40, 60, 0.92));
-}
-
-.guide-tooltip__arrow--top {
-  bottom: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-top-color: var(--guide-tooltip-bg, rgba(40, 40, 60, 0.92));
-}
-
-.guide-tooltip__arrow--right {
-  left: -12px;
-  top: 50%;
-  transform: translateY(-50%);
-  border-right-color: var(--guide-tooltip-bg, rgba(40, 40, 60, 0.92));
-}
-
-.guide-tooltip__arrow--left {
-  right: -12px;
-  top: 50%;
-  transform: translateY(-50%);
-  border-left-color: var(--guide-tooltip-bg, rgba(40, 40, 60, 0.92));
-}
-
 /* ===== 窄屏适配 ===== */
 @media (max-width: 480px) {
   .guide-card {
@@ -320,14 +219,5 @@ body:has(#guide-overlay) .datetime-popover.open {
   .guide-card__btn {
     padding: 6px 12px;
     font-size: 13px;
-  }
-
-  .guide-tooltip {
-    max-width: calc(100vw - 24px);
-    padding: 8px 12px;
-  }
-
-  .guide-tooltip__text {
-    font-size: 12px;
   }
 }

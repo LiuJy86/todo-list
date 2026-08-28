@@ -46,6 +46,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.send('set-auto-start', enabled);
   },
 
+  // 设置启动时隐藏（v2.24.0 修复）
+  setStartHidden: function (enabled) {
+    ipcRenderer.send('set-start-hidden', enabled);
+  },
+
   // 注册/修改快捷键
   // action: 'toggle-window' | 'toggle-sticky'
   // shortcut: 如 'Alt+F'
