@@ -937,24 +937,12 @@
         break;
 
       case 'modal-close-with-tooltip':
-        // 弹窗已打开时，隐藏卡片避免遮挡，显示轻量提示气泡
-        // 弹窗关闭后自动进入下一步
+        // 弹窗关闭后自动进入下一步（不显示提示气泡）
         var modalEl = document.querySelector(wait.target);
         if (modalEl) {
-          // 弹窗已存在，隐藏卡片和高亮框（不隐藏 overlay，否则 tooltip 也不可见）
+          // 弹窗已存在，隐藏卡片和高亮框
           if (cardEl) cardEl.style.visibility = 'hidden';
           hideSpotlight();
-          // 显示提示气泡（直接渲染，绕过 showTooltip 的 running 状态检查）
-          if (wait.tooltip) {
-            _renderTooltip({
-              id: 'guide-step-tooltip',
-              content: wait.tooltip,
-              position: 'top',
-              anchor: wait.target,
-              dismissible: false,
-              autoHide: null
-            });
-          }
           // 监听弹窗关闭
           var modalParent = modalEl.parentNode;
           var modalObs = new MutationObserver(function (muts) {
@@ -963,7 +951,6 @@
               for (var j = 0; j < removed.length; j++) {
                 if (removed[j] === modalEl || (removed[j] && removed[j].contains && removed[j].contains(modalEl))) {
                   untrackModalObserver(modalObs);
-                  dismissTip('guide-step-tooltip');
                   if (cardEl) cardEl.style.visibility = '';
                   onStepActionComplete(step);
                   return;
@@ -975,7 +962,6 @@
           modalObs.observe(modalParent, { childList: true, subtree: true });
           phaseCleanup = function () {
             untrackModalObserver(modalObs);
-            dismissTip('guide-step-tooltip');
             if (cardEl) cardEl.style.visibility = '';
           };
         } else {
@@ -987,17 +973,6 @@
               // 弹窗出现了，隐藏卡片和高亮框
               if (cardEl) cardEl.style.visibility = 'hidden';
               hideSpotlight();
-              // 显示提示气泡
-              if (wait.tooltip) {
-                _renderTooltip({
-                  id: 'guide-step-tooltip',
-                  content: wait.tooltip,
-                  position: 'top',
-                  anchor: wait.target,
-                  dismissible: false,
-                  autoHide: null
-                });
-              }
               // 监听关闭
               var mp = m.parentNode;
               var closeObs = new MutationObserver(function (muts) {
@@ -1006,7 +981,6 @@
                   for (var j = 0; j < removed.length; j++) {
                     if (removed[j] === m || (removed[j] && removed[j].contains && removed[j].contains(m))) {
                       untrackModalObserver(closeObs);
-                      dismissTip('guide-step-tooltip');
                       if (cardEl) cardEl.style.visibility = '';
                       onStepActionComplete(step);
                       return;
@@ -1018,7 +992,6 @@
               closeObs.observe(mp, { childList: true, subtree: true });
               phaseCleanup = function () {
                 untrackModalObserver(closeObs);
-                dismissTip('guide-step-tooltip');
                 if (cardEl) cardEl.style.visibility = '';
               };
             }
@@ -1027,7 +1000,6 @@
           appearObs.observe(document.body, { childList: true, subtree: true });
           phaseCleanup = function () {
             untrackModalObserver(appearObs);
-            dismissTip('guide-step-tooltip');
             if (cardEl) cardEl.style.visibility = '';
           };
         }
