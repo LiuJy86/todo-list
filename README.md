@@ -83,6 +83,39 @@ npm run build:portable
 
 ---
 
+## 项目结构
+
+```
+todo-list/
+├── electron/              # Electron 主进程
+│   ├── main.js           # 主进程入口、窗口管理、IPC
+│   ├── preload.js        # 预加载脚本
+│   └── icon.png          # 应用图标
+├── src/                   # 渲染进程
+│   ├── index.html        # 主页面
+│   ├── settings.html     # 设置页面
+│   ├── user_guide.html   # 操作指南
+│   ├── reminder.html     # 提醒窗口
+│   ├── js/
+│   │   ├── 01-data.js    # 数据层
+│   │   ├── 02-render.js  # 渲染层
+│   │   ├── 03-crud.js    # 增删改查
+│   │   ├── 04-pet.js     # 桌宠模块
+│   │   ├── 05-datetime.js # 日期选择器
+│   │   ├── 06-reminder.js # 提醒模块
+│   │   ├── 07-integration.js # 整合层
+│   │   ├── 09-guide.js   # 引导系统
+│   │   ├── reminder-window.js # 提醒窗口脚本
+│   │   └── lunar-data.js # 农历数据
+│   └── css/              # 样式文件
+├── docs/                  # 文档
+│   └── CHANGELOG.md      # 更新日志
+├── package.json           # 项目配置
+└── LICENSE                # MIT 许可证
+```
+
+---
+
 ## 关于
 
 > 激流之中，唯有勇士能锚定方向。
